@@ -1,0 +1,34 @@
+#include "osal_sysinfo.h"
+#include "osal_app_desc_posix.h"
+
+/* Embed the OTA self-describing app descriptor in this translation unit so
+ * the linker pulls it in alongside the referenced sysinfo getters below.
+ * Defining it in a stand-alone source under a static archive caused
+ * `--gc-sections` / Mach-O dead-strip to drop the descriptor, leaving the
+ * magic absent from the final binary. */
+const osal_app_desc_embed_t
+__attribute__((section(OSAL_APP_DESC_SECTION)))
+__attribute__((used))
+g_platform_common_app_desc = {
+    .magic = OSAL_APP_DESC_MAGIC,
+    .secure_version = 0,
+    .version = "@PROJECT_VER@",
+    .project_name = "@PROJECT_NAME@",
+    .app_elf_sha256 = {0},
+    .crc32 = 0x@PROJECT_APP_DESC_CRC@u,
+};
+
+const char *osal_sysinfo_get_fw_version(void)
+{
+    return g_platform_common_app_desc.version;
+}
+
+const char *osal_sysinfo_get_project_name(void)
+{
+    return g_platform_common_app_desc.project_name;
+}
+
+const char *osal_sysinfo_get_platform_name(void)
+{
+    return "posix";
+}

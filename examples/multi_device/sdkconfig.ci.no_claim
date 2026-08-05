@@ -1,0 +1,5 @@
+# CI-only: build without claiming, i.e. credentials are pre-flashed into the factory
+# partition by the host-side factory tooling.
+# Assisted claiming defaults to enabled whenever BLE is on, so this profile keeps the
+# no-claiming path (claim.c excluded, core lifecycle hooks compiled out) covered.
+CONFIG_ESP_RMAKER_ASSISTED_CLAIM=n

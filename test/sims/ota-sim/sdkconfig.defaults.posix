@@ -1,0 +1,15 @@
+# Same style as ESP-IDF defaults.
+
+# Enlarge the MQTT buffer and block sizes for faster downloads.
+# Change this to what suits your POSIX system best.
+CONFIG_OSAL_MQTT_IMPL_CORE=y
+CONFIG_OSAL_MQTT_CORE_NETWORK_BUFFER_SIZE=4096
+CONFIG_RMNG_OTA_TRANSPORT_MQTT=y
+# AWS IoT caps a single request at 128KB: block_size * blocks_per_request < 128KB.
+# These two configuration options must be adjusted together.
+# 3584 * 32 = 112KB < 128KB.
+CONFIG_RMNG_OTA_MQTT_BLOCK_SIZE=3584
+CONFIG_RMNG_OTA_MQTT_BLOCKS_PER_REQUEST=32
+
+# Enable OTA resume: interrupted downloads continue from the last persisted tracker.
+CONFIG_RMNG_OTA_RESUME=y

@@ -1,0 +1,147 @@
+# Python integration tests (test/). Requires CI variables and Secure Files; see job script.
+# Optional: set PYTEST_MAX_CONCURRENT_BUILD_JOBS (GitLab CI/CD variable) to cap concurrent
+# CMake/Ninja/idf.py builds in the firmware manager server; pytest defaults to 2 if unset.
+variables:
+  RMNG_BACKEND_CLONE_DIR: "$CI_PROJECT_DIR/rmng-backend"
+
+.integration_tests_posix_base:
+  extends:
+    - .test_template
+    - .posix_env_template
+  rules:
+    - !reference [.rules_tests_gate, rules]
+  # Provisions and tears down real cloud resources; a mid-run cancel would orphan
+  # them and skip teardown. Override .test_template's interruptible:true so
+  # workflow:auto_cancel never kills this job once it has started.
+  interruptible: false
+  timeout: 3h
+  variables:
+    COVERAGE_REPORTS_DIR: "${CI_PROJECT_DIR}/coverage_reports"
+    TEST_REPORT_DIR: "${CI_PROJECT_DIR}/test_reports"
+    # Marker expression passed to pytest -m. Overridden per job.
+    PYTEST_MARKER_EXPR: ""
+    # Space-separated test files (relative to test/) skipped in every job. Each becomes a
+    # pytest --ignore. Bridge support is an opt-in enterprise backend package, so the bridge
+    # suite cannot run against a stock backend deployment.
+    PYTEST_EXCLUDED_TEST_FILES: "test_bridge.py"
+  script:
+    - |
+      set -euo pipefail
+
+      # Clone the RainMaker Neo backend (shallow: only a checkout is needed, not history).
+      git config --global url."https://${CI_GITLAB_USERNAME_RAINMAKER}:${CI_GITLAB_PASSWORD_RAINMAKER}@gitlab.espressif.cn:6688/esp_rainmaker/".insteadOf "https://gitlab.espressif.cn:6688/esp_rainmaker/"
+      git config --global url."https://${CI_GITLAB_USERNAME_APP_FRAMEWORKS}:${CI_GITLAB_PASSWORD_APP_FRAMEWORKS}@gitlab.espressif.cn:6688/app-frameworks/".insteadOf "https://gitlab.espressif.cn:6688/app-frameworks/"
+      rm -rf "${RMNG_BACKEND_CLONE_DIR}"
+      git clone --depth 1 --shallow-submodules --recursive "${CI_RMNG_BACKEND_REPO_HTTPS_URL}" "${RMNG_BACKEND_CLONE_DIR}"
+      export RMNG_BACKEND_DIR="${RMNG_BACKEND_CLONE_DIR}"
+
+      # Setup Python environment
+      python3 -m venv "${CI_PROJECT_DIR}/.venv"
+      source "${CI_PROJECT_DIR}/.venv/bin/activate"
+      pip install -r "${RMNG_BACKEND_DIR}/requirements.txt"
+      pip install -r "${CI_PROJECT_DIR}/test/requirements.txt"
+
+      # Download credentials
+      mkdir -p "${CI_PROJECT_DIR}/tools/common/credentials_store/general"
+      curl -fsSL "${CI_RMNG_OUTPUTS_JSON_URL}" -o "${CI_PROJECT_DIR}/tools/common/credentials_store/general/rmng-outputs.json"
+      mkdir -p "${CI_PROJECT_DIR}/tools/common/credentials_store/ota"
+      OTA_CERT_NAME="${CI_RMNG_OTA_TEST_CERT_SECURE_FILE_NAME:-ota-test-cert-ecdsa.pem}"
+      FILE_ID="$(secure_file_id_by_name "${OTA_CERT_NAME}")"
+      if [ -z "${FILE_ID}" ]; then
+        echo "No secure file named ${OTA_CERT_NAME} (Project Settings > CI/CD > Secure Files)."
+        exit 1
+      fi
+      echo "Secure file ID for ${OTA_CERT_NAME}: ${FILE_ID}"
+      download_secure_file "${FILE_ID}" "${CI_PROJECT_DIR}/tools/common/credentials_store/ota/ota-test-cert-ecdsa.pem"
+
+      # Configure AWS credentials
+      aws configure set aws_access_key_id "${CI_RMNG_AWS_BOT_ACCESS_KEY_ID}" --profile bot
+      aws configure set aws_secret_access_key "${CI_RMNG_AWS_BOT_SECRET_ACCESS_KEY}" --profile bot
+      export AWS_PROFILE=bot
+      # Set AWS_REGION from rmng-outputs.json ("rmng-base" -> "StackRegion")
+      export AWS_REGION=$(jq -r '.["rmng-base"].StackRegion' "${CI_PROJECT_DIR}/tools/common/credentials_store/general/rmng-outputs.json")
+
+      # Write a dummy .env file
+      echo "ESP_WIFI_SSID=dummy_ssid" > "${CI_PROJECT_DIR}/.env"
+      echo "ESP_WIFI_PASSWORD=dummy_password" >> "${CI_PROJECT_DIR}/.env"
+      echo "ESP_THREAD_ACTIVE_DATASET=deadbeef" >> "${CI_PROJECT_DIR}/.env"
+
+      # D-Bus system bus + Avahi (posix_test image): required for mDNS
+      mkdir -p /run/dbus
+      dbus-daemon --system --fork
+      avahi-daemon --no-chroot --daemonize
+
+      # Detect black-holed IPv6 on this runner. If the broker publishes an IPv6 address
+      # but a v6 connect stalls (SYN dropped), firmware wastes ~60s per connect before
+      # falling back to IPv4. When detected, build with CONFIG_OSAL_MQTT_CORE_FORCE_IPV4=y.
+      PYTEST_EXTRA_ARGS=""
+      RMNG_OUTPUTS_JSON="${CI_PROJECT_DIR}/tools/common/credentials_store/general/rmng-outputs.json"
+      BROKER_HOST="$(jq -r '.["rmng-base"].IoTEndpointUrl // empty' "${RMNG_OUTPUTS_JSON}" 2>/dev/null || true)"
+      if [ -n "${BROKER_HOST}" ] && \
+         python3 "${CI_PROJECT_DIR}/tools/common/util/detect_ipv6_blackhole.py" "${BROKER_HOST}" 8883; then
+        echo "IPv6 black-holed on this runner; forcing IPv4 firmware builds (--force-ipv4)."
+        PYTEST_EXTRA_ARGS="--force-ipv4"
+      else
+        echo "IPv6 OK / no AAAA / fast-fail; using default dual-stack firmware builds."
+      fi
+
+      # Run tests (POSIX merged HTML/XML under test/build/coverage_reports/posix-merged-coverage)
+      cd "${CI_PROJECT_DIR}/test"
+      mkdir -p "${TEST_REPORT_DIR}"
+
+      # Turn PYTEST_EXCLUDED_TEST_FILES into --ignore args; fail loudly on a stale path so a
+      # renamed/removed file does not silently stop excluding anything.
+      PYTEST_IGNORE_ARGS=""
+      for excluded in ${PYTEST_EXCLUDED_TEST_FILES:-}; do
+        if [ ! -e "${excluded}" ]; then
+          echo "PYTEST_EXCLUDED_TEST_FILES lists ${excluded}, which does not exist under ${CI_PROJECT_DIR}/test."
+          exit 1
+        fi
+        echo "Excluding ${excluded} from the pytest run."
+        PYTEST_IGNORE_ARGS="${PYTEST_IGNORE_ARGS} --ignore=${excluded}"
+      done
+
+      # Exit 5 means "no tests collected", which is a legitimate outcome once the marker
+      # expression and the exclusions above leave nothing to run (e.g. the stress job when
+      # every stress test lives in an excluded file). Treat only that code as success.
+      set +e
+      pytest -n auto -v --no-esp --reruns 2 --reruns-delay 30 -m "${PYTEST_MARKER_EXPR}" \
+        ${PYTEST_IGNORE_ARGS} ${PYTEST_EXTRA_ARGS} \
+        --html="${TEST_REPORT_DIR}/report.html" --self-contained-html
+      PYTEST_RC=$?
+      set -e
+      if [ "${PYTEST_RC}" -eq 5 ]; then
+        echo "pytest collected no tests for marker '${PYTEST_MARKER_EXPR}' after exclusions; treating as success."
+      elif [ "${PYTEST_RC}" -ne 0 ]; then
+        exit "${PYTEST_RC}"
+      fi
+
+    - |
+      # Copy coverage reports to artifacts if the source exists
+      if [ -d "${CI_PROJECT_DIR}/test/build/coverage_reports/posix-merged-coverage/" ]; then
+        cp -ar "${CI_PROJECT_DIR}/test/build/coverage_reports/posix-merged-coverage/" "${COVERAGE_REPORTS_DIR}/"
+      fi
+  artifacts:
+    when: always
+    paths:
+      - "${COVERAGE_REPORTS_DIR}/"
+      - "${TEST_REPORT_DIR}/"
+    expire_in: 1 week
+  needs: ["unit_tests_posix"]
+
+# Non-stress: runs on the normal gate.
+integration_tests_posix:
+  extends: .integration_tests_posix_base
+  rules:
+    - !reference [.rules_tests_gate, rules]
+  variables:
+    PYTEST_MARKER_EXPR: "not stress"
+
+# Stress: long-running, manual-only (start from the pipeline UI when needed).
+integration_tests_posix_stress:
+  extends: .integration_tests_posix_base
+  allow_failure: true
+  rules:
+    - !reference [.rules_tests_gate_manual, rules]
+  variables:
+    PYTEST_MARKER_EXPR: "stress"

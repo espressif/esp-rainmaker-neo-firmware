@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest an addition or a change to the SDK
+labels: ['Type: Feature Request']
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Answers checklist
+      options:
+        - label: I have searched existing issues and did not find the same request.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: >
+        What you are trying to build, and where the SDK gets in the way. Describe the problem
+        rather than the solution — it often has a cheaper answer than the one that comes to mind.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Which platforms would this need to cover?
+      description: >
+        Every component here builds for both ESP-IDF and POSIX from one source tree, so a
+        feature that only makes sense on one of them needs a plan for the other.
+      multiple: false
+      options:
+        - Both ESP-IDF and POSIX
+        - ESP-IDF only (with a POSIX stub)
+        - POSIX only (host tooling or tests)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What have you tried or considered?
+      description: Workarounds you are using today, and why they are not enough.
+    validations:
+      required: false

@@ -1,0 +1,261 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  BUILD_DIR: build
+  # Docs toolchain image, used by the jobs in .gitlab/docs.yml.
+  #
+  # Must ship Python >= 3.9: docs/requirements.txt pins sphinx-external-toc,
+  # which declares requires-python >=3.9.
+  ESP_DOCS_ENV_IMAGE: "${CI_REGISTRY}/ci/images/idf-v6.0-docs:1"
+
+stages:
+  - prepare
+  - lint
+  - build
+  - test
+  # API reference docs (.gitlab/docs.yml). build_docs sets needs: [] and so
+  # ignores this position; the deploy jobs run in the deploy stage.
+  - docs
+  - deploy
+
+before_script:
+  - |
+    function build_posix_target_dir() {
+      local TARGET_REL_PATH="$1"
+      local TARGET_BUILD_DIR_ABS="$2"
+      local CMAKE_FLAGS="$3"
+      local PROJECT_DIR="$CI_PROJECT_DIR/$TARGET_REL_PATH"
+
+      echo "Building inside: $PROJECT_DIR into $TARGET_BUILD_DIR_ABS with flags: $CMAKE_FLAGS"
+
+      cmake -S "$PROJECT_DIR" -B "$TARGET_BUILD_DIR_ABS" -GNinja $CMAKE_FLAGS
+      cmake --build "$TARGET_BUILD_DIR_ABS"
+    }
+  - |
+    function build_app_posix() {
+      local APP_PATH="$1"
+      local APP_PATH_ABS="$CI_PROJECT_DIR/$APP_PATH"
+      local APP_OUTPUT_DIR_ABS="$2"
+      local APP_NAME=$(basename "$APP_PATH")
+      mkdir -p "$APP_OUTPUT_DIR_ABS"
+
+      # Build with default configuration
+      local BUILD_DIR_DEFAULT="${APP_OUTPUT_DIR_ABS}/${BUILD_DIR}_default"
+      build_posix_target_dir "$APP_PATH" "$BUILD_DIR_DEFAULT"
+
+      # Build with all CI configurations: the variants shared by every example, plus any an
+      # example carries on its own. Keep in sync with --config-rules in .gitlab/examples.yml.
+      #
+      # Both sources map to ${BUILD_DIR}_${suffix}, so an example that re-adds a variant using a
+      # shared name would build twice into one directory and the second would silently win (and
+      # on the ESP side, two --config-rules would produce the same config name). Fail loudly
+      # instead: a shadowed variant is always a mistake, since the shared one already applies to
+      # every example.
+      local seen_suffixes=""
+      for config_file in "$CI_PROJECT_DIR"/examples/common/ci-sdkconfig/sdkconfig.ci.* "$APP_PATH_ABS"/sdkconfig.ci.*; do
+        if [[ -f "$config_file" ]]; then
+          local suffix=$(basename "$config_file" | sed 's/sdkconfig\.ci\.//')
+          if [[ " $seen_suffixes " == *" $suffix "* ]]; then
+            echo "ERROR: $APP_PATH defines sdkconfig.ci.$suffix, which shadows the shared variant" >&2
+            echo "       in examples/common/ci-sdkconfig/. Rename one of them." >&2
+            return 1
+          fi
+          seen_suffixes="$seen_suffixes $suffix"
+          local build_dir="${APP_OUTPUT_DIR_ABS}/${BUILD_DIR}_${suffix}"
+          build_posix_target_dir "$APP_PATH" "$build_dir" "-DSDKCONFIG_DEFAULTS=$config_file"
+        fi
+      done
+    }
+  - |
+    # Collect the artifact for one finished ESP-IDF build dir: a size-components
+    # report (text). Binaries themselves are NOT kept — they're too large to upload
+    # (a grouped multi-target job blew GitLab's max-artifact-size). The report is
+    # labelled by the real project name from build metadata (a name-from-dir guess
+    # breaks when the project name contains underscores, e.g. temp_sensor).
+    #
+    # We do NOT call `idf.py size-components`: idf.py runs ensure_build_directory +
+    # run_target('all') first, which reconfigures and REBUILDS the whole app before
+    # reading sizes (very expensive, and re-triggers per call). The size-components
+    # ninja target itself just runs `python -m esp_idf_size --archives <mapfile>`
+    # on the linker .map already sitting in the build dir (see
+    # tools/cmake/project.cmake -> add_custom_target(size-components)). We invoke
+    # that tool directly on the .map: same report, zero rebuild, no cmake/ninja.
+    # Usage: collect_esp_build_artifacts <build_dir> <reports_dir> [target]
+    function collect_esp_build_artifacts() {
+      local build_dir="$1"
+      local reports_dir="$2"
+      local target="$3"
+      [ -d "$build_dir" ] || return 0
+      [ -f "$build_dir/project_description.json" ] || return 0
+      local desc="$build_dir/project_description.json"
+      local project_name
+      # Use .get (never KeyError) and tolerate failures: this runs under `set -e`,
+      # so an unguarded non-zero command here would abort the whole job.
+      project_name=$(python -c "import json;print(json.load(open('$desc')).get('project_name',''))" 2>/dev/null) || true
+      [ -n "$project_name" ] || project_name=$(basename "$build_dir" | sed -E 's/_.*$//')
+      # idf-build-apps names each build dir "@n_@w" (@w = config name: "default"
+      # for sdkconfig.defaults, the suffix for sdkconfig.ci.<suffix>). One app
+      # builds several configs, so the config MUST be in the report filename or
+      # they overwrite each other (last config wins). Strip the resolved
+      # project_name prefix to recover @w; if it doesn't match (@n != project_name)
+      # the full basename is kept, still unique.
+      local bn; bn=$(basename "$build_dir")
+      local config="${bn#${project_name}_}"
+      # Map file is "${build_dir}/${CMAKE_PROJECT_NAME}.map" (project.cmake); the
+      # project_name above IS CMAKE_PROJECT_NAME. Fall back to the first *.map.
+      local map_file="$build_dir/${project_name}.map"
+      [ -f "$map_file" ] || map_file=$(ls "$build_dir"/*.map 2>/dev/null | head -n1)
+      # Output format: csv (default), text, or json. Override with ESP_SIZE_FORMAT
+      # as a CI/CD var. Report file extension follows the format.
+      local fmt="${ESP_SIZE_FORMAT:-csv}"
+      local ext="$fmt"; [ "$fmt" = "text" ] && ext="txt"
+      mkdir -p "$reports_dir"
+      echo "size-components: ${target:+$target/}$project_name [$config] (format=$fmt)"
+      local report="$reports_dir/${project_name}-${config}-size-components.${ext}"
+      if [ -n "$map_file" ] && [ -f "$map_file" ]; then
+        python -m esp_idf_size --format "$fmt" --archives "$map_file" > "$report" 2>&1 \
+          || echo "WARN: esp_idf_size failed for $map_file" >&2
+      else
+        echo "WARN: no .map file in $build_dir; skipping size report for $project_name" >&2
+      fi
+    }
+  - |
+    # Resolve a project secure file numeric ID by exact filename (requires jq on PATH).
+    # Uses CI_JOB_TOKEN; API base is CI_API_V4_URL or ${CI_SERVER_URL}/api/v4.
+    # Usage: FILE_ID=$(secure_file_id_by_name "your-filename.pem")
+    function secure_file_id_by_name() {
+      local name="${1:?secure_file_id_by_name: missing filename}"
+      if ! command -v jq >/dev/null 2>&1; then
+        echo "secure_file_id_by_name: jq is required (apt-get install -y jq)" >&2
+        return 1
+      fi
+      local api_base="${CI_API_V4_URL:-${CI_SERVER_URL}/api/v4}"
+      api_base="${api_base%/}"
+      local json
+      json="$(curl -fsS --request GET --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_base}/projects/${CI_PROJECT_ID}/secure_files")"
+      echo "${json}" | jq -r --arg n "${name}" '.[] | select(.name == $n) | .id' | head -n1
+    }
+  - |
+    # Download one CI/CD secure file by ID (same API base as secure_file_id_by_name).
+    # glab securefile download often 404s on self-managed GitLab; use REST instead:
+    # GET /projects/:id/secure_files/:id/download — https://docs.gitlab.com/ee/api/secure_files.html
+    # Usage: download_secure_file <secure_file_id> <destination_path>
+    function download_secure_file() {
+      local secure_file_id="${1:?download_secure_file: missing secure file id}"
+      local dest_path="${2:?download_secure_file: missing destination path}"
+      mkdir -p "$(dirname "${dest_path}")"
+      local api_base="${CI_API_V4_URL:-${CI_SERVER_URL}/api/v4}"
+      api_base="${api_base%/}"
+      curl -fsSL --request GET \
+        --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        "${api_base}/projects/${CI_PROJECT_ID}/secure_files/${secure_file_id}/download" \
+        -o "${dest_path}"
+    }
+  - |
+    # Make a (shallow-cloned) repo contain a specific base commit so a diff can be
+    # taken against it — without resorting to a full GIT_DEPTH:0 clone. The MR diff
+    # base (CI_MERGE_REQUEST_DIFF_BASE_SHA) is the merge-base, hence an ancestor of
+    # HEAD, so progressively deepening the current branch is guaranteed to reach it.
+    # Fast path: try a direct single-commit fetch first (works where the server
+    # allows want-SHA); otherwise --deepen in widening steps.
+    # Usage: ensure_base_sha <base_sha>  (returns non-zero if it can't be resolved)
+    function ensure_base_sha() {
+      local base="${1:?ensure_base_sha: missing base sha}"
+      git cat-file -e "${base}^{commit}" 2>/dev/null && return 0
+      git fetch --depth=1 origin "$base" 2>/dev/null \
+        && git cat-file -e "${base}^{commit}" 2>/dev/null && return 0
+      local depth=32
+      for _ in 1 2 3 4 5 6 7 8; do
+        git fetch --deepen="$depth" 2>/dev/null || true
+        git cat-file -e "${base}^{commit}" 2>/dev/null && return 0
+        depth=$((depth * 2))
+      done
+      return 1
+    }
+
+.job_rules:
+  rules:
+    # Always run for merge requests
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: on_success
+    # Set to manual for regular commits
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+
+# Build stage gate: run on MRs that touch firmware-relevant paths; push = manual.
+# MRs with no relevant changes are skipped entirely.
+# Always clone shallow (GIT_DEPTH:1). On MRs the change-detection in examples.yml
+# uses ensure_base_sha() to fetch/deepen just enough to reach the diff base,
+# avoiding a full-history clone; push/manual builds build everything and never diff.
+.rules_build_gate:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - components/**/*
+          - examples/**/*
+          - test/**/*
+          - .gitlab/**/*
+          - .gitlab-ci.yml
+      when: on_success
+      variables:
+        GIT_DEPTH: "1"
+    - if: $CI_MERGE_REQUEST_IID
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+      variables:
+        GIT_DEPTH: "1"
+
+# Test stage gate: components/ or test/ changes; push = manual.
+.rules_tests_gate:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - components/**/*
+          - test/**/*
+          - .gitlab/**/*
+          - .gitlab-ci.yml
+      when: on_success
+    - if: $CI_MERGE_REQUEST_IID
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+
+# Same gate as .rules_tests_gate, but always manual (for long/optional jobs).
+.rules_tests_gate_manual:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - components/**/*
+          - test/**/*
+          - .gitlab/**/*
+          - .gitlab-ci.yml
+      when: manual
+    - if: $CI_MERGE_REQUEST_IID
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+
+.lint_template:
+  stage: lint
+  tags: [lint]
+  rules:
+    - !reference [.job_rules, rules]
+
+.build_template:
+  stage: build
+  tags: [build]
+  # Safe to cancel when a new commit supersedes the pipeline (see workflow:auto_cancel
+  # in .gitlab-ci.yml). Jobs that allocate external resources opt out individually.
+  interruptible: true
+  rules:
+    - !reference [.job_rules, rules]
+
+.test_template:
+  stage: test
+  tags: [test]
+  interruptible: true
+  rules:
+    - !reference [.job_rules, rules]

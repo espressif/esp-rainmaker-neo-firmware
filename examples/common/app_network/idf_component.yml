@@ -1,0 +1,12 @@
+## IDF Component Manager Manifest File
+version: "0.8.0"
+description: "Network provisioning and RMNG bring-up for the examples. Wi-Fi/Thread on ESP-IDF, no-op on POSIX."
+license: "CC0-1.0"
+dependencies:
+  # Reuse external dependencies from rmaker_app_network
+  espressif/rmaker_app_network:
+    version: "^1.4.5"
+    require: public
+  # app_network_provision.c drives the RMNG pre-provisioning flow.
+  esp_rmaker_neo:
+    path: ../../../components/esp_rmaker_neo

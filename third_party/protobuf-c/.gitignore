@@ -1,0 +1,2 @@
+# FetchContent cross-process locks (see cmake/fetch_helpers.cmake)
+.rmng-fc-*.lock

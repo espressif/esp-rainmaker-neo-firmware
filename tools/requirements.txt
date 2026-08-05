@@ -1,0 +1,20 @@
+# Dependencies for the tools under this directory and the shared common/ library.
+#
+# common/ is imported by both these tools and the test/ suite, so its full
+# dependency set lives here even where only test/ exercises it today
+# (pexpect -> util.proc_manager, filelock -> util.build_job_slot).
+
+boto3>=1.42.52
+cryptography>=42.0.1
+requests>=2.32.0
+esptool>=5.2.0
+esp-matter-mfg-tool==1.0.23
+esp_idf_nvs_partition_gen>=0.1.9
+jsonschema==4.26.0
+protobuf==6.33.5
+zeroconf==0.148.0
+gitignorefile==1.1.2
+python-dotenv==1.2.1
+pexpect>=4.9.0
+filelock>=3.16.0
+shortuuid>=1.0.13

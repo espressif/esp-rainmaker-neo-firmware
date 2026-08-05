@@ -1,0 +1,6 @@
+version: "0.8.0"
+description: "Shared utilities for the ESP RainMaker Neo Firmware SDK: MQTT glue, work queue, credentials, crypto helpers, error types and public events."
+license: "Apache-2.0"
+dependencies:
+  osal:
+    path: ../osal

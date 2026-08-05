@@ -1,0 +1,152 @@
+# osal component Kconfig.
+# (platform/Kconfig.posix is POSIX-only and registered separately via kconfig_reg.cmake;
+# ESP-IDF must not see it.)
+
+menu "platform-common Build Options"
+
+    config OSAL_USING_VIRTUAL_SCHEDULER
+        bool "Use virtual scheduler"
+        default n
+        help
+            If set to true, then the virtual scheduler is used in place of the implementation set in
+            OSAL_TIMER_IMPL.
+
+    menu "Virtual Scheduler Configuration"
+        depends on OSAL_USING_VIRTUAL_SCHEDULER
+
+        config OSAL_VIRTUAL_SCHEDULER_RESOLUTION_MS
+            int "Resolution (ms)"
+            default 50
+            range 10 100
+            help
+                Resolution of the virtual scheduler in milliseconds.
+                This is the time between each scheduler loop, where due times are checked and tasks are executed.
+
+        config OSAL_VIRTUAL_SCHEDULER_EXECUTIONS_MAX
+            int "Executions max"
+            default 10
+            range 1 100
+            help
+                Maximum number of executions to perform for a task in a single iteration.
+                This is to prevent a periodic task from having too many executions due to time advancement.
+
+        config OSAL_VIRTUAL_SCHEDULER_TASK_STACK_SIZE
+            int "Task stack size"
+            default 3172
+            range 2048 4096
+            help
+                Stack size of the underlying task used by the virtual scheduler.
+
+        config OSAL_VIRTUAL_SCHEDULER_TASK_PRIORITY
+            int "Task priority"
+            default 1
+            range 1 10
+            help
+                Priority of the underlying task used by the virtual scheduler.
+
+    endmenu
+
+    choice OSAL_TIMER_IMPL
+        depends on IDF_CMAKE
+        bool "Timer implementation (ESP-IDF)"
+        default OSAL_TIMER_IMPL_FREERTOS
+
+        config OSAL_TIMER_IMPL_ESP
+            bool "esp_timer"
+            help
+                Use esp_timer. Use only if high timing precision is required, since other system peripherals
+                (e.g., Wi-Fi) also depend on this timer.
+
+        config OSAL_TIMER_IMPL_FREERTOS
+            bool "FreeRTOS software timers"
+            help
+                Use FreeRTOS software timers. Timing precision depends on the FreeRTOS ticks to Hz setting.
+
+    endchoice
+
+endmenu
+
+menu "timesync-common Configuration"
+
+    config OSAL_TIMESYNC_DEFAULT_TZ
+        string "Default timezone"
+        default "Asia/Shanghai"
+        help
+            Default timezone used.
+
+endmenu
+
+menu "HTTP Common Interface"
+
+    config HTTP_COMMON_FORCE_USE_CERTIFICATE_BUNDLE
+        bool
+        default y
+        select MBEDTLS_CERTIFICATE_BUNDLE if IDF_CMAKE
+        help
+            Force the use of the certificate bundle (ESP: esp_crt_bundle; POSIX: ca-bundle-posix).
+
+    config HTTP_COMMON_BUFFER_SIZE
+        int "HTTP buffer size"
+        default 4096
+        help
+            Buffer size for HTTP operations.
+
+    config HTTP_COMMON_TIMEOUT_MS
+        int "HTTP timeout (ms)"
+        default 30000
+        help
+            Timeout for HTTP operations in milliseconds.
+
+endmenu
+
+menu "Common Discovery Interface"
+
+    choice OSAL_DISCOVERY_DISCOVERY_TYPE
+        bool "Discovery type"
+        default OSAL_DISCOVERY_DISCOVERY_TYPE_SRP if OPENTHREAD_ENABLED
+        default OSAL_DISCOVERY_DISCOVERY_TYPE_MDNS
+
+        config OSAL_DISCOVERY_DISCOVERY_TYPE_MDNS
+            bool "mDNS (Wi-Fi)"
+            help
+                Advertise services via mDNS on Wi-Fi.
+
+        config OSAL_DISCOVERY_DISCOVERY_TYPE_SRP
+            bool "SRP (Thread)"
+            depends on OPENTHREAD_ENABLED
+            help
+                Advertise services via SRP on Thread.
+
+    endchoice
+
+endmenu
+
+menu "osal optional features"
+
+    config OSAL_INCLUDE_EXT_IO
+        bool "Include ext-io (serial I/O driver)"
+        default n
+        help
+            Build the osal ext-io area (UART/PTY external I/O used by host_ctrl).
+
+    config OSAL_INCLUDE_HEAP_MONITOR
+        bool "Include heap monitor"
+        default n
+        select HEAP_TRACING_ENABLE_STANDALONE
+        select HEAP_PLACE_FUNCTION_INTO_FLASH
+        help
+            Build the osal heap-monitor area.
+
+    config OSAL_INCLUDE_HTTP
+        bool "Include HTTP client"
+        default n
+        help
+            Build the osal http area (esp_http_client / libcurl backed).
+
+endmenu
+
+# MQTT client configuration
+rsource "mqtt/Kconfig.mqtt" # codespell:ignore rsource
+
+# External serial I/O (UART on ESP-IDF; symbols are ESP-only, the POSIX PTY impl needs no config)
+rsource "ext-io/Kconfig.ext_io" # codespell:ignore rsource

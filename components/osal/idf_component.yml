@@ -1,0 +1,23 @@
+version: "0.8.0"
+description: "OS abstraction layer for the ESP RainMaker Neo Firmware SDK. Builds for ESP-IDF and POSIX from one source tree."
+license: "Apache-2.0"
+dependencies:
+  idf:
+    version: '>=5.5'
+  # discovery (mDNS backend)
+  espressif/mdns:
+    version: "^1.9.0"
+  # external dependencies
+  espressif/json_generator: ^1.2.0
+  espressif/json_parser: ^1.0.3
+  # mqtt (esp-mqtt implementation; pulled from the registry, not the built-in component)
+  espressif/mqtt:
+    version: ^1.0.0
+    require: no
+  # mqtt (coreMQTT implementation)
+  backoffAlgorithm:
+    path: ./mqtt/libraries/backoffAlgorithm
+    require: no
+  coreMQTT-Agent:
+    path: ./mqtt/libraries/coreMQTT-Agent
+    require: no

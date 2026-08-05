@@ -1,0 +1,7 @@
+# input files
+*.json
+!example_input.json
+
+# output files
+out
+*.bin

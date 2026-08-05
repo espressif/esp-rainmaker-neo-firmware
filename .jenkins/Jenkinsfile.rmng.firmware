@@ -1,0 +1,182 @@
+node('build') {
+    stage('Discover products') {
+        checkout scm
+        def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
+        def discovered = rmng.discover_products("${WORKSPACE}/examples")
+        product_choices = (['all'] + discovered).join('\n')
+        echo "Product Choices:\n${product_choices}"
+    }
+}
+pipeline {
+    agent {
+        docker {
+            label 'build'
+            image "espressif/idf:${params.idf_version}"
+            alwaysPull true
+        }
+    }
+    options {
+        timeout(time: 2, unit: 'HOURS')
+    }
+    parameters {
+        choice(name: 'product', choices: "${product_choices}", description: 'Product to build. Pick "all" to build every example under examples/ that has a CMakeLists.txt')
+        choice(name: 'idf_version', choices: ['release-v6.0', 'release-v6.1', 'release-v5.5'], description: 'ESP-IDF release')
+        choice(name: 'chip', choices:['esp32c3', 'esp32', 'esp32c2', 'esp32c5', 'esp32c6', 'esp32s3'], description: 'Chips')
+        string(name: 'branch', defaultValue: 'main', description: 'Branch to be used for esp-rainmaker-neo-firmware')
+        text(name: 'custom_sdk_config', defaultValue: '', description: 'Optional: Custom SDK configuration settings to update/append to sdkconfig.defaults .')
+    }
+    environment {
+        REPOS_PATH="/root"
+        IDF_PATH="/opt/esp/idf"
+        ESP_RMNG_BRANCH="${branch}"
+        ESP_RMNG_PATH="${REPOS_PATH}/esp-rainmaker-neo-firmware"
+        PROJECT_VER_SUFFIX="${BUILD_NUMBER}"
+        CUSTOM_SDK_CONFIG="${custom_sdk_config}"
+        GIT_USERNAME = credentials('JENKINS_GITLAB_USER_CREDENTIALS_APP_FRAMEWORKS')
+    }
+    stages {
+        stage('Setup') {
+            steps {
+                script {
+                    currentBuild.displayName = "${BUILD_TAG}"
+                    currentBuild.description = "RMNG Setup"
+                }
+                println('Running RMNG Setup...')
+                catchError() {
+                    script {
+                        def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
+
+                        // Clone first so we can scan examples/ for products.
+                        rmng.setup_environment()
+
+                        def all_products = rmng.discover_products()
+                        echo "Discovered products: ${all_products.join(', ')}"
+
+                        def selected
+                        if (params.product?.trim() in [null, '', 'all']) {
+                            selected = all_products
+                        } else {
+                            if (!all_products.contains(params.product)) {
+                                error("Product '${params.product}' not found under examples. Available: ${all_products.join(', ')}")
+                            }
+                            selected = [params.product]
+                        }
+
+                        def product_tag = (selected.size() == 1) ? selected[0] : 'all'
+                        def package_name = "rmng_firmware_${product_tag}_${chip}_${BUILD_NUMBER}"
+                        env.PACKAGE_NAME = package_name
+                        env.product_list = selected.join(',')
+                        env.PACKAGE_PATH = "${REPOS_PATH}/${PACKAGE_NAME}"
+                        echo "Package name: ${PACKAGE_NAME}"
+                        echo "Product list: ${env.product_list}"
+
+                        rmng.setup_directories()
+                    }
+                }
+            }
+            post {
+                success {
+                    echo 'Success for setup'
+                }
+                failure {
+                    echo 'Failure for setup'
+                    error('Failure for setup. Abort.')
+                }
+            }
+        }
+        stage("Build firmware(s)") {
+            steps {
+                println('Build ${product} firmware binary for ${chip}.')
+                catchError() {
+                    script {
+                        def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
+
+                        // Build Evaluation firmware (with custom config if provided)
+                        env.FIRMWARE_TYPE = "Evaluation"
+                        rmng.firmware_build()
+                        rmng.firmware_build_save()
+
+                        // Build OTA firmware 
+                        env.FIRMWARE_TYPE = "OTA"
+                        rmng.firmware_build()
+                        rmng.firmware_build_save()
+                    }
+                }
+            }
+            post {
+                success {
+                    echo 'Success for build product'
+                }
+                failure {
+                    echo 'Failure for build product'
+                    error('Failure for build product. Abort.')
+                }
+            }
+        }
+        stage("Support package") {
+            steps {
+                println('Create Support package.')
+                catchError() {
+                    script {
+                        def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
+                        rmng.script_artifacts_create()
+                        rmng.tools_artifacts_create()
+                    }
+                }
+            }
+            post {
+                success {
+                    echo 'Success for script package'
+                }
+                failure {
+                    echo 'Failure for script package'
+                    error('Failure for script package. Abort.')
+                }
+            }
+        }
+        stage('Artifacts') {
+            steps {
+                println('Generating artifacts.')
+                catchError() {
+                    script {
+                        def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
+                        rmng.artifacts_save()
+                    }
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'artifacts/*.tar.gz, artifacts/*.txt', fingerprint: true
+                    echo 'Success for artifacts'
+                }
+                failure {
+                    echo 'Failure for artifacts'
+                    error('Failure for artifacts. Abort.')
+                }
+            }
+        }
+        stage('Cleanup') {
+            steps {
+                echo 'Build Clean up.'
+            }
+            post {
+                always {
+                    cleanWs()
+                }
+                success {
+                    echo 'Success for cleanup'
+                }
+                failure {
+                    echo 'Failure for cleanup'
+                    error('Failure for cleanup. Abort.')
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Cleanup post'
+            cleanWs()
+        }
+    }
+}

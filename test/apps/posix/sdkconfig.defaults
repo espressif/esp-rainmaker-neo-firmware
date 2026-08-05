@@ -1,0 +1,14 @@
+# Same style as ESP-IDF defaults; used by rmng's menuconfig when building POSIX tests.
+
+# Force testing.
+CONFIG_RMNG_TESTING=y
+
+# Custom CA certificate for test-mqtt-common (POSIX CA bundle).
+CONFIG_OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE=y
+CONFIG_OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE_PATH="../../../components/osal/mqtt/test-mqtt-common/certs/test_mqtt_common_host_crt.pem"
+
+# Enable http-common
+CONFIG_OSAL_INCLUDE_HTTP=y
+
+# Enable bridge testing
+CONFIG_RMNG_BRIDGE_ENABLED=y

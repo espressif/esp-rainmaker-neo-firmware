@@ -1,0 +1,30 @@
+name: Something else
+description: Documentation, tooling, or anything the other templates do not fit
+labels: ['Type: Question']
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Answers checklist
+      options:
+        - label: I have searched existing issues and did not find the same thing.
+          required: true
+        - label: This is not a general "how do I use ESP RainMaker" question — those belong on [the forum](https://www.esp32.com/viewforum.php?f=41).
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What is it?
+      description: >
+        If it is a documentation problem, please say which page and what was misleading —
+        wrong is more useful to us than missing.
+    validations:
+      required: true
+  - type: input
+    id: sdk_version
+    attributes:
+      label: SDK revision
+      description: If relevant.
+      placeholder: ex. v0.8.0 / 0ccdca3
+    validations:
+      required: false

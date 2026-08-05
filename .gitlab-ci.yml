@@ -1,0 +1,23 @@
+# Cancel superseded pipelines: when a new commit lands, cancel still-running
+# jobs from the prior pipeline that are marked `interruptible: true`. Jobs that
+# provision/tear down external resources (e.g. integration_tests_posix) set
+# `interruptible: false` and always run to completion once started.
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
+# Pipeline is split under .gitlab/ — include order matters for variable merge.
+# unit_tests.yml is listed before the example builds on purpose: runners pull
+# pending jobs in job-id (definition) order, so defining build_unit_tests_posix
+# first makes it the first-queued build job. That gets the unit_tests ->
+# integration_tests chain (the long pole) moving as soon as a runner frees up,
+# even when build runners are scarce. (environment.yml stays ahead of it: it
+# defines POSIX_TEST_ENV_IMAGE used by the posix env template.)
+include:
+  - local: .gitlab/config.yml
+  - local: .gitlab/pre-commit.yaml
+  - local: .gitlab/environment.yml
+  - local: .gitlab/unit_tests.yml
+  - local: .gitlab/examples.yml
+  - local: .gitlab/itests.yml
+  - local: .gitlab/docs.yml

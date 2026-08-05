@@ -1,0 +1,9 @@
+{
+    "client_key": "path/to/client_key.pem",
+    "client_cert": "path/to/client_cert.pem",
+    "codesign_cert": "path/to/codesign_cert.pem",
+    "mqtt_host": "mqtt.example.com",
+    "node_id": "node_id",
+    "client_user": "username",
+    "client_pass": "password"
+}

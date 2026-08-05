@@ -1,0 +1,63 @@
+{
+  "devices": [
+    {
+      "id": "Light",
+      "type": "esp.device.light",
+      "params": [
+        {
+          "id": "Power",
+          "type": "esp.param.power",
+          "data_type": "bool",
+          "value": true,
+          "properties": ["read", "write", "persist"]
+        },
+        {
+          "id": "Brightness",
+          "type": "esp.param.brightness",
+          "data_type": "int",
+          "value": 80,
+          "bounds": { "min": 0, "max": 100, "step": 1 },
+          "properties": ["read", "write", "indexed"]
+        },
+        {
+          "id": "Name",
+          "type": "esp.param.name",
+          "data_type": "string",
+          "value": "Lamp A",
+          "properties": ["read"]
+        },
+        {
+          "id": "Temperature",
+          "type": "esp.param.temperature",
+          "data_type": "float",
+          "value": 22.5,
+          "bounds": { "min": 10.0, "max": 30.0, "step": 0.5 },
+          "properties": ["read"]
+        },
+        {
+          "id": "Profiles",
+          "type": "esp.param.range",
+          "data_type": "array",
+          "value": ["John", "Jane", "Jim"],
+          "properties": ["read", "write"]
+        },
+        {
+          "id": "Hues",
+          "type": "esp.param.hue",
+          "data_type": "object",
+          "value": {
+            "John": 10,
+            "Jane": 20,
+            "Jim": 30
+          },
+          "properties": ["read", "write"]
+        }
+      ]
+    }
+  ],
+  "services": ["timezone", "latency", "local_ctrl"],
+  "tags": {
+    "location": "lab",
+    "owner": "qa"
+  }
+}

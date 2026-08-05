@@ -1,0 +1,128 @@
+# API reference docs: Doxygen -> XML -> Breathe -> Sphinx, wrapped by esp-docs.
+# Sphinx root is docs/ (see docs/README.md).
+#
+# All docs jobs override before_script: the repo-global before_script in
+# .gitlab/config.yml defines the POSIX/ESP build helpers, none of which a docs
+# job needs (and they assume tools absent from the docs image).
+
+.docs_template:
+  image: $ESP_DOCS_ENV_IMAGE
+  before_script: []
+  after_script: []
+  variables:
+    # Submodules hold only vendored third-party code, none of which is in the
+    # Doxyfile INPUT whitelist.
+    GIT_SUBMODULE_STRATEGY: none
+    GIT_DEPTH: "1"
+    DOCS_DIR: "$CI_PROJECT_DIR/docs"
+    # esp-docs labels builds from this branch as the "latest" version; this repo
+    # uses main, not the master it defaults to.
+    ESP_DOCS_LATEST_BRANCH_NAME: "main"
+
+# Docs gate: run on MRs that touch the Sphinx tree or any header the Doxyfile
+# could pick up; push = manual.
+.rules_docs_gate:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - docs/**/*
+          - components/**/*.h
+          - .gitlab/docs.yml
+      when: on_success
+    - if: $CI_MERGE_REQUEST_IID
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+
+build_docs:
+  extends: .docs_template
+  stage: docs
+  tags:
+    - build_docs
+  interruptible: true
+  # Consumes nothing the earlier stages produce, so it does not wait for them.
+  needs: []
+  rules:
+    - !reference [.rules_docs_gate, rules]
+  # The docs are target-agnostic (the SDK also builds for POSIX), so build with
+  # no -t: output lands in _build/en/generic/html.
+  #
+  # Warnings are fatal: build-docs fails on any Doxygen or Sphinx warning not
+  # listed in docs/{doxygen,sphinx}-known-warnings.txt, and the tree is
+  # currently at zero warnings, so no such file is needed. When the check trips,
+  # the HTML is still produced -- read the *warning-log.txt artifacts.
+  artifacts:
+    when: always
+    paths:
+      # Warning/sanitized logs first: they are what you read when the job is red.
+      - docs/_build/*/*/*.txt
+      - docs/_build/*/*/html/*
+    expire_in: 4 days
+  script:
+    - cd $DOCS_DIR
+    - pip install -r requirements.txt
+    - build-docs -l en -pp $CI_PROJECT_DIR
+
+# Deploy jobs pull the built HTML from build_docs' artifacts and rsync it to the
+# doc server. They need the DOCS_{PREVIEW,PROD}_* CI variables and a runner
+# tagged deploy_docs; without those, leave them unrun (both are manual).
+.deploy_docs_template:
+  extends: .docs_template
+  stage: deploy
+  tags:
+    - deploy_docs
+  needs:
+    - build_docs
+  variables:
+    DOCS_BUILD_DIR: "$CI_PROJECT_DIR/docs/_build/"
+  script:
+    - source $CI_PROJECT_DIR/docs/utils.sh
+    - add_doc_server_ssh_keys $DOCS_DEPLOY_PRIVATEKEY $DOCS_DEPLOY_SERVER $DOCS_DEPLOY_SERVER_USER
+    # deploy-docs derives the deployed version from `git describe --always`.
+    - export GIT_VER=$(git describe --always)
+    # deploy-docs only ships the HTML that build_docs already produced -- it
+    # renders nothing, so it needs esp-docs alone. Installing the full
+    # requirements here would pull the Sphinx extensions too, and the doc-env
+    # image's package index does not carry all of them.
+    - pip install "$(grep '^esp-docs==' $CI_PROJECT_DIR/docs/requirements.txt)"
+    - deploy-docs
+
+deploy_docs_preview:
+  extends: .deploy_docs_template
+  variables:
+    TYPE: "preview"
+    DOCS_DEPLOY_PRIVATEKEY: "$DOCS_PREVIEW_PRIVATEKEY"
+    DOCS_DEPLOY_SERVER: "$DOCS_PREVIEW_SERVER"
+    DOCS_DEPLOY_SERVER_USER: "$DOCS_PREVIEW_SERVER_USER"
+    DOCS_DEPLOY_PATH: "$DOCS_PREVIEW_PATH"
+    DOCS_DEPLOY_URL_BASE: "$DOCS_PREVIEW_URL_BASE"
+  rules:
+    # Every MR touching the docs gets a preview automatically, so the URL is on
+    # the MR without anyone clicking. Branch pushes stay manual.
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - docs/**/*
+          - components/**/*.h
+          - .gitlab/docs.yml
+      when: on_success
+    - if: $CI_MERGE_REQUEST_IID
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+
+deploy_docs_production:
+  extends: .deploy_docs_template
+  variables:
+    TYPE: "production"
+    DOCS_DEPLOY_PRIVATEKEY: "$DOCS_PROD_PRIVATEKEY"
+    DOCS_DEPLOY_SERVER: "$DOCS_PROD_SERVER"
+    DOCS_DEPLOY_SERVER_USER: "$DOCS_PROD_SERVER_USER"
+    DOCS_DEPLOY_PATH: "$DOCS_PROD_PATH"
+    DOCS_DEPLOY_URL_BASE: "$DOCS_PROD_URL_BASE"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual

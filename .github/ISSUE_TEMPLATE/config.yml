@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Getting started
+    url: https://docs.neo.rainmaker.espressif.com/docs/firmware/
+    about: Setup, build, factory NVS and provisioning guides for both ESP-IDF and POSIX.
+  - name: Node firmware behaviour and protocol
+    url: https://github.com/espressif/esp-rainmaker-neo-firmware/blob/main/docs/en/specs/index.md
+    about: What the node reports, how services behave, and the on-wire payloads.
+  - name: ESP RainMaker forum
+    url: https://www.esp32.com/viewforum.php?f=41
+    about: Questions about using ESP RainMaker are best asked here, not as an issue.

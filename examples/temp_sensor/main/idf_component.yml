@@ -1,0 +1,16 @@
+dependencies:
+  # RMNG SDK
+  esp_rmaker_neo:
+    path: ../../../components/esp_rmaker_neo
+  esp_rmaker_neo_ota:
+    path: ../../../components/esp_rmaker_neo_ota
+
+  # Common example components
+  app_event_loop:
+    path: ../../common/app_event_loop
+  app_entry:
+    path: ../../common/app_entry
+  app_network:
+    path: ../../common/app_network
+  app_led:
+    path: ../../common/app_led

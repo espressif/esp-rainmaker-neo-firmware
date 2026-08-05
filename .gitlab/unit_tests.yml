@@ -1,0 +1,207 @@
+variables:
+  POSIX_UNIT_TEST_DIR: "test/apps/posix"
+  ESP_UNIT_TEST_DIR: "test/apps/esp-idf"
+  POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR: "$CI_PROJECT_DIR/unit_test_posix_build"
+  TEST_MQTT_COMMON_CERTS_DEST_DIR: "$CI_PROJECT_DIR/components/osal/mqtt/test-mqtt-common/certs"
+  FACTORY_NVS_GEN_DIR: "$CI_PROJECT_DIR/tools/factory_nvs_gen"
+
+build_unit_tests_posix:
+  extends:
+    - .build_template
+    - .posix_env_template
+  rules:
+    - !reference [.rules_tests_gate, rules]
+  script:
+    - !reference [.posix_requirements_template, script]
+    - mkdir -p "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR"
+    - |
+      # Setup MQTT certificates and config for testing
+      mosquitto_setup_conf.sh "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.conf"
+    - |
+      # Copy certificates to test component directory
+      mkdir -p $TEST_MQTT_COMMON_CERTS_DEST_DIR
+      cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_host_crt.pem" "$TEST_MQTT_COMMON_CERTS_DEST_DIR/"
+      cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_client.crt" "$TEST_MQTT_COMMON_CERTS_DEST_DIR/"
+      cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_client.key" "$TEST_MQTT_COMMON_CERTS_DEST_DIR/"
+    - |
+      # Generate the httpbin TLS cert for test-http-common and trust it.
+      # Appending the self-signed localhost cert to the custom CA bundle (already
+      # pointed at by CONFIG_OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE_PATH) makes
+      # the embedded POSIX bundle trust https://localhost:8443 at build time.
+      httpbin_setup_conf.sh "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin_certs"
+      cat "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin_certs/httpbin_server.crt" \
+        >> "$TEST_MQTT_COMMON_CERTS_DEST_DIR/test_mqtt_common_host_crt.pem"
+    - |
+      # Drop any stale generated .config so newly added Kconfig options take effect.
+      # gen_default_config.py skips regeneration when a .config already exists, which
+      # would otherwise leave new symbols (and the sdkconfig.defaults overrides below)
+      # unapplied if this build dir is reused/restored from cache.
+      rm -f "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR"/.config.* "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR"/config/sdkconfig.h
+    - |
+      # http-common defaults file is listed last so its localhost URLs override the
+      # public-httpbin.org Kconfig defaults (later defaults files win).
+      build_posix_target_dir "$POSIX_UNIT_TEST_DIR" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" "-DRMNG_TEST_ASAN=ON -DSDKCONFIG_DEFAULTS=$EXPOSED_TEST_MQTT_COMMON_DIR/sdkconfig.defaults;$EXPOSED_TEST_HTTP_COMMON_DIR/sdkconfig.defaults"
+    - |
+      # Create temporary JSON for factory NVS generation using MQTT certificates
+      TEMP_NVS_NAME="factory_nvs_input"
+      TEMP_NVS_JSON="$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/${TEMP_NVS_NAME}.json"
+      cat > "$TEMP_NVS_JSON" << EOF
+      {
+          "client_key": "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_client.key",
+          "client_cert": "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_client.crt",
+          "mqtt_host": "localhost",
+          "node_id": "test_client",
+          "client_user": "test_user",
+          "client_pass": "test_pass"
+      }
+      EOF
+    - |
+      # Generate factory NVS partition using the MQTT certificate paths
+      python3 $FACTORY_NVS_GEN_DIR/factory_nvs_gen.py "$CI_RMNG_FACTORY_PARTITION_LABEL_DEFAULT" "$CI_RMNG_FACTORY_NAMESPACE_DEFAULT" "$TEMP_NVS_JSON"
+      # Copy the generated nvs_persistent folder to the test component directory
+      mkdir -p "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/components/esp_rmaker_neo/test_rmaker_neo"
+      cp -r out/${TEMP_NVS_NAME}/posix/nvs_persistent "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/components/esp_rmaker_neo/test_rmaker_neo/"
+    # Reduce build directory size by deleting unnecessary files
+    - |
+      find "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" -type d \
+        -name "CMakeFiles" \
+        -exec rm -r {} +
+      find "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" ! -type d \
+        ! -name "CTestTestfile.cmake" \
+        ! -path "*/nvs_persistent/*" \
+        ! -name "*-tests" \
+        ! -name "*_tests" \
+        ! -path "*/mqtt_certs*" \
+        ! -path "*/httpbin_certs*" \
+        ! -name "mosquitto.conf" \
+        -delete
+      find "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" -type d -empty -delete
+    - |
+      # Record absolute build path so downstream jobs can symlink and match baked-in paths (e.g. mosquitto.conf)
+      echo "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" > "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/.build_abs_path"
+  artifacts:
+    paths:
+      - ${POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR}/
+    # Long enough that retrying unit_tests_posix a day later still finds its
+    # dependency — a shorter expiry makes the retry die with
+    # missing_dependency_failure and forces a rebuild first.
+    expire_in: 1 day
+
+unit_tests_posix:
+  extends:
+    - .test_template
+    - .posix_env_template
+  rules:
+    - !reference [.rules_tests_gate, rules]
+  needs: ["build_unit_tests_posix"]
+  variables:
+    # AddressSanitizer runtime options (tests built with -DRMNG_TEST_ASAN=ON).
+    # detect_leaks=0: don't fail the suite on pre-existing leaks — this gate is
+    # for use-after-free / overflow. abort_on_error keeps a violation fatal so
+    # ctest sees a non-zero exit.
+    ASAN_OPTIONS: "detect_leaks=0:abort_on_error=1:halt_on_error=1"
+    MOSQUITTO_LOG: "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.log"
+    MOSQUITTO_PID: "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.pid"
+    HTTPBIN_LOG: "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin.log"
+    HTTPBIN_PID: "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin.pid"
+  script:
+    - |
+      # Reconstruct original absolute build path via symlink so baked-in paths
+      # (mosquitto.conf cafile/certfile/keyfile, CTestTestfile.cmake) resolve correctly
+      # when the runner mounts the workspace at a different prefix than the build job.
+      ORIG_BUILD_DIR="$(cat "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/.build_abs_path")"
+      if [ "$ORIG_BUILD_DIR" != "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" ]; then
+        mkdir -p "$(dirname "$ORIG_BUILD_DIR")"
+        ln -sfn "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" "$ORIG_BUILD_DIR"
+      fi
+    - |
+      # Start MQTT broker for testing
+      mosquitto_run.sh "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.conf" "$MOSQUITTO_LOG" "$MOSQUITTO_PID"
+    - |
+      # Start httpbin sidecar for test-http-common (HTTP :8080, HTTPS :8443)
+      httpbin_run.sh "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin_certs" "$HTTPBIN_LOG" "$HTTPBIN_PID"
+    - |
+      ctest --test-dir "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" --output-on-failure
+  after_script:
+    - |
+      # Stop MQTT broker if it's still running
+      if [ -f "$MOSQUITTO_PID" ]; then
+        kill "$(cat "$MOSQUITTO_PID")" 2>/dev/null || true
+      fi
+    - |
+      # Stop httpbin sidecar (both HTTP and HTTPS instances)
+      if [ -f "$HTTPBIN_PID" ]; then
+        while read -r pid; do kill "$pid" 2>/dev/null || true; done < "$HTTPBIN_PID"
+      fi
+  artifacts:
+    when: on_failure
+    paths:
+      - "$MOSQUITTO_LOG"
+      - "$HTTPBIN_LOG"
+    expire_in: 1 week
+
+# Build-only gate for the unified ESP-IDF on-device test app. There is no hardware in
+# CI, so nothing is run — compiling and linking is the point. The POSIX unit-test build
+# cannot cover this: on POSIX each test-*/test_* dir is add_subdirectory'd from its area's
+# CMakeLists behind a feature flag (so a disabled area's tests simply aren't built),
+# whereas ESP-IDF auto-discovers every such component in the tree and builds it
+# unconditionally. Include dirs, PRIV_REQUIRES and Kconfig for the ESP path therefore
+# break independently of POSIX, which is exactly what this job catches.
+#
+# Defined last on purpose: runners pull pending jobs in definition order, and
+# build_unit_tests_posix must stay first in the queue (see include order note in
+# .gitlab-ci.yml).
+build_unit_tests_esp_idf:
+  timeout: 1h
+  extends:
+    - .build_template
+    - .esp_env_template
+  rules:
+    - !reference [.rules_tests_gate, rules]
+  parallel:
+    matrix:
+      # One target is enough for the plumbing this gate protects (include dirs,
+      # requires, Kconfig). Tracks the release branch rather than a tag so the gate
+      # sees upstream IDF changes as they land, instead of only on a re-pin.
+      - IDF_VERSION: ["release-v6.0"]
+        IDF_TARGET: ["esp32c3"]
+  variables:
+    ESP_UNIT_TEST_REPORTS_DIR: "$CI_PROJECT_DIR/unit_test_esp_idf_size_reports"
+  script:
+    # The image entrypoint (which sources export.sh) is bypassed by GitLab CI.
+    - command -v idf.py >/dev/null 2>&1 || . "${IDF_PATH}/export.sh"
+    - |
+      # sdkconfig.defaults points CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH at the
+      # mqtt-common test certs, and test-mqtt-common/CMakeLists.txt embeds the client
+      # cert/key as binary data. Those are generated at run time (the dir is gitignored)
+      # by mosquitto_setup_conf.sh, which only exists in the posix_test image. This job
+      # never talks to a broker — the build just needs parseable PEMs at those paths, so
+      # mint throwaway ones with the same names/roles as the posix_test image.
+      mkdir -p "$TEST_MQTT_COMMON_CERTS_DEST_DIR"
+      if [ ! -s "$TEST_MQTT_COMMON_CERTS_DEST_DIR/test_mqtt_common_client.crt" ]; then
+        (
+          cd "$TEST_MQTT_COMMON_CERTS_DEST_DIR"
+          # CA (doubles as the server/host cert bundle, as in the posix_test image)
+          openssl genrsa -out ci_build_only_ca.key 2048
+          openssl req -new -x509 -days 1 -key ci_build_only_ca.key \
+            -out test_mqtt_common_host_crt.pem -subj "/C=US/ST=Test/L=Test/O=Test/CN=TestCA"
+          # Client cert/key signed by that CA
+          openssl genrsa -out test_mqtt_common_client.key 2048
+          openssl req -new -out ci_build_only_client.csr -key test_mqtt_common_client.key \
+            -subj "/C=US/ST=Test/L=Test/O=Test/CN=client"
+          openssl x509 -req -in ci_build_only_client.csr -CA test_mqtt_common_host_crt.pem \
+            -CAkey ci_build_only_ca.key -CAcreateserial -out test_mqtt_common_client.crt -days 1
+          rm -f ci_build_only_ca.key ci_build_only_client.csr test_mqtt_common_host_crt.srl
+        )
+      fi
+    - |
+      cd "$CI_PROJECT_DIR/$ESP_UNIT_TEST_DIR"
+      idf.py set-target "$IDF_TARGET"
+      idf.py build
+    - |
+      collect_esp_build_artifacts "$CI_PROJECT_DIR/$ESP_UNIT_TEST_DIR/$BUILD_DIR" \
+        "$ESP_UNIT_TEST_REPORTS_DIR" "$IDF_TARGET"
+  artifacts:
+    paths:
+      - ${ESP_UNIT_TEST_REPORTS_DIR}/
+    expire_in: 1 week

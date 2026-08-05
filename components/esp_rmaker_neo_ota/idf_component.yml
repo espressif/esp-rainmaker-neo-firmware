@@ -1,0 +1,11 @@
+version: "0.8.0"
+description: "Optional OTA support for the ESP RainMaker Neo Firmware SDK, over AWS IoT Jobs and MQTT file streams."
+license: "Apache-2.0"
+dependencies:
+  osal:
+    path: ../osal
+  esp_rmaker_neo_common:
+    path: ../esp_rmaker_neo_common
+
+  # external dependencies
+  espressif/cbor: ^0.6.1~4

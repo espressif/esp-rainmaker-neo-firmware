@@ -1,0 +1,32 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * @file min_stack_sizes.c
+ * @brief Pre-processor checks to enforce minimum stack sizes for the SDK.
+ */
+
+#include "sdkconfig.h"
+
+/* ---------- ESP-IDF Platform ---------- */
+
+#ifdef ESP_PLATFORM
+
+/* --- FreeRTOS timer stack size --- */
+
+/**
+ * @brief Minimum FreeRTOS timer task stack size.
+ * @note This SDK uses the FreeRTOS timer task for scheduling heavily,
+ * so it is recommended to set the stack size to at least 3072 bytes
+ * to avoid stack overflows.
+ */
+#ifdef CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH
+#if CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH < @MIN_FREERTOS_TIMER_TASK_STACK_DEPTH@
+#error "CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH must be >= @MIN_FREERTOS_TIMER_TASK_STACK_DEPTH@"
+#endif
+#endif
+
+#endif /* ESP_PLATFORM */

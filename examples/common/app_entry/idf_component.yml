@@ -1,0 +1,7 @@
+## IDF Component Manager Manifest File
+version: "0.8.0"
+description: "Common entry-point shim for the RMNG examples: one app entry that works on ESP-IDF and POSIX."
+license: "CC0-1.0"
+dependencies:
+  osal:
+    path: ../../../components/osal

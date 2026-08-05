@@ -1,0 +1,22 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * @file esp_rmaker_version.h
+ * @brief ESP RainMaker version header
+ */
+
+#ifndef ESP_RMAKER_VERSION_H
+#define ESP_RMAKER_VERSION_H
+
+#define ESP_RMAKER_VERSION_MAJOR @RMNG_VERSION_MAJOR@
+#define ESP_RMAKER_VERSION_MINOR @RMNG_VERSION_MINOR@
+#define ESP_RMAKER_VERSION_PATCH @RMNG_VERSION_PATCH@
+#define ESP_RMAKER_VERSION_TYPE @RMNG_VERSION_TYPE@
+
+#define ESP_RMAKER_VERSION_STR   "@RMNG_VERSION_MAJOR@.@RMNG_VERSION_MINOR@.@RMNG_VERSION_PATCH@@RMNG_VERSION_TYPE@"
+
+#endif // ESP_RMAKER_VERSION_H

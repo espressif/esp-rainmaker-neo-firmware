@@ -1,0 +1,11 @@
+# Integration test dependencies.
+#
+# The suite drives the shared common/ library and builds POSIX firmware, so it
+# pulls in both of those requirement sets on top of the PyTest stack.
+-r ../tools/requirements.txt
+-r ../posix_requirements.txt
+
+pytest>=7.0
+pytest-xdist>=3.0
+pytest-rerunfailures>=12.0
+pytest-html>=4.0

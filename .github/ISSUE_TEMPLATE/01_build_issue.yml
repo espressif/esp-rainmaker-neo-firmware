@@ -1,0 +1,91 @@
+name: Build issue
+description: The SDK does not configure or compile
+labels: ['Type: Bug']
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Answers checklist
+      description: Please confirm these before filing, so the report is actionable.
+      options:
+        - label: I have read the [build guides](https://docs.neo.rainmaker.espressif.com/docs/firmware/) for my platform and the issue is not addressed there.
+          required: true
+        - label: I have searched existing issues and did not find the same problem.
+          required: true
+        - label: I configured from a clean build directory (a reused one keeps a stale generated `sdkconfig.h` and misses new Kconfig symbols).
+          required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Which platform?
+      description: Every component builds for both, so this is the first thing we need to know.
+      multiple: false
+      options:
+        - ESP-IDF (as an IDF component)
+        - POSIX (as a plain CMake library/executable)
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: idf_version
+    attributes:
+      label: ESP-IDF version
+      description: Output of `idf.py --version`. Leave as "n/a" for a POSIX-only issue.
+      placeholder: ex. v6.0.2
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Target chip
+      description: For POSIX, put the host architecture instead.
+      placeholder: ex. esp32c6 / x86_64 Linux
+    validations:
+      required: true
+  - type: dropdown
+    id: operating_system
+    attributes:
+      label: Operating system
+      multiple: false
+      options:
+        - Linux
+        - macOS
+        - Windows
+    validations:
+      required: true
+  - type: input
+    id: sdk_version
+    attributes:
+      label: SDK revision
+      description: Output of `git rev-parse --short HEAD`, or the release tag.
+      placeholder: ex. v0.8.0 / 0ccdca3
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What did you do?
+      description: The exact commands, starting from the directory you ran them in.
+      placeholder: |
+        cd examples/light
+        cmake -B build -G Ninja
+        cmake --build build
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Build log
+      description: >
+        The failure and enough context above it to see what was being built. Please paste text
+        rather than a screenshot, and include the configure output too if it failed there.
+      render: plain text
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?
+      description: Local modifications, an unusual toolchain, a custom `sdkconfig.defaults`.
+    validations:
+      required: false

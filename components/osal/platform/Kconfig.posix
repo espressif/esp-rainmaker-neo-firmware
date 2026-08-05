@@ -1,0 +1,93 @@
+menu "platform-common Build Options (POSIX)"
+
+    menu "Log level (runtime)"
+
+        # Log level for POSIX
+        config LOG_MAXIMUM_LEVEL
+            int
+            range 0 5
+            default 0 if PLATFORM_LOG_MAXIMUM_LEVEL_NONE
+            default 1 if PLATFORM_LOG_MAXIMUM_LEVEL_ERROR
+            default 2 if PLATFORM_LOG_MAXIMUM_LEVEL_WARN
+            default 3 if PLATFORM_LOG_MAXIMUM_LEVEL_INFO
+            default 4 if PLATFORM_LOG_MAXIMUM_LEVEL_DEBUG
+            default 5 if PLATFORM_LOG_MAXIMUM_LEVEL_VERBOSE
+
+    endmenu
+
+    menu "Log level (selection)"
+
+        choice PLATFORM_LOG_MAXIMUM_LEVEL
+            bool "Maximum log level"
+            default PLATFORM_LOG_MAXIMUM_LEVEL_INFO
+            help
+                Maximum log level for POSIX builds.
+
+            config PLATFORM_LOG_MAXIMUM_LEVEL_NONE
+                bool "None"
+                help
+                    Print no logs.
+
+            config PLATFORM_LOG_MAXIMUM_LEVEL_ERROR
+                bool "Error"
+                help
+                    Print at most error logs.
+
+            config PLATFORM_LOG_MAXIMUM_LEVEL_WARN
+                bool "Warning"
+                help
+                    Print at most warning logs.
+
+            config PLATFORM_LOG_MAXIMUM_LEVEL_INFO
+                bool "Info"
+                help
+                    Print at most info logs.
+
+            config PLATFORM_LOG_MAXIMUM_LEVEL_DEBUG
+                bool "Debug"
+                help
+                    Print at most debug logs.
+
+            config PLATFORM_LOG_MAXIMUM_LEVEL_VERBOSE
+                bool "Verbose"
+                help
+                    Print at most verbose logs.
+
+        endchoice
+
+    endmenu
+
+endmenu
+
+# ext-io fallbacks (POSIX-only parse; this file is never read by ESP-IDF).
+# osal/Kconfig pulls in ext-io/Kconfig.ext_io on both platforms, and its UART
+# entries reference ESP-IDF-provided symbols (console baudrate, GPIO env caps).
+# Promptless int fallbacks keep kconfiglib from warning about undefined non-int
+# references; the values are unused by the POSIX PTY implementation. The menus
+# are hidden (visible if n) and exist only to group the symbols.
+
+menu "ESP console fallback"
+    visible if n
+
+    config ESP_CONSOLE_UART_BAUDRATE
+        int
+        default 115200
+
+endmenu
+
+menu "GPIO env caps fallback"
+    visible if n
+
+    config ENV_GPIO_RANGE_MIN
+        int
+        default 0
+
+    config ENV_GPIO_IN_RANGE_MAX
+        int
+        default 30
+
+    config ENV_GPIO_OUT_RANGE_MAX
+        int
+        default 30
+
+endmenu

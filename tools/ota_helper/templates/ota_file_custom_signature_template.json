@@ -1,0 +1,20 @@
+[
+  {
+    "name": "firmware.bin",
+    "path": "path/to/firmware_v1.0.bin",
+    "signing": 0,
+    "file_id": 0,
+    "signature": "<base64-der-ecdsa-signature>",
+    "hash_algorithm": "SHA256",
+    "signing_algorithm": "ECDSA"
+  },
+  {
+    "name": "config.json", 
+    "path": "path/to/config_update.json",
+    "signing": 0,
+    "file_id": 1,
+    "signature": null,
+    "hash_algorithm": "SHA256",
+    "signing_algorithm": "ECDSA"
+  }
+]

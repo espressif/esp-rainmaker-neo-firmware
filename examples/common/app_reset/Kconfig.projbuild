@@ -1,0 +1,42 @@
+menu "ESP RainMaker App Reset Configuration"
+
+    config APP_RESET_ENABLED
+        bool "Enable button resets"
+        default y
+        help
+            Enable hold-to-reset on the application button.
+            The button can be held down for a long time to perform a network reset, or an even longer time to
+            perform a factory reset.
+
+    menu "Button Reset Configuration"
+        depends on APP_RESET_ENABLED
+
+        config APP_RESET_NETWORK_TIME_MS
+            int "Network reset time (ms)"
+            default 5000
+            range 1000 10000
+            help
+                Time in milliseconds for the button to be held down before performing the network reset.
+
+                Set this above the button's own long-press time, so a long press and a network
+                reset stay distinguishable. The bound is a literal rather than a reference to the
+                button component's option, so this component can be used without it.
+
+        config APP_RESET_FACTORY_TIME_MS
+            int "Factory reset time (ms)"
+            default 10000
+            range APP_RESET_NETWORK_TIME_MS 20000
+            help
+                Time in milliseconds for the button to be held down before performing the factory reset.
+                Must be greater than the network reset time.
+
+        config APP_RESET_REBOOT_S
+            int "Reboot time (s)"
+            default 2
+            range 0 10
+            help
+                Time in seconds to reboot the system after performing a reset action.
+
+    endmenu
+
+endmenu

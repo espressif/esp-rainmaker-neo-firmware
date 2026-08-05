@@ -1,0 +1,120 @@
+repos:
+# C/C++ formatting
+-   repo: https://github.com/igrr/astyle_py.git
+    rev: v1.1.0
+    hooks:
+    -   id: astyle_py
+        args: ['--style=otbs', '--attach-namespaces', '--attach-classes', '--indent=spaces=4', '--convert-tabs', '--align-pointer=name', '--align-reference=name', '--keep-one-line-statements', '--pad-header', '--pad-oper']
+        exclude: 'pb-c\.[ch]$'
+
+# Keep C/C++ sources ASCII-only: multi-byte characters garble on non-UTF-8
+# serial terminals when they reach a log string, and inflate .rodata.
+-   repo: local
+    hooks:
+    -   id: forbid-non-ascii
+        name: Forbid non-ASCII characters in C/C++ sources
+        language: pygrep
+        entry: '[^\x00-\x7F]'
+        files: '\.(c|cc|cpp|cxx|h|hh|hpp|hxx|inc)$'
+        exclude: '(managed_components/|build/|\.cache/|pb-c\.[ch]$)'
+
+# CMake formatting
+-   repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+    -   id: cmake-format
+        args:
+        - '--config-files'
+        - '.pre-commit/cmake-format_config.py'
+        - '--in-place'
+
+# Python linting and formatting
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.10
+    hooks:
+    -   id: ruff-check
+        args: [ --fix ]
+    -   id: ruff-format
+
+# Kconfig checks
+-   repo: https://github.com/espressif/esp-idf-kconfig.git
+    rev: v3.11.1
+    hooks:
+    -   id: check-kconfig-files
+        exclude: '\.cmake$'
+    -   id: check-deprecated-kconfig-options
+
+# Spell checking
+-   repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+    -   id: codespell
+        args: ["-L", "Nome,pase,PASE,OT"]
+
+# Insert license headers
+# Examples are public-domain; everything else is Apache-2.0.
+-   repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.5.5
+    hooks:
+    -   id: insert-license  # Public-domain header for example sources
+        name: Insert license header - public (examples .c,.cpp,.h)
+        files: ^examples/.*\.(c|cpp|h)$
+        exclude: '(managed_components|build)/'
+        args:
+            - --license-filepath
+            - .pre-commit/license_header_public.txt
+            - --comment-style
+            - /*| *| */
+            - --use-current-year
+            - --fuzzy-match-generates-todo # Add TODOs for fuzzy matches
+    -   id: insert-license  # Apache header for non-example sources
+        name: Insert license header - apache (.c,.cpp,.h)
+        files: \.(c|cpp|h)$
+        # The four fully-qualified .c paths below (timezone_db, base64, core_agent_*) are
+        # third-party-derived and keep their upstream MIT/BSD headers; do not stamp Apache-2.0.
+        #
+        # *pb-c.[ch] are protoc-c output and deliberately carry no header.
+        exclude: '(^examples/|managed_components/|build/|\.cache/|^components/osal/timesync/src/timezone_db\.c$|^components/esp_rmaker_neo_common/src/util/base64\.c$|^components/osal/mqtt/libraries/coreMQTT-Agent/port/common/core_agent_command_pool\.c$|^components/osal/mqtt/libraries/coreMQTT-Agent/port/common/core_agent_message\.c$|pb-c\.[ch]$)'
+        args:
+            - --license-filepath
+            - .pre-commit/license_header_apache.txt
+            - --comment-style
+            - /*| *| */
+            - --use-current-year
+            - --fuzzy-match-generates-todo # Add TODOs for fuzzy matches
+    -   id: insert-license  # Public-domain header for example Python
+        name: Insert license header - public (examples .py)
+        files: ^examples/.*\.py$
+        exclude: '(managed_components|build)/'
+        args:
+            - --license-filepath
+            - .pre-commit/license_header_public.txt
+            - --use-current-year
+            - --fuzzy-match-generates-todo # Add TODOs for fuzzy matches
+    -   id: insert-license  # Apache header for non-example Python
+        name: Insert license header - apache (.py)
+        files: \.py$
+        exclude: '(^examples/|managed_components/|build/|\.cache/)'
+        args:
+            - --license-filepath
+            - .pre-commit/license_header_apache.txt
+            - --use-current-year
+            - --fuzzy-match-generates-todo # Add TODOs for fuzzy matches
+
+# Ensure end-of-file newline compliance
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+    -   id: end-of-file-fixer
+
+# Keep the version in every first-party idf_component.yml equal to esp_rmaker_neo/versioning.cmake.
+# The component manager needs a literal in each manifest, so the copies cannot be generated;
+# this makes a bump that misses one fail here instead of shipping manifests that disagree.
+-   repo: local
+    hooks:
+    -   id: check-component-versions
+        name: Check component manifest versions match esp_rmaker_neo/versioning.cmake
+        entry: .pre-commit/check_component_versions.py
+        language: python
+        pass_filenames: false
+        files: '(idf_component\.yml|esp_rmaker_neo/versioning\.cmake)$'

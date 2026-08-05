@@ -1,0 +1,37 @@
+# Single ESP-IDF test app for RMNG SDK (osal, esp_rmaker_neo_common, esp_rmaker_neo,
+# esp_rmaker_neo_ota). Requires those components to be present under components/.
+
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+
+# Increase FreeRTOS timer task stack depth.
+CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=3072
+
+# Tests can get very large; increase the default stack size
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Enable RMNG testing (builds test_rmaker_neo and enables test hooks)
+CONFIG_RMNG_TESTING=y
+CONFIG_RMNG_BRIDGE_ENABLED=y
+
+# Enable virtual scheduler (required by RMNG testing)
+CONFIG_OSAL_USING_VIRTUAL_SCHEDULER=y
+
+# test-http-common is always built here (ESP-IDF auto-discovers it and test_app.c runs its suite), so the osal http area
+# it tests must be built too. On POSIX the test dir is only added when this is on, so no equivalent is needed there.
+CONFIG_OSAL_INCLUDE_HTTP=y
+
+# Point to custom CA certificate bundle for MQTT testing
+CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH="../../../components/osal/mqtt/test-mqtt-common/certs/test_mqtt_common_host_crt.pem"
+
+# Default to BLE provisioning.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_APP_NETWORK_PROV_TRANSPORT_BLE=y
+
+# Support legacy provisioning apps.
+CONFIG_APP_NETWORK_PROV_COMPACT_QR=n
+
+# Disable watchdog
+CONFIG_ESP_TASK_WDT_INIT=n

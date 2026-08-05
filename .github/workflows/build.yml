@@ -1,0 +1,103 @@
+# SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# Public build smoke test.
+#
+# This is deliberately NOT a mirror of the internal pipeline, which builds every example
+# across ESP-IDF v5.5-v6.1 on eight chips and runs the unit and integration suites against a
+# live backend. That needs internal runners, a container registry and cloud credentials, so it
+# cannot run here. What this workflow does is prove the tree still configures and compiles from
+# a clean clone on both platforms, with nothing but public inputs -- which is the question a
+# reader of the GitHub repo actually wants answered.
+#
+# Host tests are intentionally not run: test_rmaker_neo needs a factory NVS partition generated with
+# real certificates (see tools/factory_nvs_gen/), which is not something to synthesise in a
+# public smoke test.
+
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same ref makes the in-flight run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  posix:
+    name: POSIX (${{ matrix.example }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # light exercises the common path; multi_device additionally covers every device type
+        # in one node.
+        example: [light, multi_device]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Mirrors tools/docker/posix_test/Dockerfile, minus the test-only packages (mosquitto,
+      # gcovr, jq). libavahi-client-dev is what selects the Avahi mDNS backend; without it
+      # the build silently falls back to the no-op stub, so it is installed to keep this
+      # build shaped like the internal one.
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build gcc \
+            libbsd-dev libffi-dev libavahi-client-dev \
+            python3 python3-venv python3-pip git curl unzip
+
+      # CMake installs posix_requirements.txt itself (mbedtls needs it), but it refuses to
+      # configure without an active virtualenv, so one has to exist first.
+      - name: Create the Python virtualenv
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install -U pip
+          pip install -r posix_requirements.txt
+
+      # mbedtls, Unity and protobuf-c are fetched at configure time via FetchContent and are
+      # never committed, so this step needs network access.
+      - name: Configure
+        working-directory: examples/${{ matrix.example }}
+        run: |
+          . "$GITHUB_WORKSPACE/.venv/bin/activate"
+          cmake -B build -G Ninja
+
+      - name: Build
+        working-directory: examples/${{ matrix.example }}
+        run: |
+          . "$GITHUB_WORKSPACE/.venv/bin/activate"
+          cmake --build build
+
+  esp-idf:
+    name: ESP-IDF ${{ matrix.idf }} (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # v6.0.2 is the version the guides recommend; the internal pipeline covers the
+        # full supported v5.5-v6.1 range. esp32 and esp32c3 are the two ends of the toolchain
+        # split (Xtensa and RISC-V) and both ship sdkconfig defaults in-tree.
+        idf: [v6.0.2]
+        target: [esp32, esp32c3]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pulls managed components from the public registry, so it needs every dependency in
+      # components/esp_rmaker_neo/idf_component.yml to be publicly resolvable.
+      - name: Build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: ${{ matrix.idf }}
+          target: ${{ matrix.target }}
+          path: examples/light

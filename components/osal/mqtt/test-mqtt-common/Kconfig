@@ -1,0 +1,38 @@
+menu "(test-mqtt-common) MQTT Common Test Configuration"
+    config TEST_MQTT_COMMON_BROKER_URI
+        string "MQTT Broker URL"
+        default "localhost"
+        help
+            The MQTT broker to connect to. It should have 3 ports for TCP with username/password
+            authentication, TLS (server side only), and TLS (mutual authentication).
+
+    config TEST_MQTT_COMMON_TCP_USERNAME
+        string "(TCP) Username"
+        default "username"
+        help
+            The username to use when connecting over TCP.
+
+    config TEST_MQTT_COMMON_TCP_PASSWORD
+        string "(TCP) Password"
+        default "password"
+        help
+            The password to use when connecting over TCP.
+
+    config TEST_MQTT_COMMON_PORT_TCP
+        int "TCP port"
+        default 1883
+        help
+            Broker port for TCP with username/password authentication.
+
+    config TEST_MQTT_COMMON_PORT_TLS_SERVER_ONLY
+        int "TLS port (server side only)"
+        default 8883
+        help
+            Broker port for TLS (server side only).
+
+    config TEST_MQTT_COMMON_PORT_TLS_MUTUAL_AUTH
+        int "TLS port (mutual authentication)"
+        default 8884
+        help
+            Broker port for TLS (mutual authentication).
+endmenu

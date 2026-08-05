@@ -1,0 +1,9 @@
+## IDF Component Manager Manifest File
+version: "0.8.0"
+description: "Button helper for the RMNG examples: short and long press callbacks, with hold-to-reset via app_reset."
+license: "CC0-1.0"
+dependencies:
+  espressif/button: ^4.1.3
+  # esp_rmaker_neo and app_network moved with the hold-to-reset logic into app_reset.
+  app_reset:
+    path: ../../../examples/common/app_reset

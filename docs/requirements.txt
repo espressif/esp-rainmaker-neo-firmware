@@ -1,0 +1,36 @@
+# Python packages needed to build the docs:
+#   pip install -r requirements.txt
+#
+# esp-docs pulls in Sphinx, Breathe, sphinx-idf-theme and the diag extensions at
+# versions it has pinned itself, so nothing else belongs here.
+#
+# 2.5.1 rather than the 0.2.4 that esp-rainmaker uses: 0.2.4 pins sphinx==2.3.1
+# with jinja2<3 / markupsafe<2, which no longer install on the Python in current
+# esp-idf-doc-env images, and its target list predates esp32c5/esp32c6.
+esp-docs==2.5.1
+
+# The specs' sequence diagrams are mermaid; esp-docs ships blockdiag/seqdiag/
+# nwdiag but not mermaid. Renders client-side, so the browser fetches mermaid.js
+# from a CDN when the page is opened.
+# Pinned below 2.x: the esp-idf-doc-env image's package index stops at 1.2.3.
+sphinxcontrib-mermaid==1.2.3
+
+# The spec pages are markdown (the c-api-reference pages stay RST). esp-docs'
+# own markdown path -- recommonmark via the pre-Sphinx-3 'source_parsers'
+# setting -- is dead, so myst-parser does the work.
+#
+# 3.0.1 is the newest release whose pins intersect esp-docs 2.5.1's: it wants
+# sphinx>=6,<8 + docutils>=0.18,<0.22 against esp-docs' sphinx~=7.1.2 +
+# docutils<0.21. myst-parser 4.x needs docutils>=0.19 and Python >=3.10, so it
+# is not a safe bump without moving esp-docs too. Kept identical to the version
+# pinned in esp-rainmaker-neo.
+myst-parser==3.0.1
+
+# The page hierarchy lives in en/_toc.yml rather than in `toctree` directives on
+# the pages themselves: a fenced ```{toctree} renders as a literal code block
+# when a spec page is read straight from the repository, which happens as often
+# as the built site is read. Nothing else about the toctree changes -- sidebar,
+# breadcrumbs and prev/next links are all still driven by it.
+#
+# 1.1.0 wants sphinx>=5, which esp-docs 2.5.1's sphinx~=7.1.2 satisfies.
+sphinx-external-toc==1.1.0

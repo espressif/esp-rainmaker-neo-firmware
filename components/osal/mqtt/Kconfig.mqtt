@@ -1,0 +1,173 @@
+menu "MQTT Common Interface"
+
+    choice OSAL_MQTT_IMPL
+        bool "MQTT Implementation"
+        default OSAL_MQTT_IMPL_CORE
+
+        help
+            Choose backend MQTT library used.
+
+            Defaults to CoreMQTT.
+
+        config OSAL_MQTT_IMPL_CORE
+            bool "CoreMQTT"
+
+        config OSAL_MQTT_IMPL_ESP
+            depends on IDF_CMAKE
+            bool "esp-mqtt"
+    endchoice
+
+    config OSAL_MQTT_FORCE_USE_CERTIFICATE_BUNDLE
+        bool
+        default y
+        select MBEDTLS_CERTIFICATE_BUNDLE if IDF_CMAKE
+        help
+            Force the use of the certificate bundle.
+
+    # Common Parameters
+    config OSAL_MQTT_SUBSCRIPTION_MANAGER_MAX_SUBSCRIPTIONS
+        int "Maximum number of subscriptions tracked by subscription manager"
+        default 10
+        help
+            A subscription manager is used to match incoming publishes with previously subscribed topic
+            filters and their callbacks.
+            This number specifies the maximum number of actively tracked topic filters.
+
+    config OSAL_MQTT_RESUBSCRIBE_ON_CLEAN_SESSION
+        bool "Resubscribe on clean session"
+        default n
+        help
+            If set, the MQTT client will resubscribe to all previously subscribed topics
+            when the MQTT client reconnects to the broker with a clean session.
+            Otherwise, the subscription manager will be reset on every clean session, and
+            all subscriptions will have to be added again.
+
+    config OSAL_MQTT_MAX_IN_BUFFER_SIZE
+        int
+        default OSAL_MQTT_CORE_NETWORK_BUFFER_SIZE if OSAL_MQTT_IMPL_CORE
+        default OSAL_MQTT_ESP_NETWORK_BUFFER_SIZE_IN if OSAL_MQTT_IMPL_ESP
+
+    config OSAL_MQTT_AGENT_TASK_STACK_SIZE
+        int "Agent task stack size"
+        default 8192 if RMNG_BRIDGE_ENABLED
+        default 4096
+        help
+            The stack size of the agent task.
+
+    config OSAL_MQTT_AGENT_TASK_PRIORITY
+        int "Agent task priority"
+        default 4
+        help
+            The priority of the agent task.
+
+    config OSAL_MQTT_KEEP_ALIVE_INTERVAL_S
+        int "Keep alive interval (s)"
+        range 40 1200
+        default 40
+        help
+            The keep alive interval (in seconds) for the MQTT client.
+
+            While the AWS IoT bounds are 30-1200 seconds, the lower bound is set
+            to 40 seconds to avoid spurious disconnect events that occur too close to
+            the actual AWS IoT lower bound.
+
+            Higher values reduce wakeups/traffic, at the expense of slower
+            disconnect detection.
+
+    # CoreMQTT Specific Parameters
+    menu "CoreMQTT Specific Parameters"
+        depends on OSAL_MQTT_IMPL_CORE
+
+        config OSAL_MQTT_CORE_NETWORK_BUFFER_SIZE
+            int "Network buffer size"
+            default 3072 if IDF_TARGET_ESP32C2
+            default 8192 if RMNG_BRIDGE_ENABLED
+            default 4096
+            help
+                The size of the network buffer used by CoreMQTT.
+
+        config OSAL_MQTT_CORE_COMMAND_QUEUE_LENGTH
+            int "Command queue length"
+            default MQTT_AGENT_COMMAND_POOL_SIZE
+            help
+                The length of the command queue used by CoreMQTT.
+
+        config OSAL_MQTT_CORE_CONNACK_RECV_TIMEOUT_MS
+            int "Connack recv timeout"
+            default 10000
+            help
+                The timeout for receiving CONNACK after sending an MQTT CONNECT packet.
+
+        config OSAL_MQTT_CORE_RETRY_MAX_BACKOFF_DELAY_MS
+            int "Retry max backoff delay"
+            default 5000
+            help
+                The maximum back-off delay (in milliseconds) for retrying failed operation with server.
+
+        config OSAL_MQTT_CORE_RETRY_BACKOFF_BASE_MS
+            int "Retry backoff base"
+            default 500
+            help
+                The base back-off delay (in milliseconds) to use for network operation retry attempts.
+
+        config OSAL_MQTT_CORE_FORCE_IPV4
+            depends on !IDF_CMAKE
+            bool "Force IPv4-only when connecting to the broker"
+            default n
+            help
+                Resolve the broker hostname with AF_INET only (IPv4), skipping any IPv6
+                (AAAA) addresses. Only effective for the POSIX coreMQTT transport.
+
+                On hosts whose IPv6 egress is black-holed (e.g. some CI runners), an IPv6
+                address returned first by getaddrinfo causes connect() to stall until the
+                OS SYN timeout (~60s) before falling back to IPv4. Forcing IPv4 avoids the
+                stall entirely. Leave disabled for normal builds.
+    endmenu
+
+    # esp-mqtt Specific Parameters
+    menu "esp-mqtt Specific Parameters"
+        depends on OSAL_MQTT_IMPL_ESP
+
+        config OSAL_MQTT_ESP_NETWORK_BUFFER_SIZE_IN
+            int "Network buffer size (in)"
+            default 3072 if IDF_TARGET_ESP32C2
+            default 8192 if RMNG_BRIDGE_ENABLED
+            default 4096
+            help
+                The size of the in network buffer used by esp-mqtt.
+
+        config OSAL_MQTT_ESP_NETWORK_BUFFER_SIZE_OUT
+            int "Network buffer size (out)"
+            default 3072 if IDF_TARGET_ESP32C2
+            default 8192 if RMNG_BRIDGE_ENABLED
+            default 4096
+            help
+                The size of the out network buffer used by esp-mqtt.
+
+        config OSAL_MQTT_ESP_CALLBACK_REGISTRY_SIZE
+            int "Callback registry size"
+            default 10
+            help
+                The size (number of entries) of the callback registry used by esp-mqtt.
+
+        config OSAL_MQTT_ESP_OUTBOX_LIMIT
+            int "Outbox limit"
+            default 0
+            help
+                The limit of the outbox (in bytes) used by esp-mqtt. 0 for no limit.
+
+        config OSAL_MQTT_ESP_RECONNECT_TIMEOUT_MS
+            int "Reconnect timeout (ms)"
+            default 10000
+            help
+                Reconnect to the broker after this value in milliseconds if the connection is lost.
+
+        config OSAL_MQTT_ESP_NETWORK_TIMEOUT_MS
+            int "Network timeout (ms)"
+            default 10000
+            help
+                The timeout (in milliseconds) for network operations.
+                Network operations are aborted if unsuccessful after this timeout.
+    endmenu
+
+endmenu

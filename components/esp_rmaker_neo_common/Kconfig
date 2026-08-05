@@ -1,0 +1,115 @@
+menu "RMNG Common Component Configuration"
+
+    menu "ESP RainMaker Networking"
+
+        choice ESP_RMAKER_MQTT_PORT
+            bool "MQTT Port"
+            default ESP_RMAKER_MQTT_PORT_443
+            help
+                ESP RainMaker MQTT Broker can be connected to either on Port 8883 or port 443.
+                Port 443 is recommended as it is generally not blocked by any firewalls,
+                since it is standard HTTPS port.
+
+            config ESP_RMAKER_MQTT_PORT_443
+                bool "443"
+            config ESP_RMAKER_MQTT_PORT_8883
+                bool "8883"
+        endchoice
+
+    endmenu
+
+    menu "ESP RainMaker Work Queue"
+
+        config RMAKER_WORK_QUEUE_TASK_QUEUE_SIZE
+            int "Task queue size"
+            default 64
+            default 256 if RMNG_BRIDGE_ENABLED
+            range 10 10240
+            help
+                Maximum number of tasks the work queue can hold.
+                If the work queue is at full capacity, adding the next task will fail.
+
+                If using bridge support, you should set this to at least
+                twice the number of maximum number of bridged children.
+                For example, if you have 128 bridged children, you should set this to 256.
+
+        config RMAKER_WORK_QUEUE_TASK_STACK_SIZE
+            int "Stack size"
+            default 8192 if SPIRAM
+            default 4608
+            help
+                Stack size of the work queue's underlying task.
+
+                OTA image writes and all post-download checks run on this task,
+                so the default carries margin for the deepest of them.
+
+                Defaults higher when SPIRAM is enabled: with PSRAM in the
+                malloc heap, every allocation routes through
+                heap_caps_malloc_prefer (a deeper call chain than plain
+                internal malloc).
+
+        config RMAKER_WORK_QUEUE_TASK_PRIORITY
+            int "Task priority"
+            default 10
+            help
+                Priority of the work queue's underlying task.
+
+    endmenu
+
+    menu "ESP RainMaker Factory Partition"
+
+        config ESP_RMAKER_FACTORY_PARTITION_NAME
+            string "Factory partition label"
+            default "fctry"
+            help
+                Label of the factory partition.
+
+        config ESP_RMAKER_FACTORY_NAMESPACE
+            string "Factory partition namespace"
+            default "rmaker_creds"
+            help
+                Namespace of the factory partition.
+
+    endmenu
+
+    menu "ESP RainMaker Crypto"
+
+        config RMAKER_CRYPTO_CSR_GENERATION
+            bool
+            select MBEDTLS_X509_CREATE_C
+            help
+                Compile the key-pair and CSR generation helpers in util/crypto.c, and pull
+                in the mbedTLS options they need.
+
+                Capability flag, not user-selectable. It is selected by whatever needs
+                those helpers, which today means claiming, under "RMNG Configuration".
+                Declared here, next to the code that implements it, so that esp_rmaker_neo_common
+                never reads a symbol defined by a component that depends on it.
+
+                MBEDTLS_X509_CREATE_C is a Kconfig option only from ESP-IDF v6.0, where it
+                defaults to n; before that it is unconditionally enabled in esp_config.h,
+                so selecting it is harmless there (the symbol simply does not exist).
+                Selecting it also pulls in MBEDTLS_X509_CSR_WRITE_C, which depends on it
+                and defaults to y. MBEDTLS_PEM_WRITE_C and MBEDTLS_PK_WRITE_C already
+                default to y.
+
+                util/crypto.c additionally verifies the resulting mbedTLS configuration at
+                compile time and fails the build with a message naming every required
+                option, so a project that disables one by hand still fails loudly.
+
+    endmenu
+
+    menu "ESP RainMaker MQTT Credentials"
+
+        config RMAKER_MQTT_SKIP_CREDENTIALS_CHECK
+            depends on RMNG_CUSTOM_MQTT_CLIENT_PROVIDER
+            bool "Skip credentials check"
+            default n
+            help
+                Skip credentials check.
+                If enabled, the keys/certificates provided by to the custom MQTT client
+                will not be checked on load.
+
+    endmenu
+
+endmenu

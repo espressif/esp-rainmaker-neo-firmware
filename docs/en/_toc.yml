@@ -1,0 +1,44 @@
+root: index
+subtrees:
+  - maxdepth: 2
+    entries:
+      - file: specs/index
+        subtrees:
+          - maxdepth: 2
+            entries:
+              - file: specs/initialization
+              - file: specs/configuration
+              - file: specs/state_management
+              - file: specs/data_collection
+              - file: specs/provisioning
+              - file: specs/local_ctrl_endpoint_protocol
+              - file: specs/time_sync
+              - file: specs/error_handling
+              - file: specs/networking/index
+                subtrees:
+                  - maxdepth: 2
+                    entries:
+                      - file: specs/networking/mqtt_topics
+                      - file: specs/networking/mqtt_connection
+                      - file: specs/networking/cloud_communication
+              - file: specs/services/index
+                subtrees:
+                  - maxdepth: 2
+                    entries:
+                      - file: specs/services/builtin
+                      - file: specs/services/optional
+              - file: specs/ota/index
+                subtrees:
+                  - maxdepth: 2
+                    entries:
+                      - file: specs/ota/job_document
+                      - file: specs/ota/status_details
+                      - file: specs/ota/custom_filetypes
+      - file: c-api-reference/index
+        subtrees:
+          - maxdepth: 4
+            entries:
+              - file: c-api-reference/rmng-core
+              - file: c-api-reference/rmng-data-model
+              - file: c-api-reference/rmng-common
+              - file: c-api-reference/rmng-ota

@@ -1,0 +1,2 @@
+# POSIX requirements for building.
+gcovr==8.6

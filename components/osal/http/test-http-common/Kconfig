@@ -1,0 +1,19 @@
+menu "(test-http-common) HTTP Common Test Configuration"
+    config TEST_HTTP_COMMON_URL_TCP
+        string "Base URL (plain HTTP)"
+        default "http://eu.httpbin.org"
+        help
+            Base URL of the plain-HTTP test server (no TLS). Tests append endpoint
+            paths (/get, /post, ...). Defaults to the public httpbin.org service; CI
+            overrides this to a local httpbin sidecar (see README) because the public
+            service rate-limits and 503s, which made the tests flaky.
+
+    config TEST_HTTP_COMMON_URL_TLS
+        string "Base URL (HTTPS/TLS)"
+        default "https://httpbin.org"
+        help
+            Base URL of the TLS test server. Tests append endpoint paths (/get, /post, ...).
+            Defaults to the public httpbin.org service; CI overrides this to a local
+            httpbin sidecar (see README) whose self-signed certificate is trusted via
+            the POSIX CA bundle, so server verification still runs.
+endmenu

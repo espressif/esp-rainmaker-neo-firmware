@@ -1,0 +1,189 @@
+# ESP Launchpad build + deploy.
+#
+# Builds every auto-discovered example for every supported target, then publishes the
+# flashable merged binaries plus a generated Launchpad config to GitHub Pages.
+#
+# Shape:
+#   build   — one job PER TARGET, builds all examples with the pinned IDF image and emits
+#             per-app merged binaries already laid out as the published site.
+#   deploy  — merges every target's artifact into one tree, generates launchpad.toml +
+#             README.md + index.html, and deploys the whole thing to Pages.
+#
+# End result: https://<owner>.github.io/<repo>/launchpad.toml , usable directly as
+# https://espressif.github.io/esp-launchpad/?flashConfigURL=<that url>
+#
+# NOTE: the Pages site must be public for this to work at all — Launchpad is a browser
+# app and fetches the config and binaries cross-origin.
+
+name: Launchpad
+
+# Every branch push is delivered, but the jobs below only run for the repository's
+# DEFAULT branch (or a manual dispatch). `on.push.branches` cannot reference the default
+# branch dynamically, and hardcoding a name silently disables the whole workflow whenever
+# the mirror lands on a differently-named branch — so the filter lives in the job-level
+# `if` instead. Pushes to other branches still create a run, but every job is skipped:
+# no runner minutes, no Pages deployment.
+#
+# `branches: ['**']` keeps that dynamic check while filtering TAG pushes out entirely —
+# a tag push would only ever produce a fully-skipped run, i.e. noise in the Actions
+# history.
+#
+# `workflow_dispatch` is a deliberate testing escape hatch: it bypasses the default-branch
+# filter, so dispatching from any branch builds THAT branch and deploys it over the live
+# Pages site.
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+# Required by actions/deploy-pages (OIDC-based deployment).
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment can be live. `cancel-in-progress: false` follows GitHub's
+# Pages starter workflow: a newer run QUEUES behind an in-flight production deployment
+# and supersedes it once that finishes, instead of killing it midway.
+concurrency:
+  group: launchpad-pages
+  cancel-in-progress: false
+
+env:
+  # Space-separated example names/paths to keep out of Launchpad. Empty = build all.
+  LAUNCHPAD_EXCLUDE: ""
+
+jobs:
+  build:
+    # Espressif's copy only, default branch only (see the `on:` note above). deploy
+    # needs: build, so it is skipped along with this job on every other ref.
+    #
+    # The owner check matters because this runs on the PUBLIC GitHub mirror: without it
+    # every fork burns 6 heavy IDF build jobs on each push to its default branch, only to
+    # fail at the Pages deploy it has no permission for.
+    if: >-
+      github.repository_owner == 'espressif' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v6.0.2
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        # The launchpad coverage list — edit here to add or drop a chip.
+        #
+        # esp32h2 and esp32s2 are deliberately EXCLUDED, do not re-add them without
+        # revisiting the reasons:
+        #   - esp32s2 has no BLE, so provisioning falls back to SoftAP, and
+        #     challenge-response based user-node mapping does not work well over it.
+        #   - esp32h2 is Thread-only, and Thread is not yet validated with the phone apps.
+        target: [esp32, esp32s3, esp32c2, esp32c3, esp32c5, esp32c6]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      # ccache is reused WITHIN a target, ACROSS apps: the examples share almost all of
+      # IDF and the SDK components, so the second app onwards is mostly cache hits.
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: .ccache
+          key: launchpad-ccache-${{ matrix.target }}-${{ github.sha }}
+          restore-keys: |
+            launchpad-ccache-${{ matrix.target }}-
+
+      - name: Build examples
+        shell: bash
+        env:
+          IDF_TARGET: ${{ matrix.target }}
+          SITE_DIR: ${{ github.workspace }}/site
+          BUILD_TMP: ${{ github.workspace }}/launchpad_build_tmp
+          IDF_CCACHE_ENABLE: "1"
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+          CCACHE_MAXSIZE: 4G
+          CCACHE_BASEDIR: ${{ github.workspace }}
+          CCACHE_NOHASHDIR: "1"
+          CCACHE_SLOPPINESS: time_macros,include_file_mtime,include_file_ctime,file_stat_matches,pch_defines
+          CCACHE_COMPILERCHECK: content
+        run: |
+          . "$IDF_PATH/export.sh"
+          pip install idf-build-apps
+          ccache --zero-stats || true
+          # The container runs as a different user than the checkout owner.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$IDF_PATH"
+          bash .github/tools/launchpad/build_launchpad.sh
+
+      - name: Upload target artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: launchpad-${{ matrix.target }}
+          path: site
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      # merge-multiple flattens every target artifact into one tree. Per-app files
+      # (LAUNCHPAD.md, _meta/*) are written identically by each target, so overlaps are
+      # byte-identical; the per-target binaries land in disjoint <app>/<target>/ dirs.
+      - name: Download target builds
+        uses: actions/download-artifact@v8
+        with:
+          pattern: launchpad-*
+          path: site
+          merge-multiple: true
+
+      - name: Generate launchpad config
+        shell: bash
+        env:
+          SITE_DIR: ${{ github.workspace }}/site
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          REPO_SLUG: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+        run: bash .github/tools/launchpad/generate_launchpad_config.sh
+
+      - name: Generate directory index
+        shell: bash
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq tree
+          cd site
+          tree -H '.' -L 3 --noreport -T 'ESP RainMaker Neo Launchpad Artifacts' \
+            -shi --charset utf-8 -I "index.html" -o index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+      - name: Summary
+        shell: bash
+        run: |
+          BASE="${{ steps.deployment.outputs.page_url }}"
+          BASE="${BASE%/}/"
+          {
+            echo "### Launchpad deployed"
+            echo ""
+            echo "- Site: ${BASE}"
+            echo "- Config: ${BASE}launchpad.toml"
+            echo "- Open in Launchpad: https://espressif.github.io/esp-launchpad/?flashConfigURL=${BASE}launchpad.toml"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,5 @@
+# Opt-in profile: enable quad PSRAM and fold it into the default malloc heap.
+# For chips with quad PSRAM (e.g. ESP32-S3 N8R2, ESP32-S2). Not built in CI.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_QUAD=y
+CONFIG_SPIRAM_USE_MALLOC=y

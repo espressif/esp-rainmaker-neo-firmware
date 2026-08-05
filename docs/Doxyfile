@@ -1,0 +1,132 @@
+# Doxygen configuration for the rm-neo-sdk C API reference.
+#
+# Only non-default statements are listed. Doxygen is never invoked directly:
+# esp_docs.esp_extensions.run_doxygen runs it from the Sphinx build dir, so all
+# generated output (xml/, xml_in/, inc/) lands under docs/sphinx/_build/... and
+# nothing is written into the source tree.
+#
+# The INPUT block below is parsed twice:
+#   1. by Doxygen itself, to produce the XML
+#   2. by esp-docs (run_doxygen.get_doxyfile_input_paths), to derive the name of
+#      the per-header fragment each rst page includes
+# Hence the hard constraints on that block:
+#   * every entry MUST be written as $(PROJECT_PATH)/<path>.h  (regex-matched)
+#   * one header per line, no globs -- a glob would silently pull in the
+#     vendored third-party trees listed under "Deliberately not documented"
+#   * NO blank line inside the block: a blank line terminates the parse
+#   * a line containing '#' is skipped by the esp-docs parser, so in-block
+#     comments are fine but must never carry a header path
+#
+# Contract to keep: an INPUT entry `foo.h` is included by an rst page as
+#   .. include-build-file:: inc/foo.inc
+# Names must match. Header basenames must also be unique across the whole INPUT
+# list -- Doxygen names its XML by shortest-unique-path when they collide, and
+# Breathe then reports duplicate targets for the shared symbols.
+
+PROJECT_NAME = "ESP RainMaker Neo SDK Programming Guide"
+
+INPUT = \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_core.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_handle.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_flow.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_node.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_state.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_event_loop.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_system_ctrl.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_console.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_credentials_access.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_bridge.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_host_ctrl.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_host_ctrl_constants.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_local_config_targets.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_data_model.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_val.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_standard_types.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_standard_params.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_standard_devices.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_standard_services.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_common_events.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_credentials.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_credentials_provider.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_error_types.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_factory_part.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_mqtt_channels.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_mqtt_impl.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_runtime_gate.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_work_queue.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/constants/esp_rmaker_nvs_common.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/retry/esp_rmaker_backoff.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/util/esp_rmaker_convert_base64.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/util/esp_rmaker_convert_hex.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/util/esp_rmaker_crypto.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/util/esp_rmaker_nvs.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_ota/include/esp_rmaker_ota.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_ota/include/esp_rmaker_ota_error_reasons.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_ota/include/esp_rmaker_ota_event_loop.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_ota/include/esp_rmaker_ota_filetype_handler.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_ota/include/esp_rmaker_ota_status_details.h
+## Deliberately not documented (no EXCLUDE needed -- INPUT is an explicit
+## whitelist, so anything absent above is already out):
+##   components/esp_rmaker_neo_ota/deps/                  vendored coreJSON, Jobs-for-AWS-IoT,
+##                                              MQTTFileDownloader
+##   components/osal/                           the OS abstraction layer in full. It is an
+##                                              internal porting layer, not API consumers call:
+##                                              they use the esp_rmaker_neo* components. osal
+##                                              types that appear in documented signatures
+##                                              (osal_err_t, osal_storage_handle_t, ...) render
+##                                              as plain text rather than links, which is
+##                                              correct -- they are not part of the public API.
+##   components/esp_rmaker_neo/include/stubs/, components/esp_rmaker_neo/lib/   internal stubs and
+##                                              bundled libs (esp_schedule, mocks)
+##   */priv_include/, test/cbmc/include/        private and verification-only
+
+## Get warnings for functions that have no documentation for their parameters
+## or return value
+WARN_NO_PARAMDOC = YES
+
+## Enable preprocessing so Kconfig-gated APIs appear, and so __attribute__(...)
+## expressions are removed from the INPUT files
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+## ENV_DOXYGEN_DEFINES carries the Kconfig/soc defines injected by esp-docs.
+## __attribute__(x)=      : Breathe feeds declarations to Sphinx' C++ parser,
+##                          which rejects GCC attributes ("Expected '(' after
+##                          '__attribute__'"), so strip them here.
+## OSAL_EVENT_DECLARE_BASE(x)=
+##                        : a file-scope macro invocation that Doxygen records as
+##                          a *function* named OSAL_EVENT_DECLARE_BASE. Two
+##                          headers invoke it, so the generated
+##                          `.. doxygenfunction:: OSAL_EVENT_DECLARE_BASE` is
+##                          ambiguous and unresolvable. Stripping it drops the
+##                          extern event-base declarations from the reference;
+##                          the event enums themselves are still documented.
+PREDEFINED             = \
+    $(ENV_DOXYGEN_DEFINES) \
+    __attribute__(x)= \
+    OSAL_EVENT_DECLARE_BASE(x)=
+
+## Extract all
+EXTRACT_ALL = YES
+
+## Do not complain about not having dot
+HAVE_DOT = NO
+
+## Generate the XML that Breathe consumes; nothing else
+GENERATE_XML    = YES
+XML_OUTPUT      = xml
+
+GENERATE_HTML   = NO
+GENERATE_LATEX  = NO
+GENERATE_MAN    = NO
+GENERATE_RTF    = NO
+
+## Skip distracting progress messages
+QUIET = YES
+
+## WARN_LOGFILE is deliberately NOT set: run_doxygen already redirects Doxygen's
+## stderr into <build_dir>/doxygen-warning-log.txt, which is the file build-docs
+## later diffs against doxygen-known-warnings.txt. Setting WARN_LOGFILE to the
+## same name makes Doxygen open that file itself while Python holds it open for
+## stderr (interleaved/truncated output); setting it to a different name hides
+## the warnings from the check entirely.

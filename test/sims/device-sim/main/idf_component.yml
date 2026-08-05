@@ -1,0 +1,10 @@
+dependencies:
+  # RMNG SDK
+  esp_rmaker_neo:
+    path: ../../../../components/esp_rmaker_neo
+  # ESP-only network bring-up + RMNG provisioning
+  app_network:
+    path: ../../../../examples/common/app_network
+  # Platform entry-point shim
+  app_entry:
+    path: ../../../../examples/common/app_entry

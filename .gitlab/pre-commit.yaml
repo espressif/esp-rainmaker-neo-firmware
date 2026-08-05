@@ -1,0 +1,25 @@
+# Pre-commit checks (mirrors local hooks). Requires a runner tagged `lint`.
+pre_commit:
+  extends: .lint_template
+  image: python:3.11
+  before_script: []
+  variables:
+    # pre-commit --all-files lints the checked-out tree only — no git history and
+    # no submodules needed. Shallowest possible clone.
+    GIT_DEPTH: "1"
+    GIT_SUBMODULE_STRATEGY: none
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    PRE_COMMIT_HOME: "$CI_PROJECT_DIR/.cache/pre-commit"
+  cache:
+    key:
+      files:
+        - .pre-commit-config.yaml
+    paths:
+      - .cache/pip
+      - .cache/pre-commit
+  script:
+    - python3 -m venv .venv
+    - . .venv/bin/activate
+    - python -m pip install --upgrade pip
+    - python -m pip install pre-commit
+    - pre-commit run --all-files --show-diff-on-failure

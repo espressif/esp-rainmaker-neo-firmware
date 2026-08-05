@@ -1,0 +1,243 @@
+.build_examples_esp_idf_version:
+  timeout: 3h
+  extends:
+    - .build_template
+    - .esp_env_template
+  variables:
+    # One job builds a whole group of targets (IDF_TARGET_GROUP, space-separated).
+    # Artifacts are per-target size-components reports (text); binaries are not kept.
+    ESP_REPORTS_BASE: "$CI_PROJECT_DIR/example_size_reports_idf_${IDF_VERSION}"
+    # Build scratch (not archived).
+    ESP_BUILD_TMP_BASE: "$CI_PROJECT_DIR/example_build_tmp_idf_${IDF_VERSION}"
+    ESP_EXAMPLES_DIR: "examples"
+    # Built on every MR, so an SDK-only change (components/, third_party/) still gets
+    # example coverage: multi_device has the widest app_* dependency set, and ota-custom
+    # is the only app pulling esp_rmaker_neo_common and the only one with custom_job_support.
+    # The other examples are dependency subsets of multi_device; change detection covers
+    # their own code. Matched by basename, so a nested path like advanced/ota-custom works.
+    ESP_ALWAYS_APPS: "multi_device ota-custom"
+    # ccache reuse is WITHIN a target, ACROSS apps: building all examples (and
+    # their sdkconfig.ci.* variants) for one target compiles the shared ESP-IDF
+    # core + managed components once; apps 2..N reuse those objects. Cross-TARGET
+    # reuse is impossible (different toolchain/-march/CONFIG_* => different hash),
+    # so grouping targets shares nothing between them - it only batches setup.
+    # Job-local only: no GitLab `cache:` block, so nothing is uploaded/restored
+    # across runs (slow network; the ~1GB up/download is not worth it, and CI runs
+    # on MRs where the within-job reuse below is the payoff).
+    IDF_CCACHE_ENABLE: "1"
+    CCACHE_DIR: "$CI_PROJECT_DIR/.ccache"
+    CCACHE_MAXSIZE: "4G"
+    # Determinism so the within-target/cross-app hits above actually land. Without
+    # these the hit rate is ~0%: idf-build-apps gives each app a unique absolute
+    # build dir (--build-dir .../@n_@w) and a fresh checkout stamps new file
+    # mtimes, both of which bust the hash for otherwise-identical IDF-core compiles.
+    # See https://ccache.dev/manual/latest.html (Configuration Settings).
+    #   base_dir: rewrite abs paths under it to relative before hashing (per-app dirs)
+    #   hash_dir=false: drop CWD from the hash for debug-info builds
+    #   sloppiness: ignore __DATE__/__TIME__ and include mtime/ctime (fresh checkout)
+    #   compiler_check=content: robust across image rebuilds (toolchain is pinned)
+    CCACHE_BASEDIR: "$CI_PROJECT_DIR"
+    CCACHE_NOHASHDIR: "1"
+    CCACHE_SLOPPINESS: "time_macros,include_file_mtime,include_file_ctime,file_stat_matches,pch_defines"
+    CCACHE_COMPILERCHECK: "content"
+  script:
+    # Install idf-build-apps to build the examples
+    - pip install idf-build-apps
+    - ccache --zero-stats || true
+    - |
+      # Auto-discover example dirs once (target-independent): any path containing
+      # a `main/` subdir. Handles arbitrary nesting.
+      ALL_DIRS=()
+      while IFS= read -r maindir; do
+        example_dir="${maindir%/main}"
+        ALL_DIRS+=("$example_dir")
+      done < <(find "$ESP_EXAMPLES_DIR" -type d -name main)
+
+      BUILD_DIRS=()
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        # Minimal set: ESP_ALWAYS_APPS + example dirs whose own folder changed.
+        # BASE_SHA is the merge-base, so a plain two-dot diff against it is correct.
+        # ensure_base_sha fetches/deepens the shallow clone just enough to reach it.
+        BASE_SHA="${CI_MERGE_REQUEST_DIFF_BASE_SHA:-origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"
+        if ensure_base_sha "$BASE_SHA"; then
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" HEAD -- "$ESP_EXAMPLES_DIR/" || true)
+          # examples/common/ is shared by every example but is not itself an app dir, so the
+          # per-app filter below can never match it: a change to the shared components or to
+          # the shared sdkconfig.ci.* variants would otherwise be exercised only by
+          # ESP_ALWAYS_APPS. Treat it as "affects everything".
+          if echo "$CHANGED_FILES" | grep -q "^${ESP_EXAMPLES_DIR}/common/"; then
+            echo "examples/common/ changed; building all examples."
+            BUILD_DIRS=("${ALL_DIRS[@]}")
+          else
+            for d in "${ALL_DIRS[@]}"; do
+              name=$(basename "$d")
+              keep=0
+              for a in $ESP_ALWAYS_APPS; do
+                [ "$a" = "$name" ] && keep=1 && break
+              done
+              if [ "$keep" = "0" ] && echo "$CHANGED_FILES" | grep -q "^${d}/"; then
+                keep=1
+              fi
+              [ "$keep" = "1" ] && BUILD_DIRS+=("$d")
+            done
+          fi
+        else
+          echo "Could not resolve diff base $BASE_SHA; building all examples."
+          BUILD_DIRS=("${ALL_DIRS[@]}")
+        fi
+      else
+        BUILD_DIRS=("${ALL_DIRS[@]}")
+      fi
+
+      if [ ${#BUILD_DIRS[@]} -eq 0 ]; then
+        echo "No ESP-IDF examples to build for this pipeline."
+        exit 0
+      fi
+    - |
+      # Build every target in this job's group sequentially. Each target gets its
+      # own cold ccache fill (cross-target reuse is impossible), but WITHIN a target
+      # the apps share one warm ccache, so apps 2..N reuse the IDF-core compiles.
+      for IDF_TARGET in $IDF_TARGET_GROUP; do
+        echo "=== Building target $IDF_TARGET (IDF $IDF_VERSION) ==="
+        ESP_TEMP_BUILD_DIR="${ESP_BUILD_TMP_BASE}/${IDF_TARGET}"
+        ESP_REPORTS_DIR="${ESP_REPORTS_BASE}/${IDF_TARGET}"
+        mkdir -p "$ESP_REPORTS_DIR"
+
+        echo "Building ESP-IDF examples: ${BUILD_DIRS[*]}"
+        # Rules: shared variants (examples/common/ci-sdkconfig/), then any variant an example
+        # carries on its own, then its sdkconfig.defaults as "default". The shared rules must
+        # name the config explicitly -- a wildcard rule crossing `..` aborts idf-build-apps.
+        # See examples/common/ci-sdkconfig/README.md; POSIX equivalent is in .gitlab/config.yml.
+        #
+        # Each pattern is globbed relative to the APP directory, so reaching the shared dir
+        # is depth-dependent: `../common/...` for examples/<app>, `../../common/...` for a
+        # grouped one like examples/advanced/<app>. Both are passed; per app exactly one
+        # resolves to an existing file and the other silently matches nothing, so the
+        # duplicated config names never collide. Add a level here if examples nest deeper.
+        idf-build-apps build --config-rules \
+          "../common/ci-sdkconfig/sdkconfig.ci.psram_octal=psram_octal" \
+          "../common/ci-sdkconfig/sdkconfig.ci.on_network_chal_resp=on_network_chal_resp" \
+          "../common/ci-sdkconfig/sdkconfig.ci.local_ctrl_chal_resp=local_ctrl_chal_resp" \
+          "../../common/ci-sdkconfig/sdkconfig.ci.psram_octal=psram_octal" \
+          "../../common/ci-sdkconfig/sdkconfig.ci.on_network_chal_resp=on_network_chal_resp" \
+          "../../common/ci-sdkconfig/sdkconfig.ci.local_ctrl_chal_resp=local_ctrl_chal_resp" \
+          "sdkconfig.ci.*=" "sdkconfig.defaults=default" \
+          --target "$IDF_TARGET" \
+          --path "${BUILD_DIRS[@]}" \
+          --build-dir "${ESP_TEMP_BUILD_DIR}/@n_@w"
+
+        # Collect a per-app size-components report (text) per built app; binaries
+        # are discarded (too large to upload).
+        for build_dir in "$ESP_TEMP_BUILD_DIR"/*; do
+          collect_esp_build_artifacts "$build_dir" "$ESP_REPORTS_DIR" "$IDF_TARGET"
+        done
+      done
+      ccache --show-stats || true
+  artifacts:
+    paths:
+      - ${ESP_REPORTS_BASE}/
+    expire_in: 1 week
+
+# One job per (IDF_VERSION, target group). Targets are grouped so a single job
+# builds several of them (sharing a warm ccache), cutting per-job setup overhead
+# vs. one job per target. Tune group membership below to trade job count against
+# per-job wall-clock; coverage (all targets) is unchanged.
+build_examples_esp_idf:
+  extends:
+    - .build_examples_esp_idf_version
+  parallel:
+    matrix:
+      - IDF_VERSION: ["release-v5.5", "release-v6.0", "release-v6.1"]
+        IDF_TARGET_GROUP:
+          - "esp32 esp32s3"              # Xtensa
+          - "esp32c2 esp32c3 esp32c6"    # RISC-V (classic)
+          - "esp32c5"                    # RISC-V (newer)
+  rules:
+    - !reference [.rules_build_gate, rules]
+
+build_examples_posix:
+  timeout: 3h
+  extends:
+    - .build_template
+    - .posix_env_template
+  rules:
+    - !reference [.rules_build_gate, rules]
+  variables:
+    POSIX_OUTPUT_DIR: "$CI_PROJECT_DIR/example_builds"
+    POSIX_EXAMPLES_DIR: "examples"
+    # Same selection rationale as ESP_ALWAYS_APPS above.
+    POSIX_ALWAYS_APPS: "multi_device ota-custom"
+    # Cloned shallow (.rules_build_gate sets GIT_DEPTH:1); the change-detection
+    # diff below uses ensure_base_sha to reach the diff base without full history.
+  script:
+    - !reference [.posix_requirements_template, script]
+    - mkdir -p $POSIX_OUTPUT_DIR
+    - |
+      # Auto-discover POSIX examples (unified tree): any path with a `main/` subdir
+      # is an app. Mirrors the ESP-IDF discovery above, including the change
+      # detection below: apps are tracked as repo-relative PATHS, so an example
+      # grouped in a subfolder (examples/advanced/<app>) is handled. Only the
+      # artifact/output directory uses the basename.
+      ALL_DIRS=()
+      while IFS= read -r maindir; do
+        ALL_DIRS+=("${maindir%/main}")
+      done < <(find "$POSIX_EXAMPLES_DIR" -type d -name main)
+
+      BUILD_DIRS=()
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        # BASE_SHA is the merge-base → two-dot diff; ensure_base_sha reaches it
+        # from the shallow clone without a full-history fetch.
+        BASE_SHA="${CI_MERGE_REQUEST_DIFF_BASE_SHA:-origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"
+        if ensure_base_sha "$BASE_SHA"; then
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" HEAD -- "$POSIX_EXAMPLES_DIR/" || true)
+          # Same reasoning as the ESP-IDF job: examples/common/ is not itself an app dir, so
+          # the per-app prefix match below can never select it. Treat it as "affects
+          # everything" rather than letting POSIX_ALWAYS_APPS be its only coverage.
+          if echo "$CHANGED_FILES" | grep -q "^${POSIX_EXAMPLES_DIR}/common/"; then
+            echo "examples/common/ changed; building all POSIX examples."
+            BUILD_DIRS=("${ALL_DIRS[@]}")
+          else
+            for d in "${ALL_DIRS[@]}"; do
+              name=$(basename "$d")
+              keep=0
+              for a in $POSIX_ALWAYS_APPS; do
+                [ "$a" = "$name" ] && keep=1 && break
+              done
+              if [ "$keep" = "0" ] && echo "$CHANGED_FILES" | grep -q "^${d}/"; then
+                keep=1
+              fi
+              [ "$keep" = "1" ] && BUILD_DIRS+=("$d")
+            done
+          fi
+        else
+          echo "Could not resolve diff base $BASE_SHA; building all POSIX examples."
+          BUILD_DIRS=("${ALL_DIRS[@]}")
+        fi
+      else
+        BUILD_DIRS=("${ALL_DIRS[@]}")
+      fi
+
+      if [ ${#BUILD_DIRS[@]} -eq 0 ]; then
+        echo "No POSIX examples to build for this pipeline."
+        exit 0
+      fi
+      echo "Building POSIX examples: ${BUILD_DIRS[*]}"
+
+      for app_dir in "${BUILD_DIRS[@]}"; do
+        app_name=$(basename "$app_dir")
+        # Explicit `|| exit 1`: this script does not set -e itself, so a non-zero return from
+        # build_app_posix (a failed build, or the shared-sdkconfig shadow guard tripping) would
+        # otherwise be swallowed and the loop would carry on to the next example.
+        build_app_posix "$app_dir" "$POSIX_OUTPUT_DIR/$app_name" || exit 1
+
+        # Reduce build directory size by deleting unnecessary files
+        find $POSIX_OUTPUT_DIR/$app_name ! -type d \
+              ! -name "$app_name" \
+              ! -path "*partitions/ota_*" \
+              -delete
+        find $POSIX_OUTPUT_DIR/$app_name -type d -empty -delete
+      done
+  artifacts:
+    paths:
+      - ${POSIX_OUTPUT_DIR}/
+    expire_in: 1 day

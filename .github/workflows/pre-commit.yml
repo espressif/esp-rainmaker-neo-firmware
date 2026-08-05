@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# Runs the same pre-commit hooks the internal pipeline and every developer's commit runs, so a
+# contributor learns their formatting is off from CI instead of from a reviewer. The hook set is
+# in .pre-commit-config.yaml: astyle, cmake-format, ruff, esp-idf-kconfig, codespell, license
+# headers, end-of-file newlines.
+
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    name: pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # No system packages needed: every hook is installed by pre-commit itself, including the
+      # C/C++ formatter (igrr/astyle_py is a pure-Python astyle, not the apt binary).
+      - uses: pre-commit/action@v3.0.1

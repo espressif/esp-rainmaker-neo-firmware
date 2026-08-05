@@ -1,0 +1,46 @@
+menu "ESP RainMaker App LED Configuration"
+
+    choice APP_LED_TYPE
+        prompt "LED type"
+        default APP_LED_TYPE_LEDC if IDF_TARGET_ESP32C2
+        default APP_LED_TYPE_WS2812
+        help
+            The protocol used by the LED connected to the project.
+
+        config APP_LED_TYPE_WS2812
+            bool "WS2812 LED strip"
+            help
+                Controlled by a single GPIO pin.
+
+        config APP_LED_TYPE_LEDC
+            bool "LEDC"
+            help
+                Controlled by R, G, B GPIO pins.
+
+    endchoice
+
+    menu "WS2812 Configuration"
+        depends on APP_LED_TYPE_WS2812
+
+        config APP_LED_WS2812_GPIO_NUM
+            int "GPIO pin"
+            default 27 if IDF_TARGET_ESP32C5
+            default 8 if IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32C6 || IDF_TARGET_ESP32H2
+            default 48 if IDF_TARGET_ESP32S3
+            default 18
+    endmenu
+
+    menu "LEDC Configuration"
+        depends on APP_LED_TYPE_LEDC
+
+        config APP_LED_LEDC_GPIO_NUM_R
+            int "GPIO pin (red channel)"
+            default 0
+        config APP_LED_LEDC_GPIO_NUM_G
+            int "GPIO pin (green channel)"
+            default 1
+        config APP_LED_LEDC_GPIO_NUM_B
+            int "GPIO pin (blue channel)"
+            default 8
+    endmenu
+endmenu

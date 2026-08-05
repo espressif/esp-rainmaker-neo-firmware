@@ -1,0 +1,2 @@
+# ignore copied Kconfig files from esp_schedule component
+Kconfig*

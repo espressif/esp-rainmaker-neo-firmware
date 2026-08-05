@@ -1,0 +1,10 @@
+{
+    "data": {
+        "device": {
+            "t": {
+                "description": "Generic Multi-device Controller",
+                "color": "red"
+            }
+        }
+    }
+}

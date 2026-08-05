@@ -1,0 +1,7 @@
+# ESP32-C2 target overrides (same as other test apps)
+CONFIG_IDF_TARGET="esp32c2"
+
+# 26 MHz crystal, but force monitor baudrate back to default
+CONFIG_XTAL_FREQ_26=y
+CONFIG_ESP_CONSOLE_UART_CUSTOM=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200

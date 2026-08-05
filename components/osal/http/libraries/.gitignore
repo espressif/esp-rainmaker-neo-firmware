@@ -1,0 +1,5 @@
+# Third-party sources (see ../fetch_curl.cmake)
+curl/
+
+# FetchContent cross-process locks (see cmake/fetch_helpers.cmake)
+.rmng-fc-*.lock

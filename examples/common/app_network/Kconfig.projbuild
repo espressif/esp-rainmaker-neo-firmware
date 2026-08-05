@@ -1,0 +1,63 @@
+menu "ESP RainMaker App Network Configuration"
+    choice APP_NETWORK_PROTOCOL_TYPE
+        prompt "ESP RainMaker Network Type"
+        default APP_NETWORK_OVER_WIFI
+        help
+            Network protocol type over which the app will run.
+
+        config APP_NETWORK_OVER_WIFI
+            depends on ESP_WIFI_ENABLED
+            bool "ESP RainMaker over Wi-Fi"
+
+        config APP_NETWORK_OVER_THREAD
+            depends on OPENTHREAD_ENABLED
+            bool "ESP RainMaker over Thread"
+    endchoice
+
+    config APP_NETWORK_OVER_THREAD_IPV4_NETWORKING
+        depends on APP_NETWORK_OVER_THREAD
+        bool "Enable IPv4 networking for Thread"
+        default y
+        select OPENTHREAD_DNS64_CLIENT
+        help
+            Enable IPv4 networking for Thread. This enables OPENTHREAD_DNS64_CLIENT.
+
+    config APP_NETWORK_OVER_THREAD_IPV4_NETWORKING_WARNING
+        depends on APP_NETWORK_OVER_THREAD_IPV4_NETWORKING && OPENTHREAD_DNS64_CLIENT && \
+            !LWIP_HOOK_DNS_EXT_RESOLVE_CUSTOM
+        bool "⚠ Set LWIP_HOOK_DNS_EXT_RESOLVE_CUSTOM to y if you want to use IPv4 networking for Thread ⚠"
+        default n
+        help
+            WARNING: OPENTHREAD_DNS64_CLIENT is enabled, but LWIP_HOOK_DNS_EXT_RESOLVE_CUSTOM is not set to y.
+            This will cause IPv4 networking for Thread to not work.
+            Set LWIP_HOOK_DNS_EXT_RESOLVE_CUSTOM to y if you want to use IPv4 networking for Thread.
+
+    choice APP_NETWORK_POP_TYPE
+        prompt "Proof of Possession Type"
+        default APP_NETWORK_POP_TYPE_RANDOM
+        help
+            The type of Proof of Possession (PoP) to use.
+
+        config APP_NETWORK_POP_TYPE_MAC
+            bool "MAC address"
+            help
+                Use the MAC address as the PoP.
+
+        config APP_NETWORK_POP_TYPE_RANDOM
+            bool "Random"
+            help
+                Use a random PoP.
+
+        config APP_NETWORK_POP_TYPE_NONE
+            bool "None"
+            help
+                Use no PoP.
+
+    endchoice
+
+    config APP_NETWORK_FORCE_PROTOCOMM_SECURITY_VERSION_1
+        bool
+        default y
+        select ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_1
+
+endmenu

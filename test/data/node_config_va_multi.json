@@ -1,0 +1,44 @@
+{
+  "devices": [
+    {
+      "id": "Light1",
+      "type": "esp.device.lightbulb",
+      "params": [
+        {
+          "id": "Power",
+          "type": "esp.param.power",
+          "ui_type": "esp.ui.toggle",
+          "data_type": "bool",
+          "value": false,
+          "properties": ["read", "write", "time_series", "indexed"]
+        },
+        {
+          "id": "Brightness",
+          "type": "esp.param.brightness",
+          "ui_type": "esp.ui.slider",
+          "data_type": "int",
+          "value": 80,
+          "bounds": { "min": 0, "max": 100, "step": 1 },
+          "properties": ["read", "write", "time_series", "indexed"]
+        }
+      ]
+    },
+    {
+      "id": "Light2",
+      "type": "esp.device.lightbulb",
+      "params": [
+        {
+          "id": "Power",
+          "type": "esp.param.power",
+          "ui_type": "esp.ui.toggle",
+          "data_type": "bool",
+          "value": false,
+          "properties": ["read", "write", "time_series", "indexed"]
+        }
+      ]
+    }
+  ],
+  "info": {
+    "fw_version": "1.1.0"
+  }
+}

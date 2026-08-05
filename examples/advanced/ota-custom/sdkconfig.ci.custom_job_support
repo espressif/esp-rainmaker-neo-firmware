@@ -1,0 +1,2 @@
+# Check custom job support build
+CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT=y

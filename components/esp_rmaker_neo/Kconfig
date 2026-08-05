@@ -1,0 +1,388 @@
+menu "RMNG Configuration"
+
+    menu "RMNG Build Options"
+
+        config RMNG_HOST_CTRL
+            bool "Enable remote control"
+            default n
+            select RMNG_HEAP_MONITORING
+            select OSAL_INCLUDE_EXT_IO
+            select OSAL_USING_VIRTUAL_SCHEDULER
+            help
+                If set to true, then the serial remote control sources are included.
+
+        config RMNG_TESTING
+            bool "Enable RMNG testing"
+            default n
+            select OSAL_USING_VIRTUAL_SCHEDULER
+            help
+                If set to true, then RMNG testing is enabled.
+
+                On ESP-IDF builds, this enables the unit tests to be built properly.
+                On normal CMake builds, this forces unit tests to be built.
+
+                You should only build unit tests via
+                ``test/apps/posix/CMakeLists.txt`` and
+                ``test/apps/esp-idf/CMakeLists.txt``.
+
+        config RMNG_HEAP_MONITORING
+            bool "Enable heap monitoring"
+            default n
+            select OSAL_INCLUDE_HEAP_MONITOR
+            help
+                If set to true, then heap monitoring is enabled for RMNG.
+
+        config RMNG_CUSTOM_MQTT_CLIENT_PROVIDER
+            bool "Use custom MQTT client provider"
+            default n
+            help
+                If set to true, then you must provide a custom MQTT client provider implementation via the
+                initialization configuration.
+
+        config RMNG_BRIDGE_ENABLED
+            bool "Enable bridge support"
+            default n
+            help
+                If set to true, the high-level bridge APIs (esp_rmaker_bridge.h) and the underlying
+                bridge sources are included in the build. Bridge nodes proxy cloud connectivity for
+                multiple bridged child devices that have no direct AWS IoT MQTT connection of their
+                own.
+
+                Default is disabled. Enable only on firmware images intended to act as a bridge.
+
+        config RMNG_BRIDGE_MAX_CHILDREN
+            int "Maximum number of bridged children"
+            depends on RMNG_BRIDGE_ENABLED
+            range 1 400
+            default 128
+            help
+                Static slot pool size for bridged children. Each slot holds a fixed child handle;
+                adding a child returns an error once the pool is exhausted.
+
+        config RMNG_CONSOLE_ENABLED
+            bool "Enable RMNG serial console"
+            default y
+            depends on !(RMNG_HOST_CTRL && ESP_CONSOLE_UART_DEFAULT)
+            help
+                If set to true, the RMNG serial console is built. esp_rmaker_console_init() sets up the
+                serial console (REPL) and registers the common RainMaker commands plus the RMNG built-in
+                commands. Disable if the application provides its own console.
+
+                Not available when RMNG_HOST_CTRL is enabled and the ESP-IDF console uses the default
+                UART (UART0): the remote control multiplexes the same UART0 monitor stream, so a
+                console REPL on UART0 would clash. Use a different console interface (USB Serial/JTAG
+                or a custom UART) to enable both.
+
+        config RMNG_CONSOLE_PARAM_CMDS_ENABLED
+            bool "Enable parameter console commands (set-param, update-param, get-param)"
+            depends on RMNG_CONSOLE_ENABLED
+            default y
+            help
+                Enable console commands for interacting with device parameters:
+                - set-param: Set parameter value with callback invocation
+                - update-param: Update parameter value without callback
+                - get-param: Get current parameter value
+
+    endmenu
+
+    menu "ESP RainMaker State Reporting"
+
+        config RMAKER_STATE_REPORT_DELAY_MS
+            int "State update report delay (ms)"
+            default 500
+            help
+                Delay between a `esp_rmaker_param_update()` call and the actual state update report of all changed
+                parameters being sent via MQTT.
+                If another parameter update call occurs within this time window, the delay is reset.
+                Smaller delays reduce update latency but potentially increase the number of MQTT publishes.
+
+    endmenu
+
+    menu "ESP RainMaker Timeseries"
+
+        config RMAKER_TIMESERIES_PUBLISH_INITIAL_DELAY_MS
+            int "Timeseries publish initial delay (ms)"
+            default 100
+            range 10 1000
+            help
+                Initial delay for the timeseries publish.
+                This is the initial delay in between timeseries data publishes.
+
+        config RMAKER_TIMESERIES_PUBLISH_MAX_DELAY_MS
+            int "Timeseries publish max delay (ms)"
+            default 300000
+            range RMAKER_TIMESERIES_PUBLISH_INITIAL_DELAY_MS 300000
+            help
+                This is the maximum delay in between timeseries data publishes.
+                If a publish fails, then the delay is exponentially increased up to this value.
+
+        config RMAKER_TIMESERIES_DATA_QUEUE_LENGTH
+            int "Timeseries data queue length"
+            default 100
+            range 10 1000
+            help
+                Maximum number of timeseries data items the queue can hold. One item is ~24 bytes.
+                In normal operation, data is pushed to this queue. Data is then published to the MQTT broker in
+                the background at a throttled rate.
+                If the queue is full, then the incoming data is dropped.
+                You should increase this value if you expect timeseries data to be generated at a higher rate
+                than the publish delay, or if you expect the network to be unreliable.
+
+    endmenu
+
+    menu "ESP RainMaker Scheduling"
+
+        config RMAKER_SCHEDULING_MAX_SCHEDULES
+            int "Maximum schedules"
+            default 10
+            range 1 50
+            help
+                Maximum Number of schedules allowed. The JSON size for report params increases as the number of
+                schedules increases.
+
+    endmenu
+
+    menu "ESP RainMaker MQTT Configuration"
+
+        config ESP_RMAKER_MQTT_USE_PERSISTENT_SESSION
+            bool "Use MQTT persistent session"
+            default n
+            help
+                Use persistent MQTT sessions. This improves reliability as QoS1 messages missed
+                out due to some network issue are received after the MQTT client reconnects. The broker
+                caches messages for a period of up to 1 hour. However, a side-effect of this is that
+                messages can be received at unexpected times. Enable this option only if it suits
+                your use case. Please read MQTT specs to understand more about persistent sessions
+                and the cleanSession flag.
+
+                NOTE: if this is disabled, it is recommended NOT to enable OSAL_MQTT_RESUBSCRIBE_ON_CLEAN_SESSION.
+                RMNG manages its own subscription state, and will not rely on the broker to maintain it.
+                Enabling the option will likely lead to redundant subscription messages being sent.
+
+        config ESP_RMAKER_MQTT_USE_BASIC_INGEST
+            bool "Use basic ingest topics"
+            default y
+            help
+                Use basic ingest topics for supported MQTT publishes (e.g., cloud manager, timeseries, notify).
+                The message is directly ingested by the cloud, and no messages are received by subscribers.
+                This costs less than normal MQTT publishes, and should be used whenever possible.
+
+        config ESP_RMAKER_MQTT_ENABLE_BUDGETING
+            bool "Enable MQTT budgeting"
+            default n if RMNG_OTA_TRANSPORT_MQTT
+            default n if RMNG_BRIDGE_ENABLED
+            default y
+            help
+                Enable MQTT budgeting, which will control the number of MQTT messages sent by the node.
+                (Note: This should be disabled if OTA over MQTT is enabled, since OTA over MQTT does not use MQTT
+                budgeting.)
+                (Note: This should be disabled if bridge is enabled, since the bridge will easily exhaust the budget.)
+
+        config ESP_RMAKER_MQTT_DEFAULT_BUDGET
+            int "Default MQTT Budget"
+            depends on ESP_RMAKER_MQTT_ENABLE_BUDGETING
+            default 100
+            range 64 ESP_RMAKER_MQTT_MAX_BUDGET
+            help
+                Default MQTT budget. Budget will reduce on sending an MQTT message and increase based on
+                ESP_RMAKER_MQTT_BUDGET_REVIVE_PERIOD. If no budget is available, MQTT message will be dropped.
+
+        config ESP_RMAKER_MQTT_MAX_BUDGET
+            int "Max MQTT Budget"
+            depends on ESP_RMAKER_MQTT_ENABLE_BUDGETING
+            default 1024
+            range 64 2048
+            help
+                Maximum budget that the node can have. No additional budget will be allocated if this count is reached.
+
+        config ESP_RMAKER_MQTT_BUDGET_REVIVE_PERIOD
+            int "MQTT Budget revive period"
+            depends on ESP_RMAKER_MQTT_ENABLE_BUDGETING
+            default 5
+            range 5 600
+            help
+                Period in seconds after which the MQTT budget should revive (by ESP_RMAKER_MQTT_BUDGET_REVIVE_COUNT).
+                This is used to limit the messages being sent by the node.
+
+        config ESP_RMAKER_MQTT_BUDGET_REVIVE_COUNT
+            int "MQTT Budget revive count"
+            depends on ESP_RMAKER_MQTT_ENABLE_BUDGETING
+            default 1
+            range 1 16
+            help
+                The count by which the budget will be increased periodically based on
+                ESP_RMAKER_MQTT_BUDGET_REVIVE_PERIOD.
+
+    endmenu
+
+    menu "ESP RainMaker Local Control and On-Network Challenge Response"
+
+        config ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE
+            bool "Start challenge-response-only local service (on-network association)"
+            default n
+            help
+                Makes examples/sims start the local endpoints service with only the
+                challenge-response (ch_resp) endpoint, without the local control
+                (get_params/set_params/get_config) endpoints. Used for on-network
+                user-node association on nodes that do not expose local control.
+
+                Both endpoint sets are served by the same protocomm HTTP instance;
+                this option and ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE only decide
+                what the application enables at runtime.
+
+        config ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE
+            bool "Enable Challenge-Response endpoint in Local Control"
+            # Selecting both is ambiguous: the examples' ON_NETWORK branch wins, so local
+            # control never starts and this option's hook on RMAKER_EVENT_LOCAL_CTRL_STARTED
+            # never fires.
+            depends on !ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE
+            default y if !IDF_CMAKE
+            default n
+            help
+                Enables a challenge-response endpoint (ch_resp) in the Local Control service.
+                This allows clients to perform user-node mapping via the local control HTTP
+                server instead of requiring a separate on-network challenge-response service.
+
+                The endpoint uses the same challenge-response handler as provisioning, allowing
+                secure device authentication and user-node mapping over local network.
+
+                Defaults on for non-IDF (POSIX) builds: those have no provisioning session, so
+                the provisioning-time challenge-response endpoint is never registered and this
+                is the only route to user-node association.
+
+        choice ESP_RMAKER_LOCAL_CTRL_SEC_VERSION
+            bool "Security version"
+            default ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+            help
+                Security version for the local control service.
+
+            config ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1
+                bool "Security version 1"
+                select ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_1
+                help
+                    Security version 1. The PoP is randomly generated (or provided by the user) and stored in
+                    the NVS partition.
+                    The PoP is then available as a read-only parameter in the local control service.
+
+            config ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+                bool "Security version 2 (SRP6a, recommended)"
+                select ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_2
+                help
+                    Security version 2 (SRP6a + AES-GCM). The configured PoP is reused as the SRP
+                    password; salt and verifier are derived at runtime, and cached if possible.
+                    The SRP6a username is fixed to "wifiprov" for parity with ESP-IDF unified provisioning.
+
+        endchoice
+
+        config ESP_RMAKER_LOCAL_CTRL_SEC1_POP
+            bool "Require a PoP with security 1"
+            depends on ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1
+            default y
+            help
+                When disabled, security 1 runs without a proof of possession (the version
+                endpoint advertises the "no_pop" capability).
+
+        # Internal (no prompt, so it does not appear in menuconfig): derived
+        # answer to "does the selected security scheme use a PoP?".
+        #
+        # Security 2 always needs one (it is the SRP6a password); security 1
+        # only when ESP_RMAKER_LOCAL_CTRL_SEC1_POP is set. Three places need
+        # that answer — the PoP length option below, the PoP fields in the
+        # service state, and the PoP generation/NVS code — so it is derived
+        # once here instead of repeating the condition (and risking drift)
+        # in Kconfig and in C.
+        config ESP_RMAKER_LOCAL_CTRL_POP_IN_USE
+            bool
+            default y if ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+            default y if ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1 && ESP_RMAKER_LOCAL_CTRL_SEC1_POP
+            default n
+
+        config ESP_RMAKER_LOCAL_CTRL_POP_LENGTH
+            depends on ESP_RMAKER_LOCAL_CTRL_POP_IN_USE
+            int "PoP length (characters)"
+            default 8
+            range 8 32
+            help
+                Number of characters in the generated PoP. This is the value printed on the
+                device, shown in a QR payload and entered in the phone app, so it is counted
+                in characters rather than in random bytes.
+
+                The PoP is lowercase hex, so entropy is 4 bits per character: the default 8
+                carries 32 bits and matches ESP RainMaker. Raise it for more entropy at the
+                cost of a longer string for a user to read or type.
+
+                Odd values are rounded up to a whole random byte, so 9 yields the same
+                entropy as 10.
+
+        config ESP_RMAKER_LOCAL_CTRL_HTTP_PORT
+            int "HTTP Server port"
+            default 8080
+            range 1 65535
+            help
+                HTTP port for the (local control / on-network challenge-response) service.
+
+        config ESP_RMAKER_LOCAL_CTRL_STACK_SIZE
+            int "HTTP Server task stack size"
+            default 6344
+            range 4096 8192
+            help
+                The task stack size to be used for the HTTP server for local control.
+
+    endmenu
+
+    menu "ESP RainMaker Claiming"
+
+        config ESP_RMAKER_ASSISTED_CLAIM
+            bool "Enable assisted claiming"
+            depends on BT_ENABLED
+            default y
+            select RMAKER_CRYPTO_CSR_GENERATION
+            help
+                How the node obtains its cloud credentials (private key, certificate and
+                node ID).
+
+                With assisted claiming, the node generates its own key pair and a CSR, and
+                the phone app relays them to the ESP RainMaker claiming service over the BLE
+                provisioning session, returning a certificate and a cloud-assigned node ID.
+
+                Requires BLE provisioning: claiming happens over the provisioning session,
+                so a node provisioned over SoftAP or one that is Ethernet-only cannot be
+                assisted-claimed.
+
+                Disable this if credentials are pre-flashed into the factory partition by
+                the host-side factory tooling, which is what a private or self-hosted
+                deployment should do.
+
+    endmenu
+
+    menu "RMNG Remote Control Configurations"
+        depends on RMNG_HOST_CTRL
+
+        config RMNG_HOST_CTRL_TASK_STACK_DEPTH
+            int "Task stack depth"
+            default 8192
+            help
+                Stack depth of the remote control task.
+
+        config RMNG_HOST_CTRL_TASK_PRIORITY
+            int "Task priority"
+            default 1
+            help
+                Priority of the remote control task.
+
+    endmenu
+
+    menu "RMNG Timing"
+
+        config RMNG_TIME_SYNC_POLL_INTERVAL_S
+            int "Time-sync poll interval (seconds)"
+            default 2
+            help
+                Interval at which the SDK polls for time sync before arming
+                schedules, in the decoupled (non-MBEDTLS_HAVE_TIME_DATE) flow.
+                Ignored when CONFIG_MBEDTLS_HAVE_TIME_DATE forces the
+                synchronous flow.
+
+    endmenu
+
+endmenu

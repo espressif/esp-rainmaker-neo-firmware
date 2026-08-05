@@ -1,0 +1,36 @@
+{
+  "targetSelection": "SNAPSHOT",
+  "jobExecutionsRolloutConfig": {
+    "maximumPerMinute": 1
+  },
+  "abortConfig": {
+    "criteriaList": [
+      {
+        "failureType": "FAILED",
+        "action": "CANCEL",
+        "thresholdPercentage": 10.0,
+        "minNumberOfExecutedThings": 1
+      }
+    ]
+  },
+  "timeoutConfig": {
+    "inProgressTimeoutInMinutes": 60
+  },
+  "jobExecutionsRetryConfig": {
+    "criteriaList": [
+      {
+        "failureType": "TIMED_OUT",
+        "numberOfRetries": 2
+      },
+      {
+        "failureType": "FAILED",
+        "numberOfRetries": 1
+      }
+    ]
+  },
+  "schedulingConfig": {
+    "startTime": "2030-01-01T10:00",
+    "endTime": "2030-01-31T12:00",
+    "endBehavior": "CANCEL"
+  }
+}

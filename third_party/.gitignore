@@ -1,0 +1,8 @@
+# FetchContent third-party sources (see install_scripts/*.cmake and third_party_versions.cmake)
+Unity/
+esp-aws-iot/
+mbedtls/
+protobuf-c/protobuf-c/
+
+# FetchContent cross-process locks (see cmake/fetch_helpers.cmake)
+.rmng-fc-*.lock

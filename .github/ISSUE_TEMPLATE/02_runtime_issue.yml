@@ -1,0 +1,86 @@
+name: Runtime issue
+description: The SDK builds but misbehaves on the device or host
+labels: ['Type: Bug']
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Answers checklist
+      options:
+        - label: I have read the [node firmware spec](https://github.com/espressif/esp-rainmaker-neo-firmware/blob/main/docs/en/specs/index.md) for the service involved and the behaviour I see contradicts it.
+          required: true
+        - label: I have searched existing issues and did not find the same problem.
+          required: true
+        - label: My node has a valid factory NVS (certificates, credentials, MQTT host) — see [the device credentials guides](https://docs.neo.rainmaker.espressif.com/docs/firmware/device-credentials/).
+          required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Which platform?
+      multiple: false
+      options:
+        - ESP-IDF (on hardware)
+        - POSIX (on a host)
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: sdk_version
+    attributes:
+      label: SDK revision
+      placeholder: ex. v0.8.0 / 0ccdca3
+    validations:
+      required: true
+  - type: input
+    id: idf_version
+    attributes:
+      label: ESP-IDF version
+      description: Leave as "n/a" for a POSIX-only issue.
+      placeholder: ex. v6.0.2
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Dev kit or custom board, and the chip. For POSIX, the host OS.
+      placeholder: ex. ESP32-C6-DevKitC-1 / Ubuntu 24.04 x86_64
+    validations:
+      required: true
+  - type: input
+    id: example
+    attributes:
+      label: Which example, or your own application?
+      placeholder: ex. examples/light, unmodified
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: Include how reproducible it is — every boot, or occasionally.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Device or host log
+      description: >
+        From boot onward if you can. `OSAL_LOG` output at debug level is far more useful than
+        the default level. Please paste text rather than a screenshot, and redact your
+        credentials, node ID and MQTT host if you would rather not publish them.
+      render: plain text
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?
+    validations:
+      required: false

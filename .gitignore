@@ -1,0 +1,35 @@
+# IDE and system files
+.vscode
+.DS_Store
+.cache
+# Scratch git worktrees created by coding agents; the rest of .claude/ is shareable.
+.claude/worktrees/
+
+# Python
+.venv
+__pycache__
+
+# build and registry components (build/, build_esp32/, ...)
+build/
+build_*/
+managed_components
+
+# Sphinx docs output (docs/Makefile BUILDDIR)
+docs/_build
+
+# config files
+sdkconfig
+sdkconfig.old
+dependencies.lock
+
+# credentials
+.env
+certs
+
+# Test outputs
+server_port
+sysout.txt
+
+# Local checkout of the RMNG backend (superseded by tools/common/rmng_backend.py
+# + $RMNG_BACKEND_DIR; kept out of the tree, never committed)
+tools/common/deps/

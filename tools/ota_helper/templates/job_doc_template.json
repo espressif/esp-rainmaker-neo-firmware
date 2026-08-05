@@ -1,0 +1,39 @@
+{
+  "operation": "firmware_update",
+  "version": "1.0.0",
+  "description": "OTA firmware update job",
+  "files": [
+    {
+      "fileId": "firmware_main",
+      "fileName": "firmware.bin",
+      "fileType": "firmware",
+      "fileSize": 524288,
+      "location": {
+        "s3Location": {
+          "bucket": "ota-test-bucket-{account_id}",
+          "key": "firmware.bin",
+          "version": "1"
+        }
+      },
+      "codeSigning": {
+        "awsSignerJobId": "signing-job-id-placeholder"
+      }
+    },
+    {
+      "fileId": "config_update",
+      "fileName": "config.json",
+      "fileType": "config",
+      "fileSize": 1024,
+      "location": {
+        "s3Location": {
+          "bucket": "ota-test-bucket-{account_id}",
+          "key": "config.json",
+          "version": "1"
+        }
+      }
+    }
+  ],
+  "streamName": "AFR_OTA_STREAM",
+  "protocols": ["MQTT"],
+  "roleArn": "arn:aws:iam::{account_id}:role/aws-iot-device-update-role"
+}

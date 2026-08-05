@@ -1,0 +1,27 @@
+variables:
+  POSIX_TEST_ENV_IMAGE: "${CI_REGISTRY_IMAGE}/posix_test_env:latest"
+
+.posix_env_template:
+  image: ${POSIX_TEST_ENV_IMAGE}
+
+.posix_requirements_template:
+  script:
+    - python3 -m venv $CI_PROJECT_DIR/.venv
+    - source $CI_PROJECT_DIR/.venv/bin/activate
+    - pip install -r $CI_PROJECT_DIR/posix_requirements.txt
+
+.esp_env_template:
+  image: espressif/idf:${IDF_VERSION}
+
+update_posix_test_env_image:
+  stage: prepare
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  tags: [build]
+  when: manual
+  script:
+    - |
+      mkdir -p /kaniko/.docker
+      echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(echo -n ${CI_REGISTRY_USER}:${CI_JOB_TOKEN} | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile "${CI_PROJECT_DIR}/tools/docker/posix_test/Dockerfile" --destination "${POSIX_TEST_ENV_IMAGE}"

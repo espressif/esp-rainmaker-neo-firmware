@@ -1,0 +1,79 @@
+{
+  "devices": [
+    {
+      "id": "Light",
+      "type": "esp.device.lightbulb",
+      "params": [
+        {
+          "id": "Power",
+          "type": "esp.param.power",
+          "ui_type": "esp.ui.toggle",
+          "data_type": "bool",
+          "value": false,
+          "properties": ["read", "write", "time_series", "indexed"]
+        },
+        {
+          "id": "Brightness",
+          "type": "esp.param.brightness",
+          "ui_type": "esp.ui.slider",
+          "data_type": "int",
+          "value": 80,
+          "bounds": { "min": 0, "max": 100, "step": 1 },
+          "properties": ["read", "write", "time_series", "indexed"]
+        }
+      ]
+    },
+    {
+      "id": "Temp Sensor",
+      "type": "esp.device.temperature-sensor",
+      "params": [
+        {
+          "id": "Temperature",
+          "type": "esp.param.temperature",
+          "ui_type": "esp.ui.slider",
+          "data_type": "float",
+          "value": 22.5,
+          "bounds": { "min": -10.0, "max": 50.0, "step": 0.1 },
+          "properties": ["read", "write", "time_series", "indexed"]
+        }
+      ]
+    },
+    {
+      "id": "TV",
+      "type": "esp.device.tv",
+      "params": [
+        {
+          "id": "Name",
+          "type": "esp.param.name",
+          "ui_type": "esp.ui.text",
+          "data_type": "string",
+          "value": "Generic Smart TV",
+          "properties": ["read"]
+        },
+        {
+          "id": "Profiles",
+          "type": "esp.param.profiles",
+          "ui_type": "esp.ui.hidden",
+          "data_type": "array",
+          "value": ["John", "Jane", "Jim"],
+          "properties": ["read", "write"]
+        },
+        {
+          "id": "Channels",
+          "type": "esp.param.channels",
+          "ui_type": "esp.ui.hidden",
+          "data_type": "object",
+          "value": {
+            "John": 1,
+            "Jane": 2,
+            "Jim": 3
+          },
+          "properties": ["read", "write"]
+        }
+      ]
+    }
+  ],
+  "info": {
+    "fw_version": "1.1.0"
+  }
+}

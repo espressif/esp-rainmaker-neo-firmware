@@ -1,0 +1,161 @@
+menu "RMNG OTA Configuration"
+
+    choice RMNG_OTA_TRANSPORT
+        bool "OTA transport"
+        default RMNG_OTA_TRANSPORT_MQTT
+
+        config RMNG_OTA_TRANSPORT_MQTT
+            bool "MQTT"
+            help
+                Perform OTA over MQTT.
+
+    endchoice
+
+    config RMNG_OTA_PROGRESS_CHECKPOINTS
+        int "Number of progress checkpoints"
+        default 10
+        help
+            For N checkpoints specified, while downloading an OTA file,
+            a progress update is reported for every (100/N)% downloaded.
+            This only applies to the default OTA callbacks.
+
+    config RMNG_OTA_MAX_RETRIES_DIVIDE_FACTOR
+        int "Max retries divide factor"
+        default 10
+        range 1 100
+        help
+            Maximum retries = floor(total requests / this divide factor).
+            This determines the number of times an OTA job will
+            retry a request if it fails before failing the overall job.
+            When a request fully succeeds, the retry count is reset.
+
+    config RMNG_OTA_REQUEST_TIMEOUT_MS
+        int "Request timeout"
+        default 10000
+        range 1000 60000
+        help
+            Timeout for OTA requests in milliseconds.
+
+    config RMNG_OTA_EVENT_POOL_SIZE
+        int "FSM static event pool size"
+        default 8
+        range 4 32
+        help
+            Number of preallocated ota_job_event_data_t slots reserved for payload-free
+            FSM events (transitions, error, recovery). Served via a fixed-size queue so
+            allocation is O(1) and does not depend on the heap. Guarantees that FSM
+            transitions and the error/recovery path do not stall on heap exhaustion.
+            Increase only if many payload-free events can be in flight concurrently.
+
+    config RMNG_OTA_FORCE_ENABLE_ROLLBACK
+        depends on IDF_CMAKE
+        bool "Force BOOTLOADER_APP_ROLLBACK_ENABLE"
+        select BOOTLOADER_APP_ROLLBACK_ENABLE
+        default y
+        help
+            This forces app rollback to be enabled, so diagnostics
+            can be performed before and after MQTT connection if available.
+            Disable this if you do not need diagnostics.
+
+    config RMNG_OTA_SIGNATURE_VERIFY_ENABLE
+        bool "Enable OTA Signature Verification"
+        default n
+        help
+            Verify the signature of the downloaded OTA image against the SHA-256 computed over the
+            downloaded data, as a post-download step.
+
+            Enabling this makes two things mandatory:
+            a codesign certificate in the ESP RainMaker credentials -- its absence fails OTA
+            initialisation outright, rather than silently skipping the check; and a valid base64
+            signature in every OTA job document -- a job without one is rejected, not attempted.
+
+            Off by default. Enable it only when your OTA jobs carry a signature.
+
+    config RMNG_OTA_TIME_SUPPORT
+        bool "Enable OTA Time Support"
+        default y
+        help
+            OTA Jobs can include additional metadata for time to indicate a range of valid date and the time within
+            those dates. Eg. Perform OTA between 1 Dec 2022 and 10 Dec 2022 only between 2:00am and 5:00am.
+            If you want to ignore this, disable this option.
+
+    config RMNG_OTA_RESUME
+        bool "Enable OTA Auto-Resume"
+        default y
+        help
+            Resume an interrupted OTA download instead of restarting from byte 0, when the job
+            document declares a "file_md5" (the image identity). Download progress (MQTT block
+            bitmap) is persisted to NVS and reused only for the exact same target image. On
+            completion the full-image MD5 is verified end-to-end.
+
+            Resume is always best-effort: any failure falls back to a full OTA, so enabling this never
+            makes an otherwise-successful update fail.
+
+    config RMNG_OTA_CUSTOM_JOB_SUPPORT
+        bool "Enable Custom Job Support"
+        default n
+        help
+            Enable support for custom job execution.
+            Whenever a job document is received that is not recognized by the default OTA callbacks, the custom
+            job execution callback will be invoked.
+            Refer to esp_rmaker_ota_custom_job_cb_t and esp_rmaker_ota_report_custom_job_status() for more details.
+
+    config RMNG_OTA_ROLLBACK_WAIT_PERIOD
+        int "OTA Rollback Wait Period (Seconds)"
+        default 90
+        range 30 600
+        help
+            After an OTA Update, if CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE is set, then the firmware will wait for MQTT
+            connection to mark the new firmware as valid. However, if it is not able to do so within
+            this wait period (in seconds), the firmware will be marked as invalid and the older
+            firmware will be booted into.
+
+    config RMNG_OTA_DISABLE_AUTO_REBOOT
+        bool "Disable auto reboot"
+        default n
+        help
+            After OTA image is flashed and active partition changed, the device automatically reboots. To disable this
+            behaviour and handle reboot on your own, based on RMAKER_OTA event, enable this option.
+
+    menu "MQTT transport configuration"
+        depends on RMNG_OTA_TRANSPORT_MQTT
+
+        config RMNG_OTA_MQTT_BLOCK_SIZE
+            int "Block size"
+            default 2304 if IDF_TARGET_ESP32C2
+            default 3072
+            range 350 OSAL_MQTT_MAX_IN_BUFFER_SIZE
+            help
+                Block size to download in. Defaults to ~75% of the MQTT in
+                buffer size to leave headroom for other MQTT traffic.
+
+        config RMNG_OTA_MQTT_BLOCKS_PER_REQUEST
+            int "Blocks per request"
+            default 40
+            range 1 RMAKER_WORK_QUEUE_TASK_QUEUE_SIZE
+            help
+                Number of blocks to download in a single request.
+                Since blocks are processed in the work queue, this should be below the work queue's task queue size.
+
+        choice RMNG_OTA_MQTT_DATA_TYPE
+            bool "Data type"
+            default RMNG_OTA_MQTT_DATA_TYPE_CBOR
+            help
+                Data type to use for MQTT downloader.
+
+            config RMNG_OTA_MQTT_DATA_TYPE_CBOR
+                bool "CBOR"
+                help
+                    Use Concise Binary Object Representation (CBOR) for MQTT downloader.
+                    Tends to reduce payload size compared to JSON.
+
+            config RMNG_OTA_MQTT_DATA_TYPE_JSON
+                bool "JSON"
+                help
+                    Use JavaScript Object Notation (JSON) for MQTT downloader.
+
+        endchoice
+
+    endmenu
+
+endmenu

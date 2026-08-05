@@ -1,0 +1,25 @@
+/*
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#ifndef COREMQTT_CONFIG_H
+#define COREMQTT_CONFIG_H
+
+#include "sdkconfig.h"
+#include "core_mqtt_common_logging.h"
+
+#ifdef LIBRARY_LOG_NAME
+#undef LIBRARY_LOG_NAME
+#endif
+#define LIBRARY_LOG_NAME "coreMQTT"
+
+/* coreMQTT configurations */
+#define MQTT_STATE_ARRAY_MAX_COUNT CONFIG_MQTT_STATE_ARRAY_MAX_COUNT
+#define MQTT_MAX_CONNACK_RECEIVE_RETRY_COUNT CONFIG_MQTT_MAX_CONNACK_RECEIVE_RETRY_COUNT
+#define MQTT_PINGRESP_TIMEOUT_MS CONFIG_MQTT_PINGRESP_TIMEOUT_MS
+#define MQTT_RECV_POLLING_TIMEOUT_MS CONFIG_MQTT_RECV_POLLING_TIMEOUT_MS
+#define MQTT_SEND_TIMEOUT_MS CONFIG_MQTT_SEND_TIMEOUT_MS
+
+#endif /* COREMQTT_CONFIG_H */

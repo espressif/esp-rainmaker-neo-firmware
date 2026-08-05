@@ -1,0 +1,29 @@
+menu "ESP RainMaker App Button Configuration"
+
+    config APP_BUTTON_GPIO_NUM
+        int "GPIO pin"
+        default 28 if IDF_TARGET_ESP32C5
+        default 9 if IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32C6 || IDF_TARGET_ESP32C2 || IDF_TARGET_ESP32H2
+        default 0
+        help
+            GPIO pin to use as button input. Defaults to the BOOT button on most boards.
+
+    config APP_BUTTON_IS_ACTIVE_HIGH
+        bool "Is active HIGH?"
+        default n
+        help
+            True: active HIGH, False: active LOW
+
+    config APP_BUTTON_SHORT_PRESS_TIME_MS
+        int "Short press time (ms)"
+        default 50
+        help
+            Time in milliseconds for the button to be pressed before performing the action.
+
+    config APP_BUTTON_LONG_PRESS_TIME_MS
+        int "Long press time (ms)"
+        default 1000
+        help
+            Time in milliseconds for the button to be pressed and held down before performing the long press action.
+
+endmenu

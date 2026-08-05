@@ -1,0 +1,5 @@
+# Generated autoreg bundles (keys, certs, factory NVS)
+outputs/
+
+# Generated merged binaries from factory_attach.py
+binaries/

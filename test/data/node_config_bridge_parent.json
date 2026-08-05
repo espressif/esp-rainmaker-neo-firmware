@@ -1,0 +1,21 @@
+{
+  "devices": [
+    {
+      "id": "BridgeParent",
+      "type": "esp.device.switch",
+      "params": [
+        {
+          "id": "Power",
+          "type": "esp.param.power",
+          "ui_type": "esp.ui.toggle",
+          "data_type": "bool",
+          "value": false,
+          "properties": ["read", "write", "time_series", "indexed"]
+        }
+      ]
+    }
+  ],
+  "info": {
+    "fw_version": "1.1.0"
+  }
+}

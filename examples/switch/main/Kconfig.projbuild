@@ -1,0 +1,8 @@
+menu "Switch Example Configuration"
+
+    config SWITCH_NOTIFY_ON_PUSH_BTN_CB
+        bool "Notify on button press"
+        default n
+        help
+            Send a notification every time the button is pressed.
+endmenu

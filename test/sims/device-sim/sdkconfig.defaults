@@ -1,0 +1,35 @@
+# This file was generated using idf.py save-defconfig. It can be edited manually.
+# Espressif IoT Development Framework (ESP-IDF) 5.5.0 Project Minimal Configuration
+#
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+
+# Increase FreeRTOS timer task stack depth.
+CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=3072
+
+# Default to BLE provisioning.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_APP_NETWORK_PROV_TRANSPORT_BLE=y
+CONFIG_APP_NETWORK_PROV_COMPACT_QR=y
+
+# Enable remote control
+CONFIG_RMNG_HOST_CTRL=y
+
+# device-sim is a remote-control harness, so the console is not built.
+CONFIG_RMNG_CONSOLE_ENABLED=n
+
+# Remote control might need larger MQTT buffers for huge payloads (e.g., shadow documents)
+# Switch to coreMQTT with larger single network buffer
+CONFIG_OSAL_MQTT_IMPL_CORE=y
+
+# Use the same UART device as the normal monitor, and set the baud rate to 115200.
+# You should use the remote in multiplexed mode.
+CONFIG_ESP_CONSOLE_UART_CUSTOM=y
+CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM=0
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+CONFIG_OSAL_EXT_IO_ESP_UART_BAUD_RATE=115200
+
+# Optimize build for size for all targets.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y

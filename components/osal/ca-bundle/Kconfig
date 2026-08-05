@@ -1,0 +1,18 @@
+menu "CA Bundle (POSIX)"
+
+    config OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE
+        bool "Add custom certificates to the certificate bundle"
+        default n
+        help
+            Add custom certificates to the CA bundle used for TLS on POSIX.
+            The default bundle is the ESP-IDF CA bundle; this option appends
+            the given file (PEM) to it.
+
+    config OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE_PATH
+        depends on OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE
+        string "Path to the custom certificate bundle"
+        help
+            Path to the custom certificate bundle file (PEM). This path is
+            evaluated relative to the project root directory.
+
+endmenu
