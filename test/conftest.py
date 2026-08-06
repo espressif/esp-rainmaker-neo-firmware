@@ -1015,8 +1015,12 @@ def _reset_user(user):
 
 
 def deinit_user(user):
-    # Reset the user
+    """Session-end destructor: reset first, then remove the account itself."""
     _reset_user(user)
+    try:
+        user.delete_user_by_email(user.username)
+    except Exception as e:
+        print(f"Warning destroying pooled user {user.username}: {e}")
 
 
 def _init_admin_user():
