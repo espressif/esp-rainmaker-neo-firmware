@@ -4,4 +4,4 @@ cmake_minimum_required(VERSION 3.16)
 
 # Component dependencies are pulled in via main/idf_component.yml
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(rmng-sdk-testapp)
+project(test-app-esp-idf)

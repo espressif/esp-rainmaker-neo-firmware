@@ -61,8 +61,8 @@ which defaults to 443 and then also requests the `x-amzn-mqtt-ca` ALPN protocol
 
 ## Tests
 
-`test_rmaker_neo_common/` doubles as a POSIX ctest executable (`rmng-common-tests`,
+`test_rmaker_neo_common/` doubles as a POSIX ctest executable (`esp_rmaker_neo_common_tests`,
 built when testing is enabled) and an ESP-IDF test component, both driven from
 [`test/apps/`](../../test/apps/). Coverage targets on POSIX:
-`rmng_common_coverage_test` then `rmng_common_coverage_gen`, report in
-`build/rmng-common-coverage/`.
+`esp_rmaker_neo_common_coverage_test` then `esp_rmaker_neo_common_coverage_gen`, report in
+`build/coverage/esp_rmaker_neo_common/`.

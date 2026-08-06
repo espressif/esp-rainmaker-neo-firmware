@@ -53,5 +53,5 @@ directory-name component `nvs` on POSIX.
 Always built. Both sources are in the unconditional per-platform source lists and
 `include/` is always on the interface include path.
 
-Tests: [`test-nvs-common/`](test-nvs-common/), including partition-isolation
+Tests: [`test_osal_storage/`](test_osal_storage/), including partition-isolation
 cases.

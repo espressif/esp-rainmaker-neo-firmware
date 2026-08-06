@@ -5,8 +5,8 @@
 include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/menuconfig.cmake)
 
 # Test Kconfigs (registered as children)
-include(${CMAKE_CURRENT_LIST_DIR}/http/test-http-common/kconfig_reg.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/mqtt/test-mqtt-common/kconfig_reg.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/http/test_osal_http/kconfig_reg.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/mqtt/test_osal_mqtt/kconfig_reg.cmake)
 
 # protocomm registers itself (as protocomm-posix, parented directly by esp_rmaker_neo)
 include(${CMAKE_CURRENT_LIST_DIR}/protocomm/kconfig_reg.cmake)
@@ -20,5 +20,5 @@ set(OSAL_KCONFIGS
 kconfig_register(
     NAME osal
     KCONFIGS ${OSAL_KCONFIGS}
-    CHILDREN test-http-common test-mqtt-common
+    CHILDREN test_osal_http test_osal_mqtt
 )

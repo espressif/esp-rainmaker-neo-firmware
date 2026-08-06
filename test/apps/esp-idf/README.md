@@ -1,11 +1,11 @@
-# RMNG SDK ESP-IDF test app (unified)
+# ESP-IDF test app (unified)
 
 Single ESP-IDF test application for all on-device tests: **osal**, **esp_rmaker_neo_common**, **esp_rmaker_neo**, and **esp_rmaker_neo_ota**.
 
 ## Setup
 
-1. **MQTT tests:** Follow the [MQTT test setup](../../../components/osal/mqtt/test-mqtt-common/README.md) if you will run MQTT-related tests.
-2. **RMNG tests:** Flash a factory NVS partition for the device. Use the [factory NVS tool](../../../tools/factory_nvs_gen/) to generate the binary, then flash it at the `fctry` offset from `partitions.csv` (e.g. via `esptool`).
+1. **MQTT tests:** Follow the [MQTT test setup](../../../components/osal/mqtt/test_osal_mqtt/README.md) if you will run MQTT-related tests.
+2. **esp_rmaker_neo tests:** Flash a factory NVS partition for the device. Use the [factory NVS tool](../../../tools/factory_nvs_gen/) to generate the binary, then flash it at the `fctry` offset from `partitions.csv` (e.g. via `esptool`).
 
 ## Build and run
 

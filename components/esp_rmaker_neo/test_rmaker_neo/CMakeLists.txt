@@ -1,7 +1,7 @@
 # include internal RMNG headers for testing of internal components
 include(${CMAKE_CURRENT_LIST_DIR}/../sources.cmake)
 
-set(RMNG_TEST_SRCS
+set(TEST_ESP_RMAKER_NEO_SRCS
     # All test sources
     "tests_src/test_node_model.c"
     "tests_src/test_introspect.c"
@@ -35,15 +35,15 @@ set(RMNG_TEST_SRCS
     # Test suite
     "test_all.c"
 )
-set(RMNG_TEST_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}" ${RMNG_DATA_MODEL_INCLUDE_DIRS})
-set(RMNG_TEST_PRIV_INCLUDE_DIRS
+set(TEST_ESP_RMAKER_NEO_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}" ${RMNG_DATA_MODEL_INCLUDE_DIRS})
+set(TEST_ESP_RMAKER_NEO_PRIV_INCLUDE_DIRS
     ${RMNG_PRIV_INCLUDE_DIRS} ${RMNG_DATA_MODEL_PRIV_INCLUDE_DIRS} ${RMNG_PRIV_STUB_HOST_CTRL_INCLUDE_DIR}
     ${RMNG_SRC_DIR} # Allow access to internal RMNG sources for testing
 )
-set(RMNG_TEST_PRIV_REQUIRES ${RMNG_NAME} ${RMNG_PRIV_REQUIRES})
+set(TEST_ESP_RMAKER_NEO_PRIV_REQUIRES ${RMNG_NAME} ${RMNG_PRIV_REQUIRES})
 
 if (CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE)
-    list(APPEND RMNG_TEST_SRCS "tests_src/test_bridge.c" "tests_src/test_bridge_child_nvs.c"
+    list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/test_bridge.c" "tests_src/test_bridge_child_nvs.c"
          "tests_src/test_bridge_accessors.c" "tests_src/test_node_config_pending.c"
     )
 endif ()
@@ -53,44 +53,46 @@ if (ESP_PLATFORM)
     # esp_rmaker_neo's own dirs (priv_include, stubs, src) are attached after register: IDF's component validation
     # inspects register-time properties only, and would otherwise warn about this component borrowing them.
     idf_component_register(
-        SRCS ${RMNG_TEST_SRCS}
+        SRCS ${TEST_ESP_RMAKER_NEO_SRCS}
         INCLUDE_DIRS "."
-        PRIV_REQUIRES ${RMNG_TEST_PRIV_REQUIRES} unity
+        PRIV_REQUIRES ${TEST_ESP_RMAKER_NEO_PRIV_REQUIRES} unity
     )
     target_include_directories(${COMPONENT_LIB} PUBLIC ${RMNG_DATA_MODEL_INCLUDE_DIRS})
-    target_include_directories(${COMPONENT_LIB} PRIVATE ${RMNG_TEST_PRIV_INCLUDE_DIRS})
+    target_include_directories(${COMPONENT_LIB} PRIVATE ${TEST_ESP_RMAKER_NEO_PRIV_INCLUDE_DIRS})
 
     # Normal CMake platform ###
 else ()
-    set(RMNG_TEST_NAME rmng_tests)
-    add_executable(${RMNG_TEST_NAME} ${RMNG_TEST_SRCS} test_runner_posix.c)
-    target_include_directories(${RMNG_TEST_NAME} PUBLIC ${RMNG_TEST_INCLUDE_DIRS})
-    target_include_directories(${RMNG_TEST_NAME} PRIVATE ${RMNG_TEST_PRIV_INCLUDE_DIRS})
+    set(TEST_ESP_RMAKER_NEO_TARGET esp_rmaker_neo_tests)
+    add_executable(${TEST_ESP_RMAKER_NEO_TARGET} ${TEST_ESP_RMAKER_NEO_SRCS} test_runner_posix.c)
+    target_include_directories(${TEST_ESP_RMAKER_NEO_TARGET} PUBLIC ${TEST_ESP_RMAKER_NEO_INCLUDE_DIRS})
+    target_include_directories(${TEST_ESP_RMAKER_NEO_TARGET} PRIVATE ${TEST_ESP_RMAKER_NEO_PRIV_INCLUDE_DIRS})
 
     # Link dependencies
-    target_link_libraries(${RMNG_TEST_NAME} PRIVATE ${RMNG_TEST_PRIV_REQUIRES} unity::framework)
+    target_link_libraries(${TEST_ESP_RMAKER_NEO_TARGET} PRIVATE ${TEST_ESP_RMAKER_NEO_PRIV_REQUIRES} unity::framework)
 
-    add_test(NAME ${RMNG_TEST_NAME} COMMAND ${RMNG_TEST_NAME})
+    add_test(NAME ${TEST_ESP_RMAKER_NEO_TARGET} COMMAND ${TEST_ESP_RMAKER_NEO_TARGET})
 
     # Add post-build factory NVS partition message
     set(RMNG_TOOL_FACTORY_NVS_GEN_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../tools/factory_nvs_gen)
     get_filename_component(RMNG_TOOL_FACTORY_NVS_GEN_DIR ${RMNG_TOOL_FACTORY_NVS_GEN_DIR} ABSOLUTE)
-    set(RMNG_TEST_POST_BUILD_MESSAGE_LINE1 "----------------------------------------------")
-    set(RMNG_TEST_POST_BUILD_MESSAGE_LINE2 "Provide a factory NVS partition for the 'test_rmaker_neo' component by:")
-    set(RMNG_TEST_POST_BUILD_MESSAGE_LINE3
+    set(TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE1 "----------------------------------------------")
+    set(TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE2
+        "Provide a factory NVS partition for the 'test_rmaker_neo' component by:"
+    )
+    set(TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE3
         "1. Using the tool at ${RMNG_TOOL_FACTORY_NVS_GEN_DIR} to generate the required binary."
     )
-    set(RMNG_TEST_POST_BUILD_MESSAGE_LINE4
+    set(TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE4
         "2. Copying the generated 'nvs_persistent' folder to ${CMAKE_BINARY_DIR}/components/esp_rmaker_neo/test_rmaker_neo."
     )
-    set(RMNG_TEST_POST_BUILD_MESSAGE_LINE5 "----------------------------------------------")
+    set(TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE5 "----------------------------------------------")
     add_custom_command(
-        TARGET ${RMNG_TEST_NAME}
+        TARGET ${TEST_ESP_RMAKER_NEO_TARGET}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${RMNG_TEST_POST_BUILD_MESSAGE_LINE1}"
-        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${RMNG_TEST_POST_BUILD_MESSAGE_LINE2}"
-        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${RMNG_TEST_POST_BUILD_MESSAGE_LINE3}"
-        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${RMNG_TEST_POST_BUILD_MESSAGE_LINE4}"
-        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${RMNG_TEST_POST_BUILD_MESSAGE_LINE5}"
+        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE1}"
+        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE2}"
+        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE3}"
+        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE4}"
+        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "${TEST_ESP_RMAKER_NEO_POST_BUILD_MESSAGE_LINE5}"
     )
 endif ()

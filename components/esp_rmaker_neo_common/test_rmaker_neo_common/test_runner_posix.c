@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "test_rmng_common_prototypes.h"
+#include "test_rmaker_neo_common_prototypes.h"
 
 void setUp(void) {}
 void tearDown(void) {}
 
 int main(void)
 {
-    return test_rmng_common_all_tests_unity();
+    return test_rmaker_neo_common_all_tests_unity();
 }

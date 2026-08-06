@@ -5,10 +5,10 @@
  */
 
 #include "unity.h"
-#include "test_rmng_prototypes.h"
+#include "test_rmaker_neo_prototypes.h"
 #include "sdkconfig.h"
 
-int test_rmng_all_tests_unity(void)
+int test_rmaker_neo_all_tests_unity(void)
 {
     UNITY_BEGIN();
 

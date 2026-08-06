@@ -12,7 +12,7 @@
  */
 
 #include "unity.h"
-#include "test_rmng_ota_prototypes.h"
+#include "test_rmaker_neo_ota_prototypes.h"
 
 #include <string.h>
 #include <stdbool.h>
@@ -149,7 +149,7 @@ static void reset_ctx_state(ota_job_state_t state)
     g_ota_state_ctx.image_download.ota_cb = mock_ota_cb;
 }
 
-void rmng_ota_jobs_setUp(void)
+void test_rmaker_neo_ota_jobs_setUp(void)
 {
 #if RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
     TEST_OTA_JOBS_DO_NOT_WRAP = false;
@@ -160,7 +160,7 @@ void rmng_ota_jobs_setUp(void)
     reset_ctx_state(OTA_JOB_STATE_UNINITIALIZED);
 }
 
-void rmng_ota_jobs_tearDown(void)
+void test_rmaker_neo_ota_jobs_tearDown(void)
 {
 #if RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
     TEST_OTA_JOBS_DO_NOT_WRAP = true;

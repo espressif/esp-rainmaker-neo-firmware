@@ -16,11 +16,11 @@
  *     update (used after a re-subscribe to recover a lost response).
  *
  * These exercise ota_status.c as a separately-compiled TU via its public
- * API plus the test-only seams declared in test_rmng_ota_prototypes.h.
+ * API plus the test-only seams declared in test_rmaker_neo_ota_prototypes.h.
  */
 
 #include "unity.h"
-#include "test_rmng_ota_prototypes.h"
+#include "test_rmaker_neo_ota_prototypes.h"
 
 #include <string.h>
 #include <stdbool.h>

@@ -222,6 +222,6 @@ else ()
 
     # Unit tests
     if (CMAKE_TESTING_ENABLED)
-        add_subdirectory(test-http-common)
+        add_subdirectory(test_osal_http)
     endif ()
 endif ()

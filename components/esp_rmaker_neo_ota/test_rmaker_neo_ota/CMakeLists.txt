@@ -21,7 +21,7 @@ get_filename_component(
 )
 list(REMOVE_ITEM RMNG_OTA_SRCS ${RMNG_OTA_MQTT_BITMAP_C})
 
-set(RMNG_OTA_TEST_OWN_SRCS
+set(TEST_ESP_RMAKER_NEO_OTA_OWN_SRCS
     "tests_src/test_ota_jobs.c"
     "tests_src/test_ota_filetype_version.c"
     "tests_src/test_ota_status.c"
@@ -32,25 +32,25 @@ set(RMNG_OTA_TEST_OWN_SRCS
     "test_all.c"
 )
 # Sources owned by esp_rmaker_neo_ota but compiled into this test component
-set(RMNG_OTA_TEST_FOREIGN_SRCS "${RMNG_OTA_MQTT_BITMAP_C}")
-set(RMNG_OTA_TEST_SRCS ${RMNG_OTA_TEST_OWN_SRCS} ${RMNG_OTA_TEST_FOREIGN_SRCS})
+set(TEST_ESP_RMAKER_NEO_OTA_FOREIGN_SRCS "${RMNG_OTA_MQTT_BITMAP_C}")
+set(TEST_ESP_RMAKER_NEO_OTA_SRCS ${TEST_ESP_RMAKER_NEO_OTA_OWN_SRCS} ${TEST_ESP_RMAKER_NEO_OTA_FOREIGN_SRCS})
 
-set(RMNG_OTA_TEST_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}")
-set(RMNG_OTA_TEST_PRIV_INCLUDE_DIRS ${RMNG_OTA_INCLUDE_DIRS} ${RMNG_OTA_PRIV_INCLUDE_DIRS}
-                                    "${CMAKE_CURRENT_LIST_DIR}/../src"
+set(TEST_ESP_RMAKER_NEO_OTA_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}")
+set(TEST_ESP_RMAKER_NEO_OTA_PRIV_INCLUDE_DIRS ${RMNG_OTA_INCLUDE_DIRS} ${RMNG_OTA_PRIV_INCLUDE_DIRS}
+                                              "${CMAKE_CURRENT_LIST_DIR}/../src"
 )
 
 if (ESP_PLATFORM)
     # esp_rmaker_neo_ota's own sources and dirs are attached after register: IDF's component validation inspects
     # register-time properties only, and would otherwise warn about this component building/borrowing them.
     idf_component_register(
-        SRCS ${RMNG_OTA_TEST_OWN_SRCS}
-        INCLUDE_DIRS ${RMNG_OTA_TEST_INCLUDE_DIRS}
+        SRCS ${TEST_ESP_RMAKER_NEO_OTA_OWN_SRCS}
+        INCLUDE_DIRS ${TEST_ESP_RMAKER_NEO_OTA_INCLUDE_DIRS}
         PRIV_REQUIRES ${RMNG_OTA_REQUIRES} ${RMNG_OTA_PRIV_REQUIRES} unity
         WHOLE_ARCHIVE
     )
-    target_sources(${COMPONENT_LIB} PRIVATE ${RMNG_OTA_TEST_FOREIGN_SRCS} ${RMNG_OTA_SRCS})
-    target_include_directories(${COMPONENT_LIB} PRIVATE ${RMNG_OTA_TEST_PRIV_INCLUDE_DIRS})
+    target_sources(${COMPONENT_LIB} PRIVATE ${TEST_ESP_RMAKER_NEO_OTA_FOREIGN_SRCS} ${RMNG_OTA_SRCS})
+    target_include_directories(${COMPONENT_LIB} PRIVATE ${TEST_ESP_RMAKER_NEO_OTA_PRIV_INCLUDE_DIRS})
     foreach (OPT_PRIV_REQUIRE ${RMNG_OTA_OPT_PRIV_REQUIRES})
         idf_component_optional_requires(PRIVATE ${OPT_PRIV_REQUIRE})
     endforeach ()
@@ -72,31 +72,33 @@ else ()
         unity_make_available()
     endif ()
 
-    set(RMNG_OTA_TEST_NAME rmng-ota-tests)
+    set(TEST_ESP_RMAKER_NEO_OTA_TARGET esp_rmaker_neo_ota_tests)
     # Partition tests stage OTA slot states, which only the POSIX shim exposes.
-    list(APPEND RMNG_OTA_TEST_SRCS "tests_src/test_ota_partition.c" "tests_src/test_ota_rollback.c")
+    list(APPEND TEST_ESP_RMAKER_NEO_OTA_SRCS "tests_src/test_ota_partition.c" "tests_src/test_ota_rollback.c")
     # test_ota_rollback.c includes esp_rmaker_ota.c to reach its static handlers.
     get_filename_component(RMNG_OTA_CORE_C "${CMAKE_CURRENT_LIST_DIR}/../src/esp_rmaker_ota.c" ABSOLUTE)
     list(REMOVE_ITEM RMNG_OTA_SRCS ${RMNG_OTA_CORE_C})
-    add_executable(${RMNG_OTA_TEST_NAME} ${RMNG_OTA_TEST_SRCS} test_runner_posix.c ${RMNG_OTA_SRCS})
+    add_executable(
+        ${TEST_ESP_RMAKER_NEO_OTA_TARGET} ${TEST_ESP_RMAKER_NEO_OTA_SRCS} test_runner_posix.c ${RMNG_OTA_SRCS}
+    )
 
-    target_include_directories(${RMNG_OTA_TEST_NAME} PUBLIC ${RMNG_OTA_TEST_INCLUDE_DIRS})
+    target_include_directories(${TEST_ESP_RMAKER_NEO_OTA_TARGET} PUBLIC ${TEST_ESP_RMAKER_NEO_OTA_INCLUDE_DIRS})
     target_include_directories(
-        ${RMNG_OTA_TEST_NAME} PRIVATE ${RMNG_OTA_TEST_PRIV_INCLUDE_DIRS}
-                                      "${CMAKE_CURRENT_LIST_DIR}/../../osal/ota/priv_include"
+        ${TEST_ESP_RMAKER_NEO_OTA_TARGET} PRIVATE ${TEST_ESP_RMAKER_NEO_OTA_PRIV_INCLUDE_DIRS}
+                                                  "${CMAKE_CURRENT_LIST_DIR}/../../osal/ota/priv_include"
     )
 
     target_link_libraries(
-        ${RMNG_OTA_TEST_NAME} PRIVATE ${RMNG_OTA_REQUIRES} ${RMNG_OTA_PRIV_REQUIRES} ${RMNG_OTA_OPT_PRIV_REQUIRES}
-                                      unity::framework
+        ${TEST_ESP_RMAKER_NEO_OTA_TARGET} PRIVATE ${RMNG_OTA_REQUIRES} ${RMNG_OTA_PRIV_REQUIRES}
+                                                  ${RMNG_OTA_OPT_PRIV_REQUIRES} unity::framework
     )
 
     # Force-enable custom-job branch in the test TU only so we can exercise the alternative memcpy/null-term path in
     # handle_state_job_doc_received. The test TU is the sole compiler of ota_jobs.c (REMOVE_ITEM above); other lib TUs
     # are unaffected.
-    target_compile_definitions(${RMNG_OTA_TEST_NAME} PRIVATE CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT=1)
+    target_compile_definitions(${TEST_ESP_RMAKER_NEO_OTA_TARGET} PRIVATE CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT=1)
 
-    add_test(NAME ${RMNG_OTA_TEST_NAME} COMMAND ${RMNG_OTA_TEST_NAME})
+    add_test(NAME ${TEST_ESP_RMAKER_NEO_OTA_TARGET} COMMAND ${TEST_ESP_RMAKER_NEO_OTA_TARGET})
 
     # Strategy A (Linux/ESP): linker --wrap. Strategy B (Apple): stub object with real symbol names linked first.
     if (APPLE)
@@ -104,7 +106,7 @@ else ()
         add_library(ota_job_test_stubs_apple SHARED "${CMAKE_CURRENT_LIST_DIR}/tests_src/ota_job_test_stubs_apple.c")
         include(${CMAKE_CURRENT_LIST_DIR}/ota_jobs_stub_headers.cmake)
         target_include_directories(ota_job_test_stubs_apple PRIVATE ${OTA_JOBS_STUB_HEADERS})
-        target_compile_definitions(${RMNG_OTA_TEST_NAME} PRIVATE RMAKER_OTA_JOBS_TEST_WRAP_DL_LIB=1)
+        target_compile_definitions(${TEST_ESP_RMAKER_NEO_OTA_TARGET} PRIVATE RMAKER_OTA_JOBS_TEST_WRAP_DL_LIB=1)
         if (CMAKE_DL_LIBS)
             target_link_libraries(ota_job_test_stubs_apple PRIVATE ${CMAKE_DL_LIBS})
         endif ()
@@ -114,18 +116,18 @@ else ()
         )
         # TEST_OTA_JOBS_DO_NOT_WRAP is defined in test_ota_jobs.c (main test exe). Resolve at load time.
         target_link_options(ota_job_test_stubs_apple PRIVATE "LINKER:-undefined,dynamic_lookup")
-        target_link_options(${RMNG_OTA_TEST_NAME} PRIVATE "LINKER:-flat_namespace,-interposable")
+        target_link_options(${TEST_ESP_RMAKER_NEO_OTA_TARGET} PRIVATE "LINKER:-flat_namespace,-interposable")
         set_tests_properties(
-            ${RMNG_OTA_TEST_NAME}
+            ${TEST_ESP_RMAKER_NEO_OTA_TARGET}
             PROPERTIES ENVIRONMENT
                        "DYLD_INSERT_LIBRARIES=$<TARGET_FILE:ota_job_test_stubs_apple>;DYLD_FORCE_FLAT_NAMESPACE=1"
         )
     else ()
         message(STATUS "OTA Jobs tests: Using linker --wrap strategy.")
-        target_compile_definitions(${RMNG_OTA_TEST_NAME} PRIVATE RMAKER_OTA_JOBS_TEST_WRAP_LINKER=1)
+        target_compile_definitions(${TEST_ESP_RMAKER_NEO_OTA_TARGET} PRIVATE RMAKER_OTA_JOBS_TEST_WRAP_LINKER=1)
 
         target_link_options(
-            ${RMNG_OTA_TEST_NAME}
+            ${TEST_ESP_RMAKER_NEO_OTA_TARGET}
             PRIVATE
             "LINKER:--wrap=esp_rmaker_work_queue_add_task"
             "LINKER:--wrap=osal_event_post"

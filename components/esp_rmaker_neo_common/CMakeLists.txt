@@ -23,10 +23,10 @@ else ()
         testing_enable_coverage(esp_rmaker_neo_common)
         get_filename_component(RMNG_SDK_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
         testing_add_gcovr_coverage_target(
-            NAME rmng_common_coverage
+            NAME esp_rmaker_neo_common_coverage
             ROOT_DIR "${RMNG_SDK_REPO_ROOT}"
             TEST_DIR "${CMAKE_CURRENT_BINARY_DIR}"
-            OUTPUT_DIR "${CMAKE_BINARY_DIR}/rmng-common-coverage"
+            OUTPUT_DIR "${CMAKE_BINARY_DIR}/coverage/esp_rmaker_neo_common"
         )
     endif ()
 

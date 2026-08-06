@@ -126,6 +126,6 @@ advance it by hand.
 `..._BLOCKS_PER_REQUEST` (bounded by the MQTT in-buffer and the work-queue size
 respectively), `CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT` (default `n`),
 `CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT`, `CONFIG_ESP_RMAKER_NEO_OTA_DISABLE_AUTO_REBOOT`.
-`test_rmaker_neo_ota/` builds as the `rmng-ota-tests` ctest target on POSIX (when
-`TEST_RMNG_OTA=ON`) and as an ESP-IDF test component; coverage targets are
-`rmng_ota_coverage_test` then `rmng_ota_coverage_gen`.
+`test_rmaker_neo_ota/` builds as the `esp_rmaker_neo_ota_tests` ctest target on POSIX (when
+`TEST_ESP_RMAKER_NEO_OTA=ON`) and as an ESP-IDF test component; coverage targets are
+`esp_rmaker_neo_ota_coverage_test` then `esp_rmaker_neo_ota_coverage_gen`.

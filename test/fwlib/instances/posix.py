@@ -846,13 +846,13 @@ class FirmwareInstanceFactoryPosixHostCtrl(
         """
         Get the coverage target.
         """
-        return "rmng_coverage_gen"
+        return "esp_rmaker_neo_coverage_gen"
 
     def _get_coverage_source_root(self) -> Path:
         return RMNG_SDK_DIR
 
     def _get_coverage_output_dir(self) -> Path:
-        return self.build_dir.resolve() / "rmng-coverage"
+        return self.build_dir.resolve() / "coverage/esp_rmaker_neo"
 
     def _get_coverage_gcovr_filters(self) -> list[str]:
         return [r"^components/esp_rmaker_neo(/|$)"]
@@ -1003,13 +1003,13 @@ class FirmwareInstanceFactoryPosixOta(
         """
         Get the coverage target.
         """
-        return "rmng_ota_coverage_gen"
+        return "esp_rmaker_neo_ota_coverage_gen"
 
     def _get_coverage_source_root(self) -> Path:
         return RMNG_SDK_DIR
 
     def _get_coverage_output_dir(self) -> Path:
-        return self.build_dir.resolve() / "rmng-ota-coverage"
+        return self.build_dir.resolve() / "coverage/esp_rmaker_neo_ota"
 
     def _get_coverage_gcovr_extra_excludes(self) -> list[str]:
         return ["^.*/deps/.*"]
@@ -1033,7 +1033,7 @@ class FirmwareInstanceFactoryPosixOta(
         Build the executable.
         """
         add_cmake_args = [
-            "-DTEST_RMNG_OTA=ON",
+            "-DTEST_ESP_RMAKER_NEO_OTA=ON",
             *cmake_args,
         ]
         return super()._build_executable(
@@ -1489,18 +1489,18 @@ class FirmwareInstancePosixHostCtrl(FirmwareInstancePosix, FirmwareInstanceHostC
 
         # Copy the factory partition to the test_rmaker_neo directory
         factory_partition_relative_path = Path(*self.factory_partition_path.parts[-2:])
-        test_rmng_bin_path = (
+        test_factory_nvs_bin_path = (
             self.build_dir
             / "components"
             / "esp_rmaker_neo"
             / "test_rmaker_neo"
             / factory_partition_relative_path
         )
-        test_rmng_bin_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(self.factory_partition_path, test_rmng_bin_path)
+        test_factory_nvs_bin_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(self.factory_partition_path, test_factory_nvs_bin_path)
 
         ProcManager.run_cmd_sync(
-            ["ninja", "-C", str(self.build_dir), "rmng_coverage_test"]
+            ["ninja", "-C", str(self.build_dir), "esp_rmaker_neo_coverage_test"]
         )
 
 

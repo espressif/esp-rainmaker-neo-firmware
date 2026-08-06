@@ -5,9 +5,9 @@
  */
 
 #include "unity.h"
-#include "test_rmng_common_prototypes.h"
+#include "test_rmaker_neo_common_prototypes.h"
 
-int test_rmng_common_all_tests_unity(void)
+int test_rmaker_neo_common_all_tests_unity(void)
 {
     UNITY_BEGIN();
 

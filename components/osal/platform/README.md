@@ -88,4 +88,4 @@ Always built. Two internal choices affect which sources are compiled:
   `CMAKE_TESTING_ENABLED` is set**, and when it is on `src/common/time_common.c`
   is dropped in favour of the virtual provider.
 
-Tests live in [`test-platform-common/`](test-platform-common/).
+Tests live in [`test_osal_platform/`](test_osal_platform/).

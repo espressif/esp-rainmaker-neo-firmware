@@ -2,7 +2,11 @@ variables:
   POSIX_UNIT_TEST_DIR: "test/apps/posix"
   ESP_UNIT_TEST_DIR: "test/apps/esp-idf"
   POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR: "$CI_PROJECT_DIR/unit_test_posix_build"
-  TEST_MQTT_COMMON_CERTS_DEST_DIR: "$CI_PROJECT_DIR/components/osal/mqtt/test-mqtt-common/certs"
+  TEST_OSAL_MQTT_CERTS_DEST_DIR: "$CI_PROJECT_DIR/components/osal/mqtt/test_osal_mqtt/certs"
+  # Filenames test_osal_mqtt/CMakeLists.txt expects.
+  TEST_OSAL_MQTT_CA_CERT: "test_osal_mqtt_ca.pem"
+  TEST_OSAL_MQTT_CLIENT_CERT: "test_osal_mqtt_client.crt"
+  TEST_OSAL_MQTT_CLIENT_KEY: "test_osal_mqtt_client.key"
   FACTORY_NVS_GEN_DIR: "$CI_PROJECT_DIR/tools/factory_nvs_gen"
 
 build_unit_tests_posix:
@@ -16,40 +20,53 @@ build_unit_tests_posix:
     - mkdir -p "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR"
     - |
       # Setup MQTT certificates and config for testing
-      mosquitto_setup_conf.sh "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.conf"
+      "$MQTT_SETUP_CMD" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.conf"
     - |
-      # Copy certificates to test component directory
-      mkdir -p $TEST_MQTT_COMMON_CERTS_DEST_DIR
-      cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_host_crt.pem" "$TEST_MQTT_COMMON_CERTS_DEST_DIR/"
-      cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_client.crt" "$TEST_MQTT_COMMON_CERTS_DEST_DIR/"
-      cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_client.key" "$TEST_MQTT_COMMON_CERTS_DEST_DIR/"
+      # Copy the image's certs into the test component.
+      set -a; . "$POSIX_TEST_ENV_FILE"; set +a
+      mkdir -p "$TEST_OSAL_MQTT_CERTS_DEST_DIR"
+      cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/$MQTT_CA_CERT"     "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CA_CERT"
+      cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/$MQTT_CLIENT_CERT" "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CLIENT_CERT"
+      cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/$MQTT_CLIENT_KEY"  "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CLIENT_KEY"
     - |
-      # Generate the httpbin TLS cert for test-http-common and trust it.
+      # Generate the httpbin TLS cert for test_osal_http and trust it.
       # Appending the self-signed localhost cert to the custom CA bundle (already
       # pointed at by CONFIG_OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE_PATH) makes
-      # the embedded POSIX bundle trust https://localhost:8443 at build time.
-      httpbin_setup_conf.sh "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin_certs"
-      cat "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin_certs/httpbin_server.crt" \
-        >> "$TEST_MQTT_COMMON_CERTS_DEST_DIR/test_mqtt_common_host_crt.pem"
+      # the embedded POSIX bundle trust the TLS sidecar at build time.
+      "$HTTP_SETUP_CMD" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin_certs"
+      cat "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin_certs/$HTTP_SERVER_CERT" \
+        >> "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CA_CERT"
+    - |
+      # Map the image's environment facts onto this repo's Kconfig symbols.
+      CI_SDKCONFIG="$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/sdkconfig.ci"
+      cat > "$CI_SDKCONFIG" <<EOF
+      CONFIG_TEST_OSAL_MQTT_BROKER_URI="$MQTT_HOST"
+      CONFIG_TEST_OSAL_MQTT_TCP_USERNAME="$MQTT_USERNAME"
+      CONFIG_TEST_OSAL_MQTT_TCP_PASSWORD="$MQTT_PASSWORD"
+      CONFIG_TEST_OSAL_MQTT_PORT_TCP=$MQTT_PORT_TCP
+      CONFIG_TEST_OSAL_MQTT_PORT_TLS_SERVER_ONLY=$MQTT_PORT_TLS_SERVER_ONLY
+      CONFIG_TEST_OSAL_MQTT_PORT_TLS_MUTUAL_AUTH=$MQTT_PORT_TLS_MUTUAL_AUTH
+      CONFIG_TEST_OSAL_HTTP_URL_TCP="$HTTP_URL_TCP"
+      CONFIG_TEST_OSAL_HTTP_URL_TLS="$HTTP_URL_TLS"
+      EOF
+      echo "Generated $CI_SDKCONFIG:"; cat "$CI_SDKCONFIG"
     - |
       # Drop any stale generated .config so newly added Kconfig options take effect.
       # gen_default_config.py skips regeneration when a .config already exists, which
-      # would otherwise leave new symbols (and the sdkconfig.defaults overrides below)
+      # would otherwise leave new symbols (and the sdkconfig overrides below)
       # unapplied if this build dir is reused/restored from cache.
       rm -f "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR"/.config.* "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR"/config/sdkconfig.h
     - |
-      # http-common defaults file is listed last so its localhost URLs override the
-      # public-httpbin.org Kconfig defaults (later defaults files win).
-      build_posix_target_dir "$POSIX_UNIT_TEST_DIR" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" "-DRMNG_TEST_ASAN=ON -DSDKCONFIG_DEFAULTS=$EXPOSED_TEST_MQTT_COMMON_DIR/sdkconfig.defaults;$EXPOSED_TEST_HTTP_COMMON_DIR/sdkconfig.defaults"
+      build_posix_target_dir "$POSIX_UNIT_TEST_DIR" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" "-DRMNG_TEST_ASAN=ON -DSDKCONFIG_DEFAULTS=$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/sdkconfig.ci"
     - |
       # Create temporary JSON for factory NVS generation using MQTT certificates
       TEMP_NVS_NAME="factory_nvs_input"
       TEMP_NVS_JSON="$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/${TEMP_NVS_NAME}.json"
       cat > "$TEMP_NVS_JSON" << EOF
       {
-          "client_key": "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_client.key",
-          "client_cert": "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/test_mqtt_common_client.crt",
-          "mqtt_host": "localhost",
+          "client_key": "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/$MQTT_CLIENT_KEY",
+          "client_cert": "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/$MQTT_CLIENT_CERT",
+          "mqtt_host": "$MQTT_HOST",
           "node_id": "test_client",
           "client_user": "test_user",
           "client_pass": "test_pass"
@@ -69,7 +86,6 @@ build_unit_tests_posix:
       find "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" ! -type d \
         ! -name "CTestTestfile.cmake" \
         ! -path "*/nvs_persistent/*" \
-        ! -name "*-tests" \
         ! -name "*_tests" \
         ! -path "*/mqtt_certs*" \
         ! -path "*/httpbin_certs*" \
@@ -100,6 +116,8 @@ unit_tests_posix:
     # for use-after-free / overflow. abort_on_error keeps a violation fatal so
     # ctest sees a non-zero exit.
     ASAN_OPTIONS: "detect_leaks=0:abort_on_error=1:halt_on_error=1"
+    CTEST_REPORT_DIR: "$CI_PROJECT_DIR/unit_test_reports"
+    CTEST_REPORT_JUNIT: "$CTEST_REPORT_DIR/ctest.xml"
     MOSQUITTO_LOG: "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.log"
     MOSQUITTO_PID: "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.pid"
     HTTPBIN_LOG: "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin.log"
@@ -116,12 +134,14 @@ unit_tests_posix:
       fi
     - |
       # Start MQTT broker for testing
-      mosquitto_run.sh "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.conf" "$MOSQUITTO_LOG" "$MOSQUITTO_PID"
+      "$MQTT_RUN_CMD" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.conf" "$MOSQUITTO_LOG" "$MOSQUITTO_PID"
     - |
-      # Start httpbin sidecar for test-http-common (HTTP :8080, HTTPS :8443)
-      httpbin_run.sh "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin_certs" "$HTTPBIN_LOG" "$HTTPBIN_PID"
+      # Start httpbin sidecar for test_osal_http (HTTP :$HTTP_PORT_TCP, HTTPS :$HTTP_PORT_TLS)
+      "$HTTP_RUN_CMD" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/httpbin_certs" "$HTTPBIN_LOG" "$HTTPBIN_PID"
     - |
-      ctest --test-dir "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" --output-on-failure
+      mkdir -p "$CTEST_REPORT_DIR"
+      ctest --test-dir "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" --output-on-failure \
+        --output-junit "$CTEST_REPORT_JUNIT"
   after_script:
     - |
       # Stop MQTT broker if it's still running
@@ -134,8 +154,11 @@ unit_tests_posix:
         while read -r pid; do kill "$pid" 2>/dev/null || true; done < "$HTTPBIN_PID"
       fi
   artifacts:
-    when: on_failure
+    when: always
+    reports:
+      junit: "$CTEST_REPORT_JUNIT"
     paths:
+      - "$CTEST_REPORT_DIR/"
       - "$MOSQUITTO_LOG"
       - "$HTTPBIN_LOG"
     expire_in: 1 week
@@ -172,26 +195,26 @@ build_unit_tests_esp_idf:
     - command -v idf.py >/dev/null 2>&1 || . "${IDF_PATH}/export.sh"
     - |
       # sdkconfig.defaults points CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH at the
-      # mqtt-common test certs, and test-mqtt-common/CMakeLists.txt embeds the client
+      # test_osal_mqtt test certs, and test_osal_mqtt/CMakeLists.txt embeds the client
       # cert/key as binary data. Those are generated at run time (the dir is gitignored)
       # by mosquitto_setup_conf.sh, which only exists in the posix_test image. This job
       # never talks to a broker — the build just needs parseable PEMs at those paths, so
       # mint throwaway ones with the same names/roles as the posix_test image.
-      mkdir -p "$TEST_MQTT_COMMON_CERTS_DEST_DIR"
-      if [ ! -s "$TEST_MQTT_COMMON_CERTS_DEST_DIR/test_mqtt_common_client.crt" ]; then
+      mkdir -p "$TEST_OSAL_MQTT_CERTS_DEST_DIR"
+      if [ ! -s "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CLIENT_CERT" ]; then
         (
-          cd "$TEST_MQTT_COMMON_CERTS_DEST_DIR"
+          cd "$TEST_OSAL_MQTT_CERTS_DEST_DIR"
           # CA (doubles as the server/host cert bundle, as in the posix_test image)
           openssl genrsa -out ci_build_only_ca.key 2048
           openssl req -new -x509 -days 1 -key ci_build_only_ca.key \
-            -out test_mqtt_common_host_crt.pem -subj "/C=US/ST=Test/L=Test/O=Test/CN=TestCA"
+            -out "$TEST_OSAL_MQTT_CA_CERT" -subj "/C=US/ST=Test/L=Test/O=Test/CN=TestCA"
           # Client cert/key signed by that CA
-          openssl genrsa -out test_mqtt_common_client.key 2048
-          openssl req -new -out ci_build_only_client.csr -key test_mqtt_common_client.key \
+          openssl genrsa -out "$TEST_OSAL_MQTT_CLIENT_KEY" 2048
+          openssl req -new -out ci_build_only_client.csr -key "$TEST_OSAL_MQTT_CLIENT_KEY" \
             -subj "/C=US/ST=Test/L=Test/O=Test/CN=client"
-          openssl x509 -req -in ci_build_only_client.csr -CA test_mqtt_common_host_crt.pem \
-            -CAkey ci_build_only_ca.key -CAcreateserial -out test_mqtt_common_client.crt -days 1
-          rm -f ci_build_only_ca.key ci_build_only_client.csr test_mqtt_common_host_crt.srl
+          openssl x509 -req -in ci_build_only_client.csr -CA "$TEST_OSAL_MQTT_CA_CERT" \
+            -CAkey ci_build_only_ca.key -CAcreateserial -out "$TEST_OSAL_MQTT_CLIENT_CERT" -days 1
+          rm -f ci_build_only_ca.key ci_build_only_client.csr "${TEST_OSAL_MQTT_CA_CERT%.*}.srl"
         )
       fi
     - |

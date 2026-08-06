@@ -64,6 +64,6 @@ source list, with the per-platform file added alongside.
 - `CONFIG_OSAL_TIMESYNC_DEFAULT_TZ` (default `"Asia/Shanghai"`) is the timezone
   applied when nothing is stored.
 - `priv_include/osal_timesync_internal.h` is added as a private include dir of
-  osal; the tests in [`test-timesync-common/`](test-timesync-common/) borrow it
+  osal; the tests in [`test_osal_timesync/`](test_osal_timesync/) borrow it
   explicitly, while the generated reference-time header reaches them through
   osal's public includes.

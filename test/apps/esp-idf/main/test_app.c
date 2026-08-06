@@ -21,15 +21,15 @@
 
 #include "app_network.h"
 
-#include "test_platform_common_prototypes.h"
-#include "test_nvs_common_prototypes.h"
-#include "test_mqtt_common_prototypes.h"
-#include "test_http_common_prototypes.h"
-#include "test_json_common_prototypes.h"
-#include "test_timesync_common_prototypes.h"
-#include "test_rmng_common_prototypes.h"
-#include "test_rmng_prototypes.h"
-#include "test_rmng_ota_prototypes.h"
+#include "test_osal_platform_prototypes.h"
+#include "test_osal_storage_prototypes.h"
+#include "test_osal_mqtt_prototypes.h"
+#include "test_osal_http_prototypes.h"
+#include "test_osal_json_prototypes.h"
+#include "test_osal_timesync_prototypes.h"
+#include "test_rmaker_neo_common_prototypes.h"
+#include "test_rmaker_neo_prototypes.h"
+#include "test_rmaker_neo_ota_prototypes.h"
 
 /* Constants ******************************************************************/
 
@@ -105,51 +105,51 @@ static void wifi_setup(void)
 
 TEST_CASE("All platform-common tests", "[platform-common]")
 {
-    test_platform_common_all_tests_unity();
+    test_osal_platform_all_tests_unity();
 }
 
 TEST_CASE("All nvs-common tests", "[nvs-common]")
 {
-    test_nvs_common_all_tests_unity();
+    test_osal_storage_all_tests_unity();
 }
 
 TEST_CASE("All json-common tests", "[json-common]")
 {
-    test_json_common_all_tests_unity();
+    test_osal_json_all_tests_unity();
 }
 
 TEST_CASE("All mqtt-common tests", "[mqtt-common]")
 {
     wifi_setup();
-    test_mqtt_common_all_tests_unity();
+    test_osal_mqtt_all_tests_unity();
 }
 
 TEST_CASE("All http-common tests", "[http-common]")
 {
     wifi_setup();
-    test_http_common_all_tests_unity();
+    test_osal_http_all_tests_unity();
 }
 
 TEST_CASE("All timesync-common tests", "[timesync-common]")
 {
     wifi_setup();
-    test_timesync_common_all_tests_unity();
+    test_osal_timesync_all_tests_unity();
 }
 
 TEST_CASE("All esp_rmaker_neo_common tests", "[esp_rmaker_neo_common]")
 {
-    test_rmng_common_all_tests_unity();
+    test_rmaker_neo_common_all_tests_unity();
 }
 
 TEST_CASE("All esp_rmaker_neo tests", "[esp_rmaker_neo]")
 {
     wifi_setup();
-    test_rmng_all_tests_unity();
+    test_rmaker_neo_all_tests_unity();
 }
 
 TEST_CASE("All esp_rmaker_neo_ota tests", "[esp_rmaker_neo_ota]")
 {
-    (void)run_suite_with_fixtures(rmng_ota_jobs_setUp, rmng_ota_jobs_tearDown, test_rmng_ota_all_tests_unity);
+    (void)run_suite_with_fixtures(test_rmaker_neo_ota_jobs_setUp, test_rmaker_neo_ota_jobs_tearDown, test_rmaker_neo_ota_all_tests_unity);
 }
 
 /* Main ***********************************************************************/
