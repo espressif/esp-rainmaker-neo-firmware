@@ -10,6 +10,9 @@ pre_commit:
     GIT_SUBMODULE_STRATEGY: none
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     PRE_COMMIT_HOME: "$CI_PROJECT_DIR/.cache/pre-commit"
+    # astyle_py JIT-compiles libastyle.wasm through wasmtime, which caches the compiled
+    # module under $XDG_CACHE_HOME.
+    XDG_CACHE_HOME: "$CI_PROJECT_DIR/.cache"
   cache:
     key:
       files:
@@ -17,6 +20,7 @@ pre_commit:
     paths:
       - .cache/pip
       - .cache/pre-commit
+      - .cache/wasmtime
   script:
     - python3 -m venv .venv
     - . .venv/bin/activate
