@@ -767,6 +767,7 @@ void test_bridge_accessors_version_progress(void);
 void test_bridge_accessors_find_by_thing_name_and_local_id(void);
 void test_bridge_accessors_slot_pool_exhaustion(void);
 void test_bridge_accessors_seed_child_arg_validation(void);
+void test_bridge_accessors_before_init(void);
 void test_bridge_parse_child_from_from_cloud_topic_edge_cases(void);
 void test_bridge_parse_child_and_shadow_from_params_topic_edge_cases(void);
 void test_bridge_suffix_validator_extended(void);

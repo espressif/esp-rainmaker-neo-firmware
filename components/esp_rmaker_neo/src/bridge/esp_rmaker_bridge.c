@@ -193,6 +193,9 @@ bool bridge_internal_valid_suffix(const char *s)
 
 static struct esp_rmaker_bridge_child *__find_by_local_id_locked(const char *bridge_local_id)
 {
+    if (!__child_pool) {
+        return NULL;
+    }
     for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         struct __bridge_child_slot *s = &__child_pool[i];
         if (!s->in_use) {
@@ -207,6 +210,9 @@ static struct esp_rmaker_bridge_child *__find_by_local_id_locked(const char *bri
 
 static struct esp_rmaker_bridge_child *__find_by_thing_name_locked(const char *thing_name)
 {
+    if (!__child_pool) {
+        return NULL;
+    }
     for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         struct __bridge_child_slot *s = &__child_pool[i];
         if (!s->in_use) {
@@ -238,6 +244,9 @@ static struct esp_rmaker_bridge_child *__find_by_nvs_key_locked(const char *nvs_
 
 static struct esp_rmaker_bridge_child *__alloc_child_locked(const char *child_suffix, const char *bridge_local_id)
 {
+    if (!__child_pool) {
+        return NULL;
+    }
     struct __bridge_child_slot *slot = NULL;
     for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         if (!__child_pool[i].in_use) {
@@ -335,7 +344,7 @@ esp_rmaker_error_t bridge_internal_unsubscribe(uint8_t *out_issued)
 
 void bridge_internal_for_each_ready_child(bridge_internal_child_visitor_t visitor, void *priv)
 {
-    if (!visitor) {
+    if (!visitor || !__child_pool) {
         return;
     }
     __lock();
@@ -423,7 +432,7 @@ esp_rmaker_bridge_child_handle_t bridge_internal_child_from_ctx(const esp_rmaker
 
 void bridge_internal_for_each_ready_node(esp_rmaker_node_visitor_t visitor, void *priv)
 {
-    if (!visitor) {
+    if (!visitor || !__child_pool) {
         return;
     }
     __lock();
@@ -547,6 +556,16 @@ esp_rmaker_bridge_child_handle_t bridge_internal_test_seed_child(
     c->state = RMNG_BRIDGE_CHILD_STATE_READY;
     __unlock();
     return c;
+}
+
+esp_rmaker_error_t bridge_internal_test_free_pool(void)
+{
+    if (__initialized) {
+        return ESP_RMAKER_INVALID_STATE;
+    }
+    free(__child_pool);
+    __child_pool = NULL;
+    return ESP_RMAKER_OK;
 }
 
 
@@ -912,11 +931,7 @@ esp_rmaker_error_t bridge_internal_deinit(void)
             __child_pool[i].node.lock = NULL;
         }
     }
-    /* Deliberately NOT freeing __child_pool here. The slots are now cleared
-     * (in_use=false, node.lock=NULL), but the array stays allocated for the
-     * process lifetime: the reset/teardown sequence continues to iterate the
-     * pool *after* this deinit returns, and the locked iterators don't NULL-
-     * check. A subsequent bridge_internal_init reuses the allocation. */
+    /* Keep __child_pool allocated: teardown reads it after deinit, and the next init reuses it. */
     __unlock();
 
     (void)osal_event_handler_unregister(RMAKER_COMMON_EVENT, RMAKER_MQTT_EVENT_CONNECTED, __bridge_on_mqtt_state);
