@@ -190,7 +190,7 @@ TEST_CASE("All mqtt-common tests", "[mqtt-common]")
 TEST_CASE("All http-common tests", "[http-common]")
 {
     wifi_setup();
-    run_suite(NULL, NULL, test_osal_http_all_tests_unity);
+    run_suite(NULL, test_osal_http_tear_down, test_osal_http_all_tests_unity);
 }
 
 TEST_CASE("All timesync-common tests", "[timesync-common]")

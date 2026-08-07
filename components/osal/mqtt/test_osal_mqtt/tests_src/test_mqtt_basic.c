@@ -181,18 +181,22 @@ static void __mqtt_common_on_message_cb(const char *topic, size_t topic_len, voi
     osal_event_group_set_bits(__event_group, __MQTT_COMMON_SIGNAL_RECEIVED);
 }
 
-static void __test_mqtt_sub_pub_unsub_pub(osal_mqtt_conn_params_t *conn_params)
+static const char *__test_mqtt_sub_pub_unsub_pub(osal_mqtt_conn_params_t *conn_params)
 {
-    char *error_msg = NULL;
+    const char *error_msg = NULL;
     osal_err_t status;
     osal_event_group_bits_t waited_bits;
 
     /* Setup MQTT implementation */
     osal_mqtt_impl_t mqtt_impl;
     status = osal_mqtt_impl_setup(&mqtt_impl);
-    TEST_ASSERT_EQUAL_MESSAGE(OSAL_ERR_OK, status, "Failed to setup MQTT implementation");
+    if (status != OSAL_ERR_OK) {
+        return "Failed to setup MQTT implementation";
+    }
     status = mqtt_impl.init(conn_params, &__event_loop_info);
-    TEST_ASSERT_EQUAL_MESSAGE(OSAL_ERR_OK, status, "Failed to initialize MQTT");
+    if (status != OSAL_ERR_OK) {
+        return "Failed to initialize MQTT";
+    }
 
     /* Connect to MQTT broker */
     status = mqtt_impl.connect();
@@ -289,41 +293,41 @@ sub_pub_unsub_pub_end:
     status = mqtt_impl.disconnect();
     if (status != OSAL_ERR_OK) {
         error_msg = "Failed to disconnect from MQTT broker";
-        goto sub_pub_unsub_pub_eval;
+    } else {
+        /* Wait for disconnection to complete */
+        waited_bits = __mqtt_common_wait_for_signal(__MQTT_COMMON_SIGNAL_DISCONNECTED, TIMEOUT_MS_CONNECT);
+        if (waited_bits != __MQTT_COMMON_SIGNAL_DISCONNECTED) {
+            error_msg = "Disconnection failed or timed out";
+        }
     }
 
-    /* Wait for disconnection to complete */
-    waited_bits = __mqtt_common_wait_for_signal(__MQTT_COMMON_SIGNAL_DISCONNECTED, TIMEOUT_MS_CONNECT);
-    if (waited_bits != __MQTT_COMMON_SIGNAL_DISCONNECTED) {
-        error_msg = "Disconnection failed or timed out";
-        goto sub_pub_unsub_pub_eval;
-    }
-
-    /* Deinitialize MQTT */
+    /* Deinitialize MQTT even if the disconnect failed: it owns the network buffer, the command
+     * queue and the agent task, none of which the failure path releases. */
     status = mqtt_impl.deinit();
-    if (status != OSAL_ERR_OK) {
+    if (status != OSAL_ERR_OK && error_msg == NULL) {
         error_msg = "Failed to deinitialize MQTT";
     }
 
-sub_pub_unsub_pub_eval:
-    if (error_msg) {
-        TEST_FAIL_MESSAGE(error_msg);
-    } else {
-        TEST_PASS();
-    }
+    return error_msg;
 }
 
 void test_mqtt_tls_server_only_sub_pub_unsub_pub(void)
 {
     osal_mqtt_conn_params_t *conn_params = __setup(false);
-    __test_mqtt_sub_pub_unsub_pub(conn_params);
+    const char *error_msg = __test_mqtt_sub_pub_unsub_pub(conn_params);
     __teardown(conn_params);
+    if (error_msg) {
+        TEST_FAIL_MESSAGE(error_msg);
+    }
 }
 void test_mqtt_tls_mutual_auth_sub_pub_unsub_pub(void)
 {
     osal_mqtt_conn_params_t *conn_params = __setup(true);
-    __test_mqtt_sub_pub_unsub_pub(conn_params);
+    const char *error_msg = __test_mqtt_sub_pub_unsub_pub(conn_params);
     __teardown(conn_params);
+    if (error_msg) {
+        TEST_FAIL_MESSAGE(error_msg);
+    }
 }
 
 /* ---------------- Retain test ---------------------------------------------
@@ -332,9 +336,9 @@ void test_mqtt_tls_mutual_auth_sub_pub_unsub_pub(void)
  * up the retained message at the end by publishing an empty retained payload.
  * ------------------------------------------------------------------------ */
 
-static void __test_mqtt_retain(osal_mqtt_conn_params_t *conn_params)
+static const char *__test_mqtt_retain(osal_mqtt_conn_params_t *conn_params)
 {
-    char *error_msg = NULL;
+    const char *error_msg = NULL;
     osal_err_t status;
     osal_event_group_bits_t waited_bits;
     char *payload_save_ptr = NULL;
@@ -345,9 +349,13 @@ static void __test_mqtt_retain(osal_mqtt_conn_params_t *conn_params)
 
     osal_mqtt_impl_t mqtt_impl;
     status = osal_mqtt_impl_setup(&mqtt_impl);
-    TEST_ASSERT_EQUAL_MESSAGE(OSAL_ERR_OK, status, "Failed to setup MQTT implementation");
+    if (status != OSAL_ERR_OK) {
+        return "Failed to setup MQTT implementation";
+    }
     status = mqtt_impl.init(conn_params, &__event_loop_info);
-    TEST_ASSERT_EQUAL_MESSAGE(OSAL_ERR_OK, status, "Failed to initialize MQTT");
+    if (status != OSAL_ERR_OK) {
+        return "Failed to initialize MQTT";
+    }
     inited = true;
 
     status = mqtt_impl.connect();
@@ -434,25 +442,27 @@ retain_end:
         (void) mqtt_impl.deinit();
     }
 
-    if (error_msg) {
-        TEST_FAIL_MESSAGE(error_msg);
-    } else {
-        TEST_PASS();
-    }
+    return error_msg;
 }
 
 void test_mqtt_tls_server_only_retain(void)
 {
     osal_mqtt_conn_params_t *conn_params = __setup(false);
-    __test_mqtt_retain(conn_params);
+    const char *error_msg = __test_mqtt_retain(conn_params);
     __teardown(conn_params);
+    if (error_msg) {
+        TEST_FAIL_MESSAGE(error_msg);
+    }
 }
 
 void test_mqtt_tls_mutual_auth_retain(void)
 {
     osal_mqtt_conn_params_t *conn_params = __setup(true);
-    __test_mqtt_retain(conn_params);
+    const char *error_msg = __test_mqtt_retain(conn_params);
     __teardown(conn_params);
+    if (error_msg) {
+        TEST_FAIL_MESSAGE(error_msg);
+    }
 }
 
 /* ---------------- LWT test (two sequential wrapper clients) ---------------
@@ -479,15 +489,10 @@ void test_mqtt_tls_mutual_auth_retain(void)
  * publish the LWT - this test is therefore TEST_IGNORE'd on esp-mqtt.
  * ------------------------------------------------------------------------ */
 
-static void __test_mqtt_lwt(osal_mqtt_conn_params_t *conn_params, const char *id_suffix)
+#ifndef CONFIG_OSAL_MQTT_IMPL_ESP
+static const char *__test_mqtt_lwt(osal_mqtt_conn_params_t *conn_params, const char *id_suffix)
 {
-#ifdef CONFIG_OSAL_MQTT_IMPL_ESP
-    (void) conn_params;
-    (void) id_suffix;
-    TEST_IGNORE_MESSAGE(
-        "esp-mqtt public API cannot perform an ungraceful close - LWT cannot be tested");
-#else
-    char *error_msg = NULL;
+    const char *error_msg = NULL;
     osal_err_t status;
     osal_event_group_bits_t waited_bits;
     char *payload_save_ptr = NULL;
@@ -513,9 +518,15 @@ static void __test_mqtt_lwt(osal_mqtt_conn_params_t *conn_params, const char *id
     conn_params->lwt.retain      = true;   /* broker retains, so Client B can see */
 
     status = osal_mqtt_impl_setup(&mqtt_impl);
-    TEST_ASSERT_EQUAL_MESSAGE(OSAL_ERR_OK, status, "Failed to setup MQTT implementation (phase 1)");
+    if (status != OSAL_ERR_OK) {
+        error_msg = "Failed to setup MQTT implementation (phase 1)";
+        goto lwt_end;
+    }
     status = mqtt_impl.init(conn_params, &__event_loop_info);
-    TEST_ASSERT_EQUAL_MESSAGE(OSAL_ERR_OK, status, "Failed to initialize phase-1 client");
+    if (status != OSAL_ERR_OK) {
+        error_msg = "Failed to initialize phase-1 client";
+        goto lwt_end;
+    }
     phase1_inited = true;
 
     status = mqtt_impl.connect();
@@ -531,7 +542,10 @@ static void __test_mqtt_lwt(osal_mqtt_conn_params_t *conn_params, const char *id
     phase1_connected = true;
 
     /* Drop: tear TCP without MQTT DISCONNECT, so the broker fires the LWT. */
-    TEST_ASSERT_NOT_NULL_MESSAGE(mqtt_impl.drop, "drop() not wired on impl");
+    if (mqtt_impl.drop == NULL) {
+        error_msg = "drop() not wired on impl";
+        goto lwt_end;
+    }
     status = mqtt_impl.drop();
     if (status != OSAL_ERR_OK) {
         error_msg = "drop() returned error";
@@ -559,9 +573,15 @@ static void __test_mqtt_lwt(osal_mqtt_conn_params_t *conn_params, const char *id
     conn_params->lwt.payload_len = 0;
 
     status = osal_mqtt_impl_setup(&mqtt_impl);
-    TEST_ASSERT_EQUAL_MESSAGE(OSAL_ERR_OK, status, "Failed to setup MQTT implementation (phase 2)");
+    if (status != OSAL_ERR_OK) {
+        error_msg = "Failed to setup MQTT implementation (phase 2)";
+        goto lwt_end;
+    }
     status = mqtt_impl.init(conn_params, &__event_loop_info);
-    TEST_ASSERT_EQUAL_MESSAGE(OSAL_ERR_OK, status, "Failed to initialize phase-2 client");
+    if (status != OSAL_ERR_OK) {
+        error_msg = "Failed to initialize phase-2 client";
+        goto lwt_end;
+    }
     inited = true;
 
     status = mqtt_impl.connect();
@@ -634,24 +654,36 @@ lwt_end:
     }
     (void) phase1_connected;
 
-    if (error_msg) {
-        TEST_FAIL_MESSAGE(error_msg);
-    } else {
-        TEST_PASS();
-    }
-#endif /* CONFIG_OSAL_MQTT_IMPL_ESP */
+    return error_msg;
 }
+#endif /* CONFIG_OSAL_MQTT_IMPL_ESP */
 
 void test_mqtt_tls_server_only_lwt(void)
 {
+#ifdef CONFIG_OSAL_MQTT_IMPL_ESP
+    TEST_IGNORE_MESSAGE(
+        "esp-mqtt public API cannot perform an ungraceful close - LWT cannot be tested");
+#else
     osal_mqtt_conn_params_t *conn_params = __setup(false);
-    __test_mqtt_lwt(conn_params, "server-only");
+    const char *error_msg = __test_mqtt_lwt(conn_params, "server-only");
     __teardown(conn_params);
+    if (error_msg) {
+        TEST_FAIL_MESSAGE(error_msg);
+    }
+#endif
 }
 
 void test_mqtt_tls_mutual_auth_lwt(void)
 {
+#ifdef CONFIG_OSAL_MQTT_IMPL_ESP
+    TEST_IGNORE_MESSAGE(
+        "esp-mqtt public API cannot perform an ungraceful close - LWT cannot be tested");
+#else
     osal_mqtt_conn_params_t *conn_params = __setup(true);
-    __test_mqtt_lwt(conn_params, "mutual-auth");
+    const char *error_msg = __test_mqtt_lwt(conn_params, "mutual-auth");
     __teardown(conn_params);
+    if (error_msg) {
+        TEST_FAIL_MESSAGE(error_msg);
+    }
+#endif
 }

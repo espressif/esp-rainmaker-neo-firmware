@@ -16,7 +16,7 @@ void setUp(void)
 
 void tearDown(void)
 {
-    /* Cleanup code if needed */
+    test_osal_http_tear_down();
 }
 
 int main(int argc, char **argv)
