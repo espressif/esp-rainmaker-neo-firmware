@@ -62,10 +62,15 @@ def setup_environment() {
     echo "chip: ${chip}" >> ${REPOS_PATH}/build_details.txt
     echo "flash_size: 4MB" >> ${REPOS_PATH}/build_details.txt
 
-    if [ -n "${CUSTOM_SDK_CONFIG}" ]; then
+    if [ ! -f "${CUSTOM_SDK_CONFIG_FILE}" ]; then
+        echo "FATAL: custom_sdk_config file missing at ${CUSTOM_SDK_CONFIG_FILE}"
+        exit 1
+    fi
+
+    if [ -s "${CUSTOM_SDK_CONFIG_FILE}" ]; then
         echo "custom_sdk_config: YES" >> ${REPOS_PATH}/build_details.txt
         echo "custom_sdk_config_content:" >> ${REPOS_PATH}/build_details.txt
-        echo "${CUSTOM_SDK_CONFIG}" >> ${REPOS_PATH}/build_details.txt
+        cat "${CUSTOM_SDK_CONFIG_FILE}" >> ${REPOS_PATH}/build_details.txt
     else
         echo "custom_sdk_config: NO" >> ${REPOS_PATH}/build_details.txt
     fi
@@ -97,6 +102,11 @@ def firmware_build() {
     printf "\n\n" >> ${REPOS_PATH}/build_details.txt
     echo "firmware_type: ${FIRMWARE_TYPE}" >> ${REPOS_PATH}/build_details.txt
 
+    if [ ! -f "${CUSTOM_SDK_CONFIG_FILE}" ]; then
+        echo "FATAL: custom_sdk_config file missing at ${CUSTOM_SDK_CONFIG_FILE}"
+        exit 1
+    fi
+
     cd ${IDF_PATH}
     . ./export.sh
 
@@ -113,54 +123,13 @@ def firmware_build() {
         cd ${PRODUCT_DIR}
         SDKCONFIG_FILE=${PRODUCT_DIR}/sdkconfig.defaults
 
-        # Process custom SDK configuration for Evaluation firmware type
-        if [ "${FIRMWARE_TYPE}" = "Evaluation" ] && [ -n "${CUSTOM_SDK_CONFIG}" ]; then
-            echo "Processing custom SDK configuration for ${SDKCONFIG_FILE} (Evaluation firmware build)"
-            echo "Custom SDK configuration to process:"
-            echo "${CUSTOM_SDK_CONFIG}"
-            
-            # Create a temporary file for the new configuration
-            echo "${CUSTOM_SDK_CONFIG}" > /tmp/custom_config.txt
-            
-            # Process each line of custom configuration
-            while IFS= read -r line; do
-                # Skip empty lines and comments (using grep instead of regex)
-                if [ -z "$line" ] || echo "$line" | grep -q "^[[:space:]]*#"; then
-                    continue
-                fi
-                
-                # Extract variable name (everything before =) using sed
-                var_name=$(echo "$line" | sed 's/=.*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                
-                # Check if line contains = and has a valid variable name
-                if echo "$line" | grep -q "=" && [ -n "$var_name" ]; then
-                    echo "Processing variable: $var_name"
-                    
-                    # Check if variable exists in sdkconfig.defaults
-                    if grep -q "^[[:space:]]*${var_name}=" "${SDKCONFIG_FILE}"; then
-                        echo "  -> Variable $var_name exists, updating..."
-                        # Replace the existing line using a simple approach
-                        grep -v "^[[:space:]]*${var_name}=" "${SDKCONFIG_FILE}" > "${SDKCONFIG_FILE}.tmp"
-                        echo "${line}" >> "${SDKCONFIG_FILE}.tmp"
-                        mv "${SDKCONFIG_FILE}.tmp" "${SDKCONFIG_FILE}"
-                    else
-                        echo "  -> Variable $var_name not found, appending..."
-                        # Append the new variable
-                        echo "${line}" >> "${SDKCONFIG_FILE}"
-                    fi
-                else
-                    echo "  -> Skipping invalid line: $line"
-                fi
-            done < /tmp/custom_config.txt
-            
-            # Clean up temporary file
-            rm -f /tmp/custom_config.txt
-            
-            echo "Custom SDK configuration processing completed for Evaluation firmware"
-        elif [ "${FIRMWARE_TYPE}" = "OTA" ]; then
-            echo "Building OTA firmware with same configuration as Evaluation (only version changes)"
-        else
-            echo "Building ${FIRMWARE_TYPE} firmware with original sdkconfig.defaults (no custom modifications)"
+        # Chain the custom config after the product defaults instead of rewriting
+        # sdkconfig.defaults: idf.py appends "<file>.<target>" per entry, so listing it
+        # last keeps it winning over sdkconfig.defaults.<target> too. OTA is included
+        # because it used to inherit the mutated file.
+        SDKCONFIG_DEFAULTS_ARG=""
+        if [ -s "${CUSTOM_SDK_CONFIG_FILE}" ]; then
+            SDKCONFIG_DEFAULTS_ARG="-DSDKCONFIG_DEFAULTS=${SDKCONFIG_FILE};${CUSTOM_SDK_CONFIG_FILE}"
         fi
 
         rm -rf build sdkconfig sdkconfig.old managed_components dependencies.lock
@@ -181,7 +150,7 @@ def firmware_build() {
         # Override the PROJECT_VER cache entry from the command line instead of rewriting
         # CMakeLists.txt: a -D always wins over set(... CACHE ...), so this is immune to
         # formatting changes in the example's CMakeLists.txt.
-        idf.py -DPROJECT_VER="${PROJECT_VERSION_STR}" set-target ${chip} build
+        idf.py -DPROJECT_VER="${PROJECT_VERSION_STR}" ${SDKCONFIG_DEFAULTS_ARG} set-target ${chip} build
 
         # The override is silent if it ever stops taking effect, so assert on what was built.
         BUILT_PROJECT_VER=$(python -c 'import json; print(json.load(open("build/project_description.json"))["project_version"])')

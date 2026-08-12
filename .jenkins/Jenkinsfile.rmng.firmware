@@ -23,7 +23,7 @@ pipeline {
         choice(name: 'idf_version', choices: ['release-v6.0', 'release-v6.1', 'release-v5.5'], description: 'ESP-IDF release')
         choice(name: 'chip', choices:['esp32c3', 'esp32', 'esp32c2', 'esp32c5', 'esp32c6', 'esp32s3'], description: 'Chips')
         string(name: 'branch', defaultValue: 'main', description: 'Branch to be used for esp-rainmaker-neo-firmware')
-        text(name: 'custom_sdk_config', defaultValue: '', description: 'Optional: Custom SDK configuration settings to update/append to sdkconfig.defaults .')
+        text(name: 'custom_sdk_config', defaultValue: '', description: 'Optional: extra sdkconfig entries, applied after the product\'s sdkconfig.defaults and its target-specific file.')
     }
     environment {
         REPOS_PATH="/root"
@@ -31,7 +31,7 @@ pipeline {
         ESP_RMNG_BRANCH="${branch}"
         ESP_RMNG_PATH="${REPOS_PATH}/esp-rainmaker-neo-firmware"
         PROJECT_VER_SUFFIX="${BUILD_NUMBER}"
-        CUSTOM_SDK_CONFIG="${custom_sdk_config}"
+        CUSTOM_SDK_CONFIG_FILE="${WORKSPACE}/custom_sdk_config.txt"
         GIT_USERNAME = credentials('JENKINS_GITLAB_USER_CREDENTIALS_APP_FRAMEWORKS')
     }
     stages {
@@ -45,6 +45,15 @@ pipeline {
                 catchError() {
                     script {
                         def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
+
+                        // Normalize CRLF/CR, and keep the empty case a 0-byte file so `-s` in
+                        // rmng.groovy tells "no overrides" apart from a broken hand-off.
+                        def custom_sdk_config = (params.custom_sdk_config ?: '')
+                                                    .replaceAll(/\r\n?/, '\n')
+                                                    .trim()
+
+                        writeFile file: 'custom_sdk_config.txt',
+                                  text: custom_sdk_config ? custom_sdk_config + '\n' : ''
 
                         // Clone first so we can scan examples/ for products.
                         rmng.setup_environment()
