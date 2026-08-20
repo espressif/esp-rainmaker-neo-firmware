@@ -10,27 +10,15 @@
  *
  * The initialization/deinitialization sequence is as follows.
  *
- * If provisioning is required:
- *
- * 1. esp_rmaker_pre_prov_init()
- * 2. (optional) provisioning is initialized, started and completed
- * 3. esp_rmaker_pre_prov_deinit()
- * 4. esp_rmaker_node_init()
- * 5. esp_rmaker_start(), ... use the SDK ..., esp_rmaker_stop()
- * 6. esp_rmaker_node_deinit()
- *
- * If provisioning is not required:
- *
  * 1. esp_rmaker_node_init()
- * 2. esp_rmaker_start(), ... use the SDK ..., esp_rmaker_stop()
- * 3. esp_rmaker_node_deinit()
+ * 2. Create the devices and enable the services
+ * 3. (optional) Start the network; provisioning runs and completes
+ * 4. esp_rmaker_start(), ... use the SDK ..., esp_rmaker_stop()
+ * 5. esp_rmaker_node_deinit()
  *
- * In this second case esp_rmaker_node_init() internally performs the
- * esp_rmaker_pre_prov_init() work, and esp_rmaker_node_deinit() the
- * esp_rmaker_pre_prov_deinit() work.
- *
- * The split exists to keep as much memory as possible free during
- * provisioning, which can be memory intensive (e.g. BLE, RSA signing).
+ * esp_rmaker_node_init() registers the provisioning endpoints (challenge-response and, on an
+ * unclaimed node, assisted claiming), so the node must exist before provisioning starts. The
+ * start task waits for claiming, reads the credentials and initializes the MQTT client.
  */
 
 #ifndef __ESP_RMAKER_FLOW_H__
@@ -99,40 +87,15 @@ extern "C" {
 #endif
 
 /**
- * @brief Initialize ESP RainMaker Neo Pre-Provisioning
- *
- * This initializes components of the ESP RainMaker Neo SDK that are required before provisioning is initialized and started.
- * Should be called as early as possible if provisioning is required.
- *
- * @note This function will be called automatically by esp_rmaker_node_init() if not done already.
- * @note Calling it again after a successful call is a no-op that returns ESP_RMAKER_OK.
- *
- * @return ESP_RMAKER_OK on success.
- * @return error in case of failure.
- */
-esp_rmaker_error_t esp_rmaker_pre_prov_init(void);
-
-/**
- * @brief Deinitialize ESP RainMaker Neo Pre-Provisioning
- *
- * This deinitializes components of the ESP RainMaker Neo SDK that are no longer required after provisioning is initialized and started.
- *
- * @note This function will be called automatically by esp_rmaker_node_deinit() if not done already.
- *
- * @return ESP_RMAKER_OK on success.
- * @return error in case of failure.
- */
-esp_rmaker_error_t esp_rmaker_pre_prov_deinit(void);
-
-/**
  * @brief Initialize ESP RainMaker Neo Node
  *
  * This initializes the ESP RainMaker Neo agent and creates the node.
  * The model and firmware version for the node are set internally from the platform's project
  * name and version (see osal_sysinfo_get_project_name() / osal_sysinfo_get_fw_version()).
  *
- * @note This should be the first call before using any other ESP RainMaker Neo API, except
- *       esp_rmaker_pre_prov_init()/esp_rmaker_pre_prov_deinit().
+ * @note This should be the first call before using any other ESP RainMaker Neo API, and it must
+ *       complete before provisioning starts.
+ * @note The call succeeds on an unclaimed node: the credentials are read by esp_rmaker_start().
  *
  * @param[in] config Configuration to be used by the SDK. See ESP_RMAKER_DEFAULT_CONFIG.
  * @param[in] name Name of the node.
@@ -165,9 +128,11 @@ esp_rmaker_error_t esp_rmaker_node_deinit(const esp_rmaker_node_t *node);
  * This queues the start work and returns as soon as the work queue is running; the steps below
  * then run asynchronously:
  *
+ * - Waits for assisted claiming to finish, if the node was unclaimed at node init.
+ * - Waits for network connectivity.
  * - Waits for time synchronization (blocking or decoupled, depending on the build).
  * - Loads the schedule and automation state from NVS.
- * - Waits for network connectivity, then connects to the MQTT broker.
+ * - Reads the credentials, initializes the MQTT client and connects to the MQTT broker.
  * - Subscribes to the cloud topic and fetches cloud information (group information,
  *   whether Alexa is enabled, etc.).
  * - Publishes the node configuration, if required.
@@ -177,6 +142,7 @@ esp_rmaker_error_t esp_rmaker_node_deinit(const esp_rmaker_node_t *node);
  * @note Network connectivity is not required for this call to succeed: the start work waits for
  *       it. A working connection is required for the node to come online.
  * @note This function must be called after esp_rmaker_node_init().
+ * @note On a node with assisted claiming enabled, call this after provisioning ends.
  *
  * @return ESP_RMAKER_OK on success, or if the SDK is already started.
  * @return ESP_RMAKER_INVALID_STATE if the SDK is not initialized.
@@ -196,6 +162,18 @@ esp_rmaker_error_t esp_rmaker_start(void);
  * @return ESP_RMAKER_INVALID_STATE if the SDK is not started.
  */
 esp_rmaker_error_t esp_rmaker_stop(void);
+
+/**
+ * @brief Removed. A call fails the build. Call esp_rmaker_node_init() before provisioning.
+ */
+__attribute__((error("esp_rmaker_pre_prov_init() is removed; call esp_rmaker_node_init() before provisioning")))
+esp_rmaker_error_t esp_rmaker_pre_prov_init(void);
+
+/**
+ * @brief Removed. A call fails the build. The start task does the post-provisioning steps.
+ */
+__attribute__((error("esp_rmaker_pre_prov_deinit() is removed; the start task does the post-provisioning steps")))
+esp_rmaker_error_t esp_rmaker_pre_prov_deinit(void);
 
 #ifdef __cplusplus
 }

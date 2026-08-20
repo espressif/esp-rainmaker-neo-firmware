@@ -76,14 +76,14 @@ esp_rmaker_error_t event_loop_deinit(void)
 {
     osal_ota_event_loop_init(NULL);
 
-    /* Unregister the MQTT connection handler */
+    /* Unregister the MQTT connection handler. INVALID_STATE: the default loop is gone, and its handlers too. */
     if (g_mqtt_connection_handler) {
         osal_err_t event_loop_err = osal_event_handler_unregister(RMAKER_COMMON_EVENT, RMAKER_MQTT_EVENT_CONNECTED, g_mqtt_connection_handler);
-        if (event_loop_err != OSAL_ERR_OK) {
+        if (event_loop_err != OSAL_ERR_OK && event_loop_err != OSAL_ERR_INVALID_STATE) {
             return ESP_RMAKER_FAIL;
         }
         event_loop_err = osal_event_handler_unregister(RMAKER_COMMON_EVENT, RMAKER_MQTT_EVENT_DISCONNECTED, g_mqtt_connection_handler);
-        if (event_loop_err != OSAL_ERR_OK) {
+        if (event_loop_err != OSAL_ERR_OK && event_loop_err != OSAL_ERR_INVALID_STATE) {
             return ESP_RMAKER_FAIL;
         }
         g_mqtt_connection_handler = NULL;

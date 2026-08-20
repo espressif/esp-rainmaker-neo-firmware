@@ -9,6 +9,6 @@ dependencies:
     require: public
     rules:
       - if: "target not in [linux]"
-  # app_network_provision.c drives the RainMaker Neo pre-provisioning flow.
+  # Provides osal, which the public header includes.
   esp_rmaker_neo:
     path: ../../../components/esp_rmaker_neo

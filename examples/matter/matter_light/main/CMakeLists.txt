@@ -4,7 +4,7 @@ set(MATTER_LIGHT_PRIV_REQUIRES
     "esp_rmaker_neo"
     "esp_rmaker_neo_ota"
     "esp_rmaker_neo_matter_mirror"
-    # Network (provisioning + the RainMaker Neo pre-provisioning bring-up)
+    # Network (provisioning + network start)
     "app_network"
     "esp_wifi"
     # Event loop

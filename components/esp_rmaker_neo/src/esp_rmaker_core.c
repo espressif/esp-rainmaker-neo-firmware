@@ -109,6 +109,7 @@
 /* Services includes */
 #include "services/schedules.h"
 #include "services/automation.h"
+#include "services/local_endpoints.h"
 
 /* Time-sync flow selector */
 #include "time_sync_flow.h"
@@ -148,9 +149,6 @@ static const char *TAG = "rmng_core";
 typedef struct {
     struct {
         esp_rmaker_state_t state: 3; /**< State of the ESP RainMaker Neo SDK, see esp_rmaker_state_t */
-        bool is_init_common_components: 1; /**< Whether the common components are initialized */
-        bool is_init_pre_prov: 1; /**< Whether the program is initialized for pre-provisioning */
-        bool is_init_full: 1; /**< Whether the program is initialized for a node and all components */
         bool start_task_in_queue: 1; /**< Whether the start task is in the queue */
         bool enable_time_sync: 1; /**< Whether time synchronization is enabled */
         bool core_mqtt_setup_done: 1; /**< MQTT common setup (incl. budgeting wrapper) completed */
@@ -158,8 +156,7 @@ typedef struct {
     } trackers;
     uint8_t sub_flags; /**< Subscribed flags, see esp_rmaker_sub_flags_t */
 #if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
-    /** Assisted-claiming context, non-NULL between esp_rmaker_pre_prov_init() and
-     * esp_rmaker_pre_prov_deinit() when the node still needs to be claimed. */
+    /** Assisted-claiming context, non-NULL from node init until the start task performs the claim. */
     esp_rmaker_claim_data_t *claim_data;
 #endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
     struct {
@@ -209,11 +206,15 @@ static void __esp_rmaker_mqtt_connection_handler(void *event_handler_arg, osal_e
 static void __esp_rmaker_mqtt_cloud_on_complete_event_handler(void *event_handler_arg, osal_event_base_t event_base, int32_t event_id, void *event_data);
 
 /**
- * @brief Initialize common components shared between SDK and pre-provisioning.
- * @return ESP_RMAKER_OK on success.
- * @return ESP_RMAKER_FAIL on failure.
+ * @brief Read the cloud credentials and initialize the MQTT implementation with them.
+ * @return ESP_RMAKER_OK on success, otherwise an error code.
  */
-static esp_rmaker_error_t __init_common_components(void);
+static esp_rmaker_error_t __init_mqtt_conn(void);
+
+/**
+ * @brief Log the version and the non-sensitive parts of the connection parameters.
+ */
+static void __log_init_summary(void);
 
 /**
  * @brief Initialize the ESP RainMaker Neo SDK.
@@ -428,74 +429,63 @@ static void __esp_rmaker_mqtt_cloud_on_complete_event_handler(void *event_handle
     }
 }
 
-static esp_rmaker_error_t __init_common_components(void)
+static esp_rmaker_error_t __init_mqtt_conn(void)
 {
-    if (priv_data.trackers.is_init_common_components) {
-        return ESP_RMAKER_OK;
+    esp_rmaker_error_t ret;
+#if CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
+    /* Runs after assisted claiming, so a claimed node already has its node ID and host. */
+    ret = esp_rmaker_migration_check(CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION_TARGET);
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "MQTT host migration check failed");
+        return ret;
+    }
+    ret = esp_rmaker_migration_start();
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to start the MQTT host migration write-back");
+        return ret;
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION */
+
+    ret = esp_rmaker_credentials_get_mqtt_conn_params(&priv_data.mqtt_conn_params);
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to get MQTT connection parameters: %d", ret);
+        return ret;
     }
 
-    /* Arm the connectivity trapdoor as early as possible - before the network can come
-     * up - so the start task can gate MQTT on connectivity (see esp_rmaker_start_task). */
-    osal_netstatus_arm();
+    osal_mqtt_event_loop_registration_info_t event_loop_registration_info = {
+        .event_base = RMAKER_COMMON_EVENT,
+        .event_ids = {
+            .connected = RMAKER_MQTT_EVENT_CONNECTED,
+            .disconnected = RMAKER_MQTT_EVENT_DISCONNECTED,
+            .published = RMAKER_MQTT_EVENT_PUBLISHED,
+            .subscribed = RMAKER_MQTT_EVENT_SUBSCRIBED,
+            .unsubscribed = RMAKER_MQTT_EVENT_UNSUBSCRIBED,
+        },
+    };
 
-    /* Initialise event loop */
-    OSAL_LOGD(TAG, "Initializing event loop...");
-    esp_rmaker_error_t event_loop_err = event_loop_init(__esp_rmaker_mqtt_connection_handler);
-    if (event_loop_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize event loop");
-        return event_loop_err;
-    }
-
-    /* Initialise NVS - needed by local configuration */
-    OSAL_LOGD(TAG, "Initializing NVS...");
-    osal_err_t nvs_err = osal_storage_init(RMAKER_NVS_PART_NAME);
-    if (nvs_err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize NVS");
+    osal_err_t mqtt_err = esp_rmaker_mqtt_impl.init(priv_data.mqtt_conn_params, &event_loop_registration_info);
+    if (mqtt_err != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to initialize MQTT implementation");
         return ESP_RMAKER_FAIL;
     }
-
-    /* Initialise local configuration */
-    OSAL_LOGD(TAG, "Initializing local configuration...");
-    esp_rmaker_error_t local_config_err = esp_rmaker_local_config_init();
-    if (local_config_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize local configuration: %d", local_config_err);
-        return local_config_err;
-    }
-
-    priv_data.trackers.is_init_common_components = true;
+    priv_data.trackers.core_mqtt_impl_inited = true;
     return ESP_RMAKER_OK;
 }
 
-static esp_rmaker_error_t __deinit_common_components(void)
+static void __log_init_summary(void)
 {
-    esp_rmaker_error_t err_out = ESP_RMAKER_OK;
-
-    if (!priv_data.trackers.is_init_common_components) {
-        return ESP_RMAKER_OK;
-    }
-
-    /* De-initialize local configuration */
-    esp_rmaker_error_t local_config_err = esp_rmaker_local_config_deinit();
-    if (local_config_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to de-initialize local configuration");
-        err_out = ESP_RMAKER_FAIL;
-    }
-
-    /* NVS is deliberately left initialized so that external components can still use it
-     * regardless of the SDK's state.
-     * osal_storage_init() is idempotent, so a later re-init still works. */
-
-    /* De-initialize event loop */
-    esp_rmaker_error_t event_loop_err = event_loop_deinit();
-    if (event_loop_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to de-initialize event loop");
-        err_out = ESP_RMAKER_FAIL;
-    }
-
-    if (err_out == ESP_RMAKER_OK) {
-        priv_data.trackers.is_init_common_components = false;
-    }
-    return err_out;
+    /* Secrets (cert/key/username/password) are intentionally not logged. */
+    const osal_mqtt_conn_params_t *cp = priv_data.mqtt_conn_params;
+    OSAL_LOGI(TAG,
+              "\n========= RainMaker Neo firmware SDK initialized =========\n\n"
+              "\tVersion:       %s\n"
+              "\tNode ID:       %s\n"
+              "\tMQTT endpoint: %s:%" PRIu16  "\n"
+              "\n=================================================",
+              ESP_RMAKER_VERSION_STR,
+              (cp && cp->client_id) ? cp->client_id : "<unknown>",
+              (cp && cp->hostname) ? cp->hostname : "<unknown>",
+              cp ? cp->port : 0U);
 }
 
 static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
@@ -507,12 +497,66 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
         return ESP_RMAKER_INVALID_ARG;
     }
 
-    /* Initialise common components if not already initialized */
-    if (__init_common_components() != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize common components");
+    /* Arm the connectivity trapdoor before the network can come up, so the start task can
+     * gate MQTT on connectivity (see esp_rmaker_start_task). */
+    osal_netstatus_arm();
+
+    /* Initialise event loop */
+    OSAL_LOGD(TAG, "Initializing event loop...");
+    ret = event_loop_init(__esp_rmaker_mqtt_connection_handler);
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to initialize event loop");
+        goto fail;
+    }
+
+    /* Initialise NVS - needed by local configuration */
+    OSAL_LOGD(TAG, "Initializing NVS...");
+    if (osal_storage_init(RMAKER_NVS_PART_NAME) != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to initialize NVS");
         ret = ESP_RMAKER_FAIL;
         goto fail;
     }
+
+    /* Initialise local configuration */
+    OSAL_LOGD(TAG, "Initializing local configuration...");
+    ret = esp_rmaker_local_config_init();
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to initialize local configuration: %d", ret);
+        goto fail;
+    }
+
+    /* Initialise factory partition */
+    OSAL_LOGD(TAG, "Initializing factory partition...");
+    ret = esp_rmaker_factory_part_init();
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to initialize factory partition");
+        goto fail;
+    }
+
+    /* Initialise challenge response */
+    OSAL_LOGD(TAG, "Initializing challenge response...");
+    ret = esp_rmaker_chal_resp_init();
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to initialize challenge response");
+        goto fail;
+    }
+
+#if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
+    /* Registered after challenge-response, so the provisioning endpoint order stays stable. */
+    esp_rmaker_credential_t existing_cert = { 0 };
+    if (esp_rmaker_credentials_get_client_cert(&existing_cert) == ESP_RMAKER_OK) {
+        esp_rmaker_credentials_free_credential(&existing_cert);
+        OSAL_LOGD(TAG, "Node already has a certificate; skipping assisted claiming.");
+    } else {
+        OSAL_LOGD(TAG, "Initializing assisted claiming...");
+        priv_data.claim_data = esp_rmaker_assisted_claim_init();
+        if (!priv_data.claim_data) {
+            OSAL_LOGE(TAG, "Failed to initialize assisted claiming");
+            ret = ESP_RMAKER_FAIL;
+            goto fail;
+        }
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
 
     /* Initialise checksum */
     OSAL_LOGD(TAG, "Initializing checksum...");
@@ -614,8 +658,8 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
     }
 #endif
 
-    /* Initialise MQTT */
-    OSAL_LOGI(TAG, "Initializing MQTT...");
+    /* Select the MQTT implementation */
+    OSAL_LOGD(TAG, "Selecting MQTT implementation...");
 #if CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
     osal_mqtt_impl_setup_t mqtt_setup_fn = config->mqtt_setup_fn;
     if (!mqtt_setup_fn) {
@@ -639,45 +683,6 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
         goto fail;
     }
     priv_data.trackers.core_mqtt_setup_done = true;
-
-#if CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
-    /* Runs after assisted claiming, so a claimed node already has its node ID and host. */
-    ret = esp_rmaker_migration_check(CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION_TARGET);
-    if (ret != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "MQTT host migration check failed");
-        goto fail;
-    }
-    ret = esp_rmaker_migration_start();
-    if (ret != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to start the MQTT host migration write-back");
-        goto fail;
-    }
-#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION */
-
-    ret = esp_rmaker_credentials_get_mqtt_conn_params(&priv_data.mqtt_conn_params);
-    if (ret != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to get MQTT connection parameters");
-        goto fail;
-    }
-
-    osal_mqtt_event_loop_registration_info_t event_loop_registration_info = {
-        .event_base = RMAKER_COMMON_EVENT,
-        .event_ids = {
-            .connected = RMAKER_MQTT_EVENT_CONNECTED,
-            .disconnected = RMAKER_MQTT_EVENT_DISCONNECTED,
-            .published = RMAKER_MQTT_EVENT_PUBLISHED,
-            .subscribed = RMAKER_MQTT_EVENT_SUBSCRIBED,
-            .unsubscribed = RMAKER_MQTT_EVENT_UNSUBSCRIBED,
-        },
-    };
-
-    mqtt_err = esp_rmaker_mqtt_impl.init(priv_data.mqtt_conn_params, &event_loop_registration_info);
-    if (mqtt_err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize MQTT implementation");
-        ret = ESP_RMAKER_FAIL;
-        goto fail;
-    }
-    priv_data.trackers.core_mqtt_impl_inited = true;
 
     /* Initialize services */
     OSAL_LOGD(TAG, "Initializing services...");
@@ -756,6 +761,7 @@ static esp_rmaker_error_t esp_rmaker_deinit(void)
         OSAL_LOGE(TAG, "Failed to de-initialize automation service");
         err_out = ESP_RMAKER_FAIL;
     }
+    esp_rmaker_local_endpoints_on_deinit();
 
 #if CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
     esp_rmaker_migration_stop();
@@ -842,13 +848,38 @@ static esp_rmaker_error_t esp_rmaker_deinit(void)
         err_out = ESP_RMAKER_FAIL;
     }
 
-    /* De-initialize common components */
-    if (priv_data.trackers.is_init_common_components) {
-        step_err = __deinit_common_components();
-        if (step_err != ESP_RMAKER_OK) {
-            OSAL_LOGE(TAG, "Failed to de-initialize common components");
-            err_out = ESP_RMAKER_FAIL;
-        }
+#if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
+    /* Only set when the start task never ran; perform() frees it otherwise. */
+    esp_rmaker_claim_data_free(priv_data.claim_data);
+    priv_data.claim_data = NULL;
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
+
+    /* De-initialize challenge response */
+    step_err = esp_rmaker_chal_resp_deinit();
+    if (step_err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to de-initialize challenge response");
+        err_out = ESP_RMAKER_FAIL;
+    }
+
+    /* De-initialize factory partition */
+    step_err = esp_rmaker_factory_part_deinit();
+    if (step_err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to de-initialize factory partition");
+        err_out = ESP_RMAKER_FAIL;
+    }
+
+    /* De-initialize local configuration */
+    step_err = esp_rmaker_local_config_deinit();
+    if (step_err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to de-initialize local configuration");
+        err_out = ESP_RMAKER_FAIL;
+    }
+
+    /* NVS and the default event loop stay alive for other consumers. */
+    step_err = event_loop_deinit();
+    if (step_err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to de-initialize event loop");
+        err_out = ESP_RMAKER_FAIL;
     }
 
     return err_out;
@@ -882,6 +913,24 @@ static void esp_rmaker_start_task(void *unused)
 
     osal_err_t mqtt_err;
     esp_rmaker_error_t rmaker_err;
+
+#if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
+    /* Runs over the provisioning session, so it needs no network. perform() frees the context. */
+    if (priv_data.claim_data) {
+        rmaker_err = esp_rmaker_assisted_claim_perform(priv_data.claim_data);
+        priv_data.claim_data = NULL;
+        if (rmaker_err != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Assisted claiming did not complete: %d", rmaker_err);
+            goto start_task_fail;
+        }
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
+
+    /* Gate on network connectivity before time sync and MQTT, so we don't burn DNS/connect
+     * retries while the device is still provisioning/connecting. Blocks until the first IP
+     * is acquired (no-op on POSIX), then disarms the trapdoor. */
+    OSAL_LOGD(TAG, "Waiting for network connectivity...");
+    osal_netstatus_trap();
 
     /* Time synchronization: two flows.
      *
@@ -943,11 +992,22 @@ static void esp_rmaker_start_task(void *unused)
         goto start_task_fail;
     }
 
-    /* Gate on network connectivity before attempting MQTT, so we don't burn DNS/connect
-     * retries while the device is still provisioning/connecting. Blocks until the first IP
-     * is acquired (no-op on POSIX), then disarms the trapdoor. */
-    OSAL_LOGD(TAG, "Waiting for network connectivity...");
-    osal_netstatus_trap();
+    /* Read the credentials and initialize MQTT; a restart after esp_rmaker_stop() keeps the client */
+    if (!priv_data.trackers.core_mqtt_impl_inited) {
+        OSAL_LOGI(TAG, "Initializing MQTT...");
+        rmaker_err = __init_mqtt_conn();
+        if (rmaker_err != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Failed to initialize MQTT with the stored credentials: %d", rmaker_err);
+            goto start_task_fail;
+        }
+        __log_init_summary();
+    }
+
+    /* Start the local endpoints the application enabled */
+    OSAL_LOGD(TAG, "Starting the local endpoints...");
+    if (esp_rmaker_local_endpoints_on_start() != ESP_RMAKER_OK) {
+        OSAL_LOGW(TAG, "Failed to start the local endpoints");
+    }
 
 #if CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
     if (esp_rmaker_migration_on_network_up(CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION_TIMEOUT) != ESP_RMAKER_OK) {
@@ -1345,102 +1405,6 @@ char *esp_rmaker_get_node_id_for_node(const esp_rmaker_node_t *node)
     return __node_id_from_ctx(esp_rmaker_node_topic_ctx(node));
 }
 
-esp_rmaker_error_t esp_rmaker_pre_prov_init(void)
-{
-    if (priv_data.trackers.is_init_pre_prov) {
-        // already initialized, do nothing
-        return ESP_RMAKER_OK;
-    }
-
-    /* Initialise common components */
-    esp_rmaker_error_t common_err = __init_common_components();
-    if (common_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize common components");
-        return common_err;
-    }
-
-    /* Initialise factory partition */
-    OSAL_LOGD(TAG, "Initializing factory partition...");
-    esp_rmaker_error_t factory_part_err = esp_rmaker_factory_part_init();
-    if (factory_part_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize factory partition");
-        return factory_part_err;
-    }
-
-    /* Initialise challenge response */
-    OSAL_LOGD(TAG, "Initializing challenge response...");
-    esp_rmaker_error_t chal_resp_err = esp_rmaker_chal_resp_init();
-    if (chal_resp_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize challenge response");
-        return chal_resp_err;
-    }
-
-#if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
-    /* Initialise assisted claiming, but only if the node has no certificate yet. Once a
-     * node is claimed the claiming code stays dormant: no key generation, no endpoint and
-     * nothing to wait for in esp_rmaker_pre_prov_deinit().
-     *
-     * Registered after challenge-response so that provisioning endpoint UUIDs, which are
-     * assigned in creation order, stay stable. The phone app resolves endpoints by name,
-     * so the order is not load-bearing, only reproducible. */
-    esp_rmaker_credential_t existing_cert = { 0 };
-    if (esp_rmaker_credentials_get_client_cert(&existing_cert) == ESP_RMAKER_OK) {
-        esp_rmaker_credentials_free_credential(&existing_cert);
-        OSAL_LOGD(TAG, "Node already has a certificate; skipping assisted claiming.");
-    } else {
-        OSAL_LOGD(TAG, "Initializing assisted claiming...");
-        priv_data.claim_data = esp_rmaker_assisted_claim_init();
-        if (!priv_data.claim_data) {
-            OSAL_LOGE(TAG, "Failed to initialize assisted claiming");
-            return ESP_RMAKER_FAIL;
-        }
-    }
-#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
-
-    priv_data.trackers.is_init_pre_prov = true;
-    return ESP_RMAKER_OK;
-}
-
-esp_rmaker_error_t esp_rmaker_pre_prov_deinit(void)
-{
-    if (!priv_data.trackers.is_init_pre_prov) {
-        OSAL_LOGE(TAG, "ESP RainMaker is not initialized for pre-provisioning.");
-        return ESP_RMAKER_INVALID_STATE;
-    }
-
-    /* Teardown runs to completion even when a step fails: leaving challenge-response
-     * initialised, and is_init_pre_prov set, would strand pre-provisioning resources for the
-     * rest of the boot. The first error is remembered and returned. */
-    esp_rmaker_error_t first_err = ESP_RMAKER_OK;
-
-#if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
-    /* Wait for claiming to finish before tearing anything down: claiming writes to the
-     * factory partition, so it needs that still open, and the credentials it stores must be
-     * in place before esp_rmaker_node_init() reads them. */
-    if (priv_data.claim_data) {
-        esp_rmaker_error_t claim_err = esp_rmaker_assisted_claim_perform(priv_data.claim_data);
-        priv_data.claim_data = NULL; /* perform() takes ownership and frees it */
-        if (claim_err != ESP_RMAKER_OK) {
-            OSAL_LOGE(TAG, "Assisted claiming did not complete: %d", claim_err);
-            first_err = claim_err;
-        }
-    }
-#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
-
-    /* De-initialize challenge response */
-    esp_rmaker_error_t chal_resp_err = esp_rmaker_chal_resp_deinit();
-    if (chal_resp_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to de-initialize challenge response");
-        if (first_err == ESP_RMAKER_OK) {
-            first_err = chal_resp_err;
-        }
-    }
-
-
-    priv_data.trackers.is_init_pre_prov = false;
-    return first_err;
-}
-
 esp_rmaker_node_t *esp_rmaker_node_init(const esp_rmaker_config_t *config, const char *name, const char *type)
 {
     OSAL_LOGI(TAG, "Initializing RainMaker Neo firmware SDK (version %s)...", ESP_RMAKER_VERSION_STR);
@@ -1452,22 +1416,6 @@ esp_rmaker_node_t *esp_rmaker_node_init(const esp_rmaker_config_t *config, const
         OSAL_LOGE(TAG, "Failed to initialize ESP RainMaker");
         return NULL;
     }
-
-    /* Print the version together with the non-sensitive factory configuration.
-     * conn_params is populated by esp_rmaker_init above; on missing/undetectable
-     * config esp_rmaker_init aborts and frees, so we never reach here. Secrets
-     * (cert/key/username/password) are intentionally not logged. */
-    const osal_mqtt_conn_params_t *cp = priv_data.mqtt_conn_params;
-    OSAL_LOGI(TAG,
-              "\n========= RainMaker Neo firmware SDK initialized =========\n\n"
-              "\tVersion:       %s\n"
-              "\tNode ID:       %s\n"
-              "\tMQTT endpoint: %s:%" PRIu16  "\n"
-              "\n=================================================",
-              ESP_RMAKER_VERSION_STR,
-              (cp && cp->client_id) ? cp->client_id : "<unknown>",
-              (cp && cp->hostname) ? cp->hostname : "<unknown>",
-              cp ? cp->port : 0U);
 
     node = esp_rmaker_node_create(name, type);
     if (!node) {
@@ -1570,7 +1518,6 @@ esp_rmaker_node_t *esp_rmaker_node_init(const esp_rmaker_config_t *config, const
     }
 #endif
 
-    priv_data.trackers.is_init_full = true;
     priv_data.trackers.state = ESP_RMAKER_STATE_INIT_DONE;
 
     /* Post the core initialized event */
@@ -1592,14 +1539,9 @@ fail:
 
 esp_rmaker_error_t esp_rmaker_node_deinit(const esp_rmaker_node_t *node)
 {
-    if (!priv_data.trackers.is_init_full) {
+    if (priv_data.trackers.state == ESP_RMAKER_STATE_DEINIT) {
         OSAL_LOGE(TAG, "ESP RainMaker is not initialized. Please initialize it first.");
         return ESP_RMAKER_INVALID_STATE;
-    }
-
-    if (priv_data.trackers.state == ESP_RMAKER_STATE_DEINIT) {
-        OSAL_LOGE(TAG, "ESP RainMaker already de-initialized.");
-        return ESP_RMAKER_INVALID_ARG;
     }
 
     if (priv_data.trackers.state == ESP_RMAKER_STATE_STOP_REQUESTED) {
@@ -1629,7 +1571,6 @@ esp_rmaker_error_t esp_rmaker_node_deinit(const esp_rmaker_node_t *node)
     }
     priv_data.node = NULL;
 
-    priv_data.trackers.is_init_full = false;
     priv_data.trackers.state = ESP_RMAKER_STATE_DEINIT;
     return ESP_RMAKER_OK;
 }
@@ -1728,7 +1669,7 @@ bool esp_rmaker_node_is_in_subgroup(const esp_rmaker_node_t *node, const char *s
 esp_rmaker_error_t esp_rmaker_start(void)
 {
     OSAL_LOGD(TAG, "Starting ESP RainMaker...");
-    if (!priv_data.trackers.is_init_full) {
+    if (priv_data.trackers.state == ESP_RMAKER_STATE_DEINIT) {
         OSAL_LOGE(TAG, "ESP RainMaker is not initialized. Please initialize it first.");
         return ESP_RMAKER_INVALID_STATE;
     }

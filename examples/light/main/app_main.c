@@ -139,10 +139,6 @@ osal_err_t app_run(void)
     osal_storage_init(NULL);
     app_network_init();
 
-    /* RainMaker Neo provisioning runs before node init.
-     * See the examples/common/app_network component for more details. */
-    app_network_provision(NEO_MFG_DATA_DEVICE_TYPE_LIGHT, NEO_MFG_DATA_DEVICE_SUBTYPE_LIGHT);
-
     /* Register the default RainMaker Neo event handler (logs RainMaker Neo/OTA/network events).
      * See the examples/common/app_event_loop component for more details. */
     app_event_loop_register_default_handler();
@@ -198,6 +194,10 @@ osal_err_t app_run(void)
         .priv = NULL,
     };
     esp_rmaker_ota_enable(&ota_config);
+
+    /* Network provisioning: the node exists, so its provisioning endpoints are registered.
+     * See the examples/common/app_network component for more details. */
+    app_network_provision(NEO_MFG_DATA_DEVICE_TYPE_LIGHT, NEO_MFG_DATA_DEVICE_SUBTYPE_LIGHT);
 
     /* Start the RainMaker Neo agent. */
     esp_rmaker_start();

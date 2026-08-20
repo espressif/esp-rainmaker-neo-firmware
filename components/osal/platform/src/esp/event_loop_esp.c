@@ -45,6 +45,9 @@ osal_err_t osal_event_handler_register(osal_event_base_t event_base, int32_t eve
 osal_err_t osal_event_handler_unregister(osal_event_base_t event_base, int32_t event_id, osal_event_handler_t event_handler)
 {
     esp_err_t esp_err = esp_event_handler_unregister((esp_event_base_t) event_base, event_id, (esp_event_handler_t) event_handler);
+    if (esp_err == ESP_ERR_INVALID_STATE) {
+        return OSAL_ERR_INVALID_STATE;
+    }
     if (esp_err != ESP_OK && esp_err != ESP_ERR_NOT_FOUND) {
         return OSAL_ERR_FAIL;
     }

@@ -17,6 +17,7 @@
 #include "esp_rmaker_core.h"
 #include "esp_rmaker_standard_services.h"
 #include "osal_event_loop.h"
+#include "services/local_endpoints.h"
 
 #define TEST_EP_NAME     "test_ep"
 #define TEST_EP_MAX      4
@@ -37,7 +38,12 @@ static esp_rmaker_node_t *__test_setup(void)
 {
     osal_event_loop_create_default();
     esp_rmaker_config_t config = { .enable_time_sync = false };
-    return esp_rmaker_node_init(&config, "tnode", "ttype");
+    esp_rmaker_node_t *node = esp_rmaker_node_init(&config, "tnode", "ttype");
+    if (node != NULL) {
+        /* Stands in for the start task, so an enable starts the service at once. */
+        (void) esp_rmaker_local_endpoints_on_start();
+    }
+    return node;
 }
 
 static void __test_teardown(esp_rmaker_node_t *node)

@@ -2,39 +2,52 @@
 
 ## Component Initialization Order
 
-The node initialization follows a specific order with dependencies. Steps 1--4 are the *common components*, shared with the pre-provisioning path ([Network Provisioning](provisioning.md)); the rest run inside `esp_rmaker_node_init()`:
+The node initialization follows a specific order with dependencies. All steps run inside `esp_rmaker_node_init()`:
 
 1.  **Connectivity trapdoor**: Arm the network-status trapdoor before the network can come up, so the start task can gate MQTT on connectivity
 2.  **Event Loop**: Initialize event loop for inter-component communication
 3.  **NVS (Non-Volatile Storage)**: Initialize NVS for persistent storage
 4.  **Local Configuration**: Initialize local configuration management
-5.  **Checksum**: Initialize the checksum store (node configuration and node tag change detection)
-6.  **Time Synchronization**: Initialize SNTP, only if `enable_time_sync` is set in the configuration (see [Time Synchronization](time_sync.md))
-7.  **Scheduler**: Initialize the timer/scheduler backend
-8.  **Network Common**: Initialize network abstraction layer
-9.  **State Change Management**: Initialize state change tracking and reporting
-10. **Cloud Manager**: Initialize cloud event management
-11. **Notification Manager**: Initialize notification publishing
-12. **Timeseries Manager**: Initialize timeseries data collection
-13. **Work Queue**: Initialize work queue for asynchronous tasks
-14. **Bridge subsystem**: Only when `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE` is set
-15. **MQTT**: Select the MQTT implementation (wrapped by the budgeting shim when `CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING` is set), run the MQTT host migration check (only with `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`), build the connection parameters from the credentials store, and initialize the client
-16. **Services**: Initialize the schedule and automation services
-17. **Start task**: Queue the start task as the first work-queue task, then post the "init done" event
+5.  **Factory partition**: Open the factory partition that holds the credentials
+6.  **Challenge-response**: Register the `ch_resp` provisioning endpoint (see [Network Provisioning](provisioning.md))
+7.  **Assisted claiming**: Only when `CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM` is set and the node has no certificate: generate the key pair and register the `rmaker_claim` provisioning endpoint
+8.  **Checksum**: Initialize the checksum store (node configuration and node tag change detection)
+9.  **Time Synchronization**: Initialize SNTP, only if `enable_time_sync` is set in the configuration (see [Time Synchronization](time_sync.md))
+10. **Scheduler**: Initialize the timer/scheduler backend
+11. **Network Common**: Initialize network abstraction layer
+12. **State Change Management**: Initialize state change tracking and reporting
+13. **Cloud Manager**: Initialize cloud event management
+14. **Notification Manager**: Initialize notification publishing
+15. **Timeseries Manager**: Initialize timeseries data collection
+16. **Work Queue**: Initialize work queue for asynchronous tasks
+17. **Bridge subsystem**: Only when `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE` is set
+18. **MQTT implementation**: Select the MQTT implementation (wrapped by the budgeting shim when `CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING` is set). The credential read and the client initialization happen in the start task
+19. **Services**: Initialize the schedule and automation services
+20. **Start task**: Queue the start task as the first work-queue task, then post the "init done" event
 
-Everything from the MQTT connection onwards happens in the start task, on the work queue — `esp_rmaker_node_init()` itself does not block on the network.
+`esp_rmaker_node_init()` does not read the cloud credentials, so it succeeds on an unclaimed node. Everything from the claim wait onwards happens in the start task, on the work queue — `esp_rmaker_node_init()` itself does not block on provisioning or on the network.
+
+The start task runs these steps in order:
+
+1.  **Assisted claiming**: Wait for the claim to finish, only if the node was unclaimed at node init. The claim runs over the provisioning session, so it does not need the network
+2.  **Network**: Block on the connectivity trapdoor until the first IP is acquired (no-op on POSIX)
+3.  **Time synchronization**: Wait for the clock in the synchronous flow only (see [Time Synchronization](time_sync.md))
+4.  **Shadows and services**: Initialize the shadow bookkeeping, load the schedule and automation state from NVS
+5.  **MQTT**: Run the MQTT host migration check (only with `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`), build the connection parameters from the credentials store, initialize the client and log the init summary
+6.  **Local endpoints**: Start the local control and challenge-response endpoint sets the application enabled before this step
+7.  **Connect**: Start the MQTT host migration timeout (only with `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`), connect to the MQTT broker and continue with the cloud setup
 
 ## Prerequisites
 
 ### Before Network Provisioning
 
 - NVS must be initialized
-- Event loop must be initialized
-- Pre-provisioning SDK components must be initialized
+- `esp_rmaker_node_init()` must have completed: it registers the provisioning endpoints
 
 ### Before MQTT Connection
 
 - Network provisioning must be complete
+- Assisted claiming must have written the credentials, if the node was unclaimed (the start task blocks on it)
 - Network connection must be established (the start task blocks on the connectivity trapdoor until the first IP is acquired; no-op on POSIX). With `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`, the start task then starts the target host connection timeout
 - Time synchronization must complete **in the synchronous flow only** (`CONFIG_MBEDTLS_HAVE_TIME_DATE`); the decoupled flow does not wait
 - Shadow bookkeeping must be initialized
@@ -55,8 +68,10 @@ On the first MQTT connection the SDK queues the cloud-setup task and (with `CONF
 - **NVS Failure**: Prevents local configuration access; may require factory reset
 - **Network Failure**: Prevents MQTT connection; node remains in provisioning or error state
 - **Time Sync Failure**: In the synchronous flow (`CONFIG_MBEDTLS_HAVE_TIME_DATE`) startup blocks until sync (a valid clock is required for the TLS handshake); in the decoupled flow startup never blocks. See [Time Synchronization](time_sync.md)
-- **MQTT Host Migration Failure**: With `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`, a node with no stored node ID and no certificate CN fails `esp_rmaker_node_init()` with `ESP_RMAKER_NOT_FOUND`
+- **MQTT Host Migration Failure**: With `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`, a node with no stored node ID and no certificate CN aborts the start task and leaves the SDK in the error state
 - **MQTT Connection Failure**: Prevents cloud communication; triggers reconnection attempts
+- **Claim Failure**: An unclaimed node that was provisioned without claiming, or whose claim did not complete, has no credentials; the start task aborts and leaves the SDK in the error state
+- **Credential Failure**: A failed credential read or MQTT client initialization aborts the start task and leaves the SDK in the error state
 - **Shadow Initialization Failure**: Aborts the start task and leaves the SDK in the error state
 - **Service Data Load Failure**: A failure to load schedule or automation details from NVS aborts the start task and leaves the SDK in the error state
 
@@ -68,9 +83,9 @@ On the first MQTT connection the SDK queues the cloud-setup task and (with `CONF
 
 ## Relationship to Network Provisioning
 
-- **Before Provisioning**: Pre-provisioning components are initialized
-- **During Provisioning**: Network provisioning service runs
-- **After Provisioning**: Pre-provisioning components are deinitialized, main node initialization begins
+- **Before Provisioning**: `esp_rmaker_node_init()` registers the `ch_resp` endpoint and, on an unclaimed node, the `rmaker_claim` endpoint
+- **During Provisioning**: Network provisioning service runs; the application calls `esp_rmaker_start()` once the network is started
+- **After Provisioning**: The start task waits for claiming, reads the credentials and connects
 
 ## Overall Firmware Flow
 
@@ -78,6 +93,12 @@ On the first MQTT connection the SDK queues the cloud-setup task and (with `CONF
 sequenceDiagram
     participant node as Neo Node
     participant broker as MQTT Broker
+
+    opt Unclaimed at node init (CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM)
+        node ->> node: Wait for assisted claiming to finish
+    end
+
+    node ->> node: Wait for network connectivity (first IP)
 
     opt Synchronous flow (CONFIG_MBEDTLS_HAVE_TIME_DATE)
         node ->> node: Wait for time sync (blocks until synced)
@@ -89,7 +110,7 @@ sequenceDiagram
     node ->> node: Load schedule details from NVS (arming deferred until the clock is valid)
     node ->> node: Load automation details from NVS
 
-    node ->> node: Wait for network connectivity (first IP)
+    node ->> node: Read credentials, initialize the MQTT client
 
     node ->> broker: Connect and authenticate
     node ->> broker: Subscribe to from_cloud topic

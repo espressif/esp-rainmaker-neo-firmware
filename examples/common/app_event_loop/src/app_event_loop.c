@@ -98,6 +98,17 @@ static void esp_rmaker_app_default_event_handler(void *event_handler_arg, osal_e
             OSAL_LOGI(TAG, "RainMaker Neo SDK started");
             break;
 
+        /** Claim events ***************************************************************/
+        case RMAKER_EVENT_CLAIM_STARTED:
+            OSAL_LOGI(TAG, "Assisted claiming started");
+            break;
+        case RMAKER_EVENT_CLAIM_SUCCESSFUL:
+            OSAL_LOGI(TAG, "Assisted claiming successful");
+            break;
+        case RMAKER_EVENT_CLAIM_FAILED:
+            OSAL_LOGE(TAG, "Assisted claiming failed");
+            break;
+
         /** Local control events ******************************************************/
         case RMAKER_EVENT_LOCAL_CTRL_STARTED:
             // Local control started.

@@ -734,10 +734,17 @@ void test_node_is_in_subgroup_bridge_child_membership(void);
 /* Core ***************************************************************************/
 
 /**
- * @brief Test pre-provisioning init/deinit success and error paths.
+ * @brief Test what node init does for provisioning: succeeds unclaimed, registers ch_resp,
+ *        leaves MQTT init to the start task.
  */
-void test_core_pre_prov_init_success(void);
-void test_core_pre_prov_deinit(void);
+void test_core_node_init_unclaimed_succeeds(void);
+void test_core_node_init_registers_chal_resp(void);
+void test_core_node_init_defers_mqtt_init(void);
+
+/**
+ * @brief Test that local endpoints enabled before start wait for the start task.
+ */
+void test_local_endpoints_enable_before_start_defers(void);
 
 /**
  * @brief Test node init/register/deinit state machine.

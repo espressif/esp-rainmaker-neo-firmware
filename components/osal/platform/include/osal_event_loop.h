@@ -89,6 +89,7 @@ osal_err_t osal_event_handler_register(osal_event_base_t event_base, int32_t eve
  * @param[in] event_handler The event handler to unregister.
  *
  * @return OSAL_ERR_OK: The event handler was unregistered successfully, otherwise an error code.
+ * @return OSAL_ERR_INVALID_STATE: The default event loop does not exist.
  */
 osal_err_t osal_event_handler_unregister(osal_event_base_t event_base, int32_t event_id, osal_event_handler_t event_handler);
 

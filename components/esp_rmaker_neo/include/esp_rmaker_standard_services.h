@@ -161,6 +161,11 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_set_http_port_from_host_ctrl(int port);
  * This enables the ESP RainMaker standard local control service, which allows users to
  * control their device without internet connection.
  *
+ * @note Called before the start task starts the local endpoints, it records the request, and
+ *       the start task starts the service once the node ID and the network are available.
+ *       Called after that step, it starts at once. RMAKER_EVENT_LOCAL_CTRL_STARTED is posted
+ *       when the service starts.
+ *
  * @return ESP_RMAKER_OK on success
  * @return error on failure
  */
@@ -230,8 +235,11 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_remove_endpoint(const char *ep_name);
  * capabilities. Independent of local control: any combination of the two
  * endpoint sets may be active.
  *
+ * @note Called before the start task starts the local endpoints, it records the request and
+ *       the start task starts the endpoint; see esp_rmaker_local_ctrl_service_enable().
  * @note Refused (ESP_RMAKER_INVALID_STATE) while a client-issued disable is
- *       persisted; that state is cleared only by a factory reset.
+ *       persisted; that state is cleared only by a factory reset. A deferred request is
+ *       refused at start time, with a warning.
  *
  * @return ESP_RMAKER_OK on success
  * @return error on failure
@@ -252,7 +260,7 @@ esp_rmaker_error_t esp_rmaker_chal_resp_service_disable(void);
 /**
  * @brief Check whether the Challenge-Response endpoint is enabled
  *
- * @return true if the ch_resp endpoint is currently registered, false otherwise.
+ * @return true if the ch_resp endpoint is registered or requested, false otherwise.
  */
 bool esp_rmaker_chal_resp_service_is_enabled(void);
 

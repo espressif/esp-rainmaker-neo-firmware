@@ -26,6 +26,7 @@
 #include "data_model_internal.h"
 #include "esp_rmaker_standard_services.h"
 #include "services/standard_creation.h"
+#include "services/local_endpoints.h"
 
 /* Standard includes. */
 #include <stddef.h>
@@ -227,6 +228,14 @@ static char *__custom_pop = NULL;
 #define LOCAL_CTRL_MAX_CUSTOM_ENDPOINTS 4
 
 static char *__custom_ep_names[LOCAL_CTRL_MAX_CUSTOM_ENDPOINTS];
+
+/** Set by the start task. Before it, an enable only records a request. */
+static bool s_started;
+
+/** A requested start; a pointer, so an app that never enables a service does not link it. */
+typedef esp_rmaker_error_t (*__service_start_fn_t)(void);
+static __service_start_fn_t s_local_ctrl_requested;
+static __service_start_fn_t s_chal_resp_requested;
 
 /* Private function declarations *******************************************************/
 
@@ -962,7 +971,7 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_remove_endpoint(const char *ep_name)
 
 /* Local control feature *******************************************************/
 
-esp_rmaker_error_t esp_rmaker_local_ctrl_service_enable(void)
+static esp_rmaker_error_t __local_ctrl_start(void)
 {
     if (__priv_data != NULL && __priv_data->local_ctrl_active) {
         OSAL_LOGW(TAG, "Local control is already enabled");
@@ -1018,6 +1027,15 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_service_enable(void)
     return ESP_RMAKER_OK;
 }
 
+esp_rmaker_error_t esp_rmaker_local_ctrl_service_enable(void)
+{
+    if (!s_started) {
+        s_local_ctrl_requested = __local_ctrl_start;
+        return ESP_RMAKER_OK;
+    }
+    return __local_ctrl_start();
+}
+
 /**
  * @brief Disable the local control endpoints.
  *
@@ -1028,6 +1046,11 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_service_enable(void)
  */
 static esp_rmaker_error_t __local_ctrl_service_disable(bool post_stopped_event)
 {
+    if (s_local_ctrl_requested != NULL) {
+        s_local_ctrl_requested = NULL;
+        return ESP_RMAKER_OK;
+    }
+
     /* Idempotent: safe to call on an already-stopped service (host-control
      * disable-all-services / reset path). */
     if (__priv_data == NULL || !__priv_data->local_ctrl_active) {
@@ -1067,7 +1090,7 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_service_disable(void)
     return __local_ctrl_service_disable(true);
 }
 
-esp_rmaker_error_t esp_rmaker_chal_resp_service_enable(void)
+static esp_rmaker_error_t __chal_resp_start(void)
 {
     if (__priv_data != NULL && __priv_data->chal_resp_active) {
         OSAL_LOGW(TAG, "Challenge response is already enabled");
@@ -1121,8 +1144,22 @@ esp_rmaker_error_t esp_rmaker_chal_resp_service_enable(void)
  *            both-enabled teardown path leaks the task. Pass false when running on the
  *            scheduler's own callback thread, where cancelling would self-join.
  */
+esp_rmaker_error_t esp_rmaker_chal_resp_service_enable(void)
+{
+    if (!s_started) {
+        s_chal_resp_requested = __chal_resp_start;
+        return ESP_RMAKER_OK;
+    }
+    return __chal_resp_start();
+}
+
 static esp_rmaker_error_t __chal_resp_service_disable(bool cancel_stop_task)
 {
+    if (s_chal_resp_requested != NULL) {
+        s_chal_resp_requested = NULL;
+        return ESP_RMAKER_OK;
+    }
+
     if (__priv_data == NULL || !__priv_data->chal_resp_active) {
         OSAL_LOGW(TAG, "Challenge response is not enabled");
         return ESP_RMAKER_OK;
@@ -1152,5 +1189,28 @@ esp_rmaker_error_t esp_rmaker_chal_resp_service_disable(void)
 
 bool esp_rmaker_chal_resp_service_is_enabled(void)
 {
-    return __priv_data != NULL && __priv_data->chal_resp_active;
+    return s_chal_resp_requested != NULL || (__priv_data != NULL && __priv_data->chal_resp_active);
+}
+
+esp_rmaker_error_t esp_rmaker_local_endpoints_on_start(void)
+{
+    s_started = true;
+    __service_start_fn_t start = s_local_ctrl_requested;
+    s_local_ctrl_requested = NULL;
+    if (start != NULL && start() != ESP_RMAKER_OK) {
+        OSAL_LOGW(TAG, "Failed to start local control; it will not be available");
+    }
+    start = s_chal_resp_requested;
+    s_chal_resp_requested = NULL;
+    if (start != NULL && start() != ESP_RMAKER_OK) {
+        OSAL_LOGW(TAG, "Failed to start challenge response; it will not be available");
+    }
+    return ESP_RMAKER_OK;
+}
+
+void esp_rmaker_local_endpoints_on_deinit(void)
+{
+    s_started = false;
+    s_local_ctrl_requested = NULL;
+    s_chal_resp_requested = NULL;
 }

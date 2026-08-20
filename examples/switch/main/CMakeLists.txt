@@ -3,7 +3,7 @@ set(SWITCH_PRIV_REQUIRES
     # RainMaker Neo SDK
     "esp_rmaker_neo"
     "esp_rmaker_neo_ota"
-    # Network (provisioning + the RainMaker Neo pre-provisioning bring-up)
+    # Network (provisioning + network start)
     "app_network"
     # Event loop
     "app_event_loop"

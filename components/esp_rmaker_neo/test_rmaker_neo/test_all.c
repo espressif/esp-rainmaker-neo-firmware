@@ -362,8 +362,12 @@ int test_rmaker_neo_all_tests_unity(void)
 #endif
 
     /* Core *************************************************************************/
-    RUN_TEST(test_core_pre_prov_init_success);
-    RUN_TEST(test_core_pre_prov_deinit);
+    RUN_TEST(test_core_node_init_unclaimed_succeeds);
+    RUN_TEST(test_core_node_init_registers_chal_resp);
+    RUN_TEST(test_core_node_init_defers_mqtt_init);
+#if !CONFIG_IDF_TARGET_LINUX
+    RUN_TEST(test_local_endpoints_enable_before_start_defers);
+#endif
     RUN_TEST(test_core_node_init_null_config);
     RUN_TEST(test_core_node_init_success);
     RUN_TEST(test_core_node_deinit_states);
