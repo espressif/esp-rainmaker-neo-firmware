@@ -52,6 +52,8 @@ endif ()
 # mapping/profiles/<name>.json, a custom path is taken relative to the project directory.
 if (CONFIG_ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_LIGHT)
     set(rm_mirror_profile "light")
+elseif (CONFIG_ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_SWITCH)
+    set(rm_mirror_profile "switch")
 elseif (CONFIG_ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_CUSTOM)
     set(rm_mirror_profile "${CONFIG_ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_PATH}")
 elseif (TEST_ESP_RMAKER_NEO_MATTER_MIRROR)

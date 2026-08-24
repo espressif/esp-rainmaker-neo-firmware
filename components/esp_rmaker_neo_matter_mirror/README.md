@@ -6,9 +6,7 @@ a mirror, not an alternative data model.
 
 - **Declarative mapping library** (`mapping/lib/`): standard param types map to Matter
   clusters/attributes with value transforms (linear, kelvin/mireds, enum maps, string,
-  scale) and param-subset rules resolving devices to Matter device types
-  ({power,brightness,hue,saturation,cct} → Extended Color Light 0x010D,
-  {power,brightness,cct} → 0x010C, {power,brightness} → 0x0101, {power} → 0x0100).
+  scale) and param-subset rules resolving devices to Matter device types.
   `scripts/gen_mapping_table.py` emits compiled-in C tables at build time — adding a
   device type is a JSON-only change (given its clusters exist in the port's cluster
   factory). The library is a copy of the canonical mapping repo; see "Mapping source".
@@ -240,8 +238,9 @@ A capability is kept when it is node-scoped, referenced by a kept rule's `params
 `optional_params`, or targets a cluster a kept rule lists as mandatory (Identify). A
 composite is kept when all its member params are.
 
-Select one with the `Mapping profile` Kconfig choice — `all` (default), `light`, or a
-custom profile JSON path, which lets a product keep its profile out of the SDK tree.
+Select one with the `Mapping profile` Kconfig choice — `all` (default), `light`,
+`switch`, or a custom profile JSON path, which lets a product keep its profile out of
+the SDK tree.
 
 To extend the vocabulary itself, point
 `CONFIG_ESP_RMAKER_NEO_MATTER_MIRROR_EXTRA_LIBS` at one or more library files

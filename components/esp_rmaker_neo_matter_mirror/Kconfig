@@ -18,6 +18,9 @@ menu "ESP RainMaker Neo Matter Mirror Configuration"
         config ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_LIGHT
             bool "Lightbulbs"
 
+        config ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_SWITCH
+            bool "Switches"
+
         config ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_CUSTOM
             bool "Custom profile file"
 
