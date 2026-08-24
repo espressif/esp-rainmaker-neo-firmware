@@ -1813,7 +1813,7 @@ class OTAManager:
         thing_name=None,
         thing_group_name=None,
     ):
-        """Create an RMNG OTA job"""
+        """Create a RainMaker Neo OTA job"""
         return self.create_custom_job(
             files_config=files_config,
             thing_name=thing_name,

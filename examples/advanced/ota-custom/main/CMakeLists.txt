@@ -1,11 +1,11 @@
 set(OTA_CUSTOM_SRCS "app_main.c" "ota_custom_mock.c")
 set(OTA_CUSTOM_PRIV_REQUIRES
-    # RMNG SDK
+    # RainMaker Neo SDK
     "esp_rmaker_neo"
     "esp_rmaker_neo_ota"
     # crypto / base64 / NVS utils used by the inlined custom OTA mock
     "esp_rmaker_neo_common"
-    # Network (provisioning + the RMNG pre-provisioning bring-up)
+    # Network (provisioning + the RainMaker Neo pre-provisioning bring-up)
     "app_network"
     # Event loop
     "app_event_loop"

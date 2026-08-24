@@ -1,4 +1,4 @@
-# include internal RMNG headers for testing of internal components
+# include internal RainMaker Neo headers for testing of internal components
 include(${CMAKE_CURRENT_LIST_DIR}/../sources.cmake)
 
 set(TEST_ESP_RMAKER_NEO_SRCS
@@ -42,7 +42,7 @@ set(TEST_ESP_RMAKER_NEO_SRCS
 set(TEST_ESP_RMAKER_NEO_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}" ${RMNG_DATA_MODEL_INCLUDE_DIRS})
 set(TEST_ESP_RMAKER_NEO_PRIV_INCLUDE_DIRS
     ${RMNG_PRIV_INCLUDE_DIRS} ${RMNG_DATA_MODEL_PRIV_INCLUDE_DIRS} ${RMNG_PRIV_STUB_HOST_CTRL_INCLUDE_DIR}
-    ${RMNG_SRC_DIR} # Allow access to internal RMNG sources for testing
+    ${RMNG_SRC_DIR} # Allow access to internal RainMaker Neo sources for testing
 )
 set(TEST_ESP_RMAKER_NEO_PRIV_REQUIRES ${RMNG_NAME} ${RMNG_PRIV_REQUIRES})
 

@@ -30,6 +30,6 @@ certs
 server_port
 sysout.txt
 
-# Local checkout of the RMNG backend (superseded by tools/common/rmng_backend.py
+# Local checkout of the RainMaker Neo backend (superseded by tools/common/rmng_backend.py
 # + $RMNG_BACKEND_DIR; kept out of the tree, never committed)
 tools/common/deps/

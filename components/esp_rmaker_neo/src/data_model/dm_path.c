@@ -13,7 +13,7 @@
 
 /* Includes *******************************************************/
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "data_model_internal.h"
 #include "esp_rmaker_node.h"
 #include "constants/path.h"

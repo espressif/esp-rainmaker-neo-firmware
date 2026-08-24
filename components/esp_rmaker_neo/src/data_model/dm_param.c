@@ -80,7 +80,7 @@ esp_rmaker_param_t *esp_rmaker_param_create(const char *param_id, const char *ty
 
         /* Check time synchronization is initialized */
         if (!osal_timesync_is_initialized()) {
-            OSAL_LOGE(TAG, "Please enable time synchronization in the RMNG configuration before creating time series params.");
+            OSAL_LOGE(TAG, "Please enable time synchronization in the RainMaker Neo configuration before creating time series params.");
             return NULL;
         }
     }

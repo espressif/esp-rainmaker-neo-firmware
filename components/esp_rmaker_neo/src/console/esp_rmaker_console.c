@@ -34,7 +34,7 @@ esp_rmaker_error_t esp_rmaker_console_init(void)
     esp_rmaker_register_commands();
     return ESP_RMAKER_OK;
 #else /* !CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE */
-    OSAL_LOGW(TAG, "RMNG console is not enabled; enable via CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE=y");
+    OSAL_LOGW(TAG, "RainMaker Neo console is not enabled; enable via CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE=y");
     return ESP_RMAKER_OK;
 #endif /* !CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE */
 }

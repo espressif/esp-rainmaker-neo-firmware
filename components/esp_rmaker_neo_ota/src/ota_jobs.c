@@ -30,7 +30,7 @@
 #include "osal_sysctrl.h"
 #endif /* !CONFIG_ESP_RMAKER_NEO_OTA_DISABLE_AUTO_REBOOT */
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_work_queue.h"
 #include "esp_rmaker_credentials.h"
 #include "esp_rmaker_mqtt_impl.h"
@@ -1017,13 +1017,13 @@ static esp_rmaker_error_t parse_custom_fields_from_job_doc(const char *job_doc, 
         return err;
     }
 
-    /* Parse RMNG OTA fields */
+    /* Parse RainMaker Neo OTA fields */
     JSONStatus_t json_ret;
     const char *rmng_ota_payload = NULL;
     size_t rmng_ota_payload_len = 0;
     json_ret = JSON_SearchConst(job_doc, job_doc_len, "rmng_ota", CONST_STRLEN("rmng_ota"), &rmng_ota_payload, &rmng_ota_payload_len, NULL);
     if (json_ret != JSONSuccess || rmng_ota_payload_len == 0) {
-        OSAL_LOGE(TAG, "Failed to parse RMNG OTA fields");
+        OSAL_LOGE(TAG, "Failed to parse RainMaker Neo OTA fields");
         return ESP_RMAKER_INVALID_ARG;
     }
 

@@ -1,4 +1,4 @@
-# RMNG Menuconfig CMake Integration
+# RainMaker Neo Menuconfig CMake Integration
 #
 # ~~~
 # Usage -- the include path is relative to the *including* file:

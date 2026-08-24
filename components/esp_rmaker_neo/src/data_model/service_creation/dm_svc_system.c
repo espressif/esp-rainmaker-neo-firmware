@@ -32,7 +32,7 @@
 #include "osal_log.h"
 #include "osal_mem_alloc.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "node_internal.h"
 
 /* Constants *******************************************************/

@@ -1,4 +1,4 @@
-# RMNG helpers to import ESP components via idf-component-manager without IDF
+# RainMaker Neo helpers to import ESP components via idf-component-manager without IDF
 #
 # ~~~
 # Usage -- the include path is relative to the *including* file:

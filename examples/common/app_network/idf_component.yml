@@ -1,6 +1,6 @@
 ## IDF Component Manager Manifest File
 version: "0.8.0"
-description: "Network provisioning and RMNG bring-up for the examples. Wi-Fi/Thread on ESP-IDF, no-op on POSIX."
+description: "Network provisioning and RainMaker Neo bring-up for the examples. Wi-Fi/Thread on ESP-IDF, no-op on POSIX."
 license: "CC0-1.0"
 dependencies:
   # Reuse external dependencies from rmaker_app_network
@@ -9,6 +9,6 @@ dependencies:
     require: public
     rules:
       - if: "target not in [linux]"
-  # app_network_provision.c drives the RMNG pre-provisioning flow.
+  # app_network_provision.c drives the RainMaker Neo pre-provisioning flow.
   esp_rmaker_neo:
     path: ../../../components/esp_rmaker_neo

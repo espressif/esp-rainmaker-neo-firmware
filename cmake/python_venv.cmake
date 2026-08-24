@@ -1,4 +1,4 @@
-# RMNG common CMake helpers for Python virtual environments
+# RainMaker Neo common CMake helpers for Python virtual environments
 #
 # ~~~
 # Usage -- the include path is relative to the *including* file:

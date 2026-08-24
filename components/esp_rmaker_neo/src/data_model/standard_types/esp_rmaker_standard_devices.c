@@ -17,7 +17,7 @@
 /* Platform includes */
 #include "osal_log.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_error_types.h"
 #include "node_internal.h"
 #include "esp_rmaker_standard_types.h"

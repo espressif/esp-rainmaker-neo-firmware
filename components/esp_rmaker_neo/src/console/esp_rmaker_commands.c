@@ -85,7 +85,7 @@ static int reset_data_handler(int argc, char **argv)
 {
     (void) argc;
     (void) argv;
-    printf("Resetting RMNG data (node config, local config)...\n");
+    printf("Resetting RainMaker Neo data (node config, local config)...\n");
     esp_rmaker_error_t err = esp_rmaker_system_ctrl_data_reset(0, RMAKER_CMD_RESET_REBOOT_S);
     if (err != ESP_RMAKER_OK) {
         printf("Data reset failed: 0x%x\n", err);
@@ -112,7 +112,7 @@ static int reset_factory_handler(int argc, char **argv)
 {
     (void) argc;
     (void) argv;
-    printf("Factory resetting (erases RMNG NVS + network credentials)...\n");
+    printf("Factory resetting (erases RainMaker Neo NVS + network credentials)...\n");
     /* NULL -> use the application's registered network reset function. */
     esp_rmaker_error_t err = esp_rmaker_system_ctrl_factory_reset(0, RMAKER_CMD_RESET_REBOOT_S, NULL);
     if (err != ESP_RMAKER_OK) {
@@ -404,7 +404,7 @@ void esp_rmaker_register_commands(void)
 {
     register_command("get-node-id", "Get the Node ID for this device", &get_node_id_handler);
     register_command("node-info", "Print node name, type, firmware version and model", &node_info_handler);
-    register_command("reset-data", "Erase RMNG data namespaces (keeps network creds) and reboot", &reset_data_handler);
+    register_command("reset-data", "Erase RainMaker Neo data namespaces (keeps network creds) and reboot", &reset_data_handler);
     register_command("reset-network", "Reset network credentials and reboot", &reset_network_handler);
 
     /* Override the common console's "reset-to-factory" (registered by esp_rmaker_common_console_init,
@@ -412,7 +412,7 @@ void esp_rmaker_register_commands(void)
      * the other reset commands above. Re-registering the same name replaces the handler in place on
      * both ESP-IDF (esp_console_cmd_register dedups by command name) and the POSIX shim, so no
      * deregister is needed -- esp_console_cmd_deregister is unavailable before ESP-IDF v5.4. */
-    register_command("reset-to-factory", "Factory reset (erase RMNG NVS + network creds) and reboot", &reset_factory_handler);
+    register_command("reset-to-factory", "Factory reset (erase RainMaker Neo NVS + network creds) and reboot", &reset_factory_handler);
 
 #ifdef CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
     register_command("clear-claim-data", "Erase claim data (node ID, cert, key, MQTT host) from the factory partition and reboot", &clear_claim_data_handler);

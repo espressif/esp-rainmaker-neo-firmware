@@ -30,7 +30,7 @@
 /* External I/O common includes */
 #include "osal_ext_io.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_flow.h"
 #include "node_internal.h"
 
@@ -111,7 +111,7 @@ static void __esp_rmaker_host_ctrl_task(void *unused)
 
 esp_rmaker_error_t __esp_rmaker_host_ctrl_reset(void)
 {
-    /* Common with the public data reset: clear the RMNG data namespaces (checksum, local config). */
+    /* Common with the public data reset: clear the RainMaker Neo data namespaces (checksum, local config). */
     esp_rmaker_error_t err = esp_rmaker_system_ctrl_clear_data_namespaces();
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to clear the NVS for reset");
@@ -123,23 +123,23 @@ esp_rmaker_error_t __esp_rmaker_host_ctrl_reset(void)
     if (__esp_rmaker_host_ctrl_node != NULL) {
         err = esp_rmaker_node_deinit(__esp_rmaker_host_ctrl_node);
         if (err != ESP_RMAKER_OK) {
-            OSAL_LOGE(TAG, "Failed to deinitialize the RMNG node");
+            OSAL_LOGE(TAG, "Failed to deinitialize the RainMaker Neo node");
             return err;
         }
     }
 
 
     if (__esp_rmaker_host_ctrl_config == NULL) {
-        OSAL_LOGE(TAG, "RMNG config not initialized. Cannot reset node.");
+        OSAL_LOGE(TAG, "RainMaker Neo config not initialized. Cannot reset node.");
         return ESP_RMAKER_INVALID_STATE;
     }
     __esp_rmaker_host_ctrl_node = esp_rmaker_node_init(__esp_rmaker_host_ctrl_config, __node_name, __node_type);
     if (__esp_rmaker_host_ctrl_node == NULL) {
-        OSAL_LOGE(TAG, "Failed to re-initialize the RMNG node");
+        OSAL_LOGE(TAG, "Failed to re-initialize the RainMaker Neo node");
         return ESP_RMAKER_FAIL;
     }
 
-    OSAL_LOGI(TAG, "RMNG node reset");
+    OSAL_LOGI(TAG, "RainMaker Neo node reset");
     return ESP_RMAKER_OK;
 }
 
@@ -153,22 +153,22 @@ esp_rmaker_error_t __esp_rmaker_host_ctrl_reset_keep_nvs(void)
     if (__esp_rmaker_host_ctrl_node != NULL) {
         esp_rmaker_error_t err = esp_rmaker_node_deinit(__esp_rmaker_host_ctrl_node);
         if (err != ESP_RMAKER_OK) {
-            OSAL_LOGE(TAG, "Failed to deinitialize the RMNG node");
+            OSAL_LOGE(TAG, "Failed to deinitialize the RainMaker Neo node");
             return err;
         }
     }
 
     if (__esp_rmaker_host_ctrl_config == NULL) {
-        OSAL_LOGE(TAG, "RMNG config not initialized. Cannot reset node.");
+        OSAL_LOGE(TAG, "RainMaker Neo config not initialized. Cannot reset node.");
         return ESP_RMAKER_INVALID_STATE;
     }
     __esp_rmaker_host_ctrl_node = esp_rmaker_node_init(__esp_rmaker_host_ctrl_config, __node_name, __node_type);
     if (__esp_rmaker_host_ctrl_node == NULL) {
-        OSAL_LOGE(TAG, "Failed to re-initialize the RMNG node");
+        OSAL_LOGE(TAG, "Failed to re-initialize the RainMaker Neo node");
         return ESP_RMAKER_FAIL;
     }
 
-    OSAL_LOGI(TAG, "RMNG node reset (NVS preserved)");
+    OSAL_LOGI(TAG, "RainMaker Neo node reset (NVS preserved)");
     return ESP_RMAKER_OK;
 }
 

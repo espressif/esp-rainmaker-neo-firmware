@@ -10,7 +10,7 @@
  *
  * One surface the example body can call unconditionally:
  *  - ESP-IDF: Wi-Fi/Thread provisioning, via the espressif/rmaker_app_network
- *    component, wrapped around the RMNG pre-provisioning flow.
+ *    component, wrapped around the RainMaker Neo pre-provisioning flow.
  *  - POSIX and the ESP-IDF linux target: there is no provisioning and no
  *    credentials, so the calls are successful no-ops.
  *
@@ -78,7 +78,7 @@ void app_network_init(void);
 
 #if defined(ESP_PLATFORM) && !CONFIG_IDF_TARGET_LINUX
 /**
- * @brief Set the custom manufacturer data for RMNG.
+ * @brief Set the custom manufacturer data for RainMaker Neo.
  *
  * Adds custom manufacturing data to the BLE advertisements sent during provisioning, so
  * a phone app can filter the scanned devices down to the relevant one.
@@ -93,10 +93,10 @@ void app_network_init(void);
 osal_err_t app_network_set_custom_mfg_data_neo(uint16_t device_type, uint8_t device_subtype);
 
 /**
- * @brief Start Wi-Fi/Thread provisioning for RMNG, using the configured PoP setting.
+ * @brief Start Wi-Fi/Thread provisioning for RainMaker Neo, using the configured PoP setting.
  *
  * ESP-IDF only. Prefer ::app_network_provision, which wraps this together with the
- * RMNG pre-provisioning lifecycle.
+ * RainMaker Neo pre-provisioning lifecycle.
  *
  * @return OSAL_ERR_OK on success, otherwise an error code.
  */
@@ -120,9 +120,9 @@ osal_err_t app_network_reset_credentials(void);
  * ::NEO_MFG_DATA_DEVICE_TYPE_NONE skips the manufacturer-data step.
  * POSIX: no-op returning OSAL_ERR_OK.
  *
- * @param[in] device_type    RMNG manufacturer-data device type, or
+ * @param[in] device_type    RainMaker Neo manufacturer-data device type, or
  *                           ::NEO_MFG_DATA_DEVICE_TYPE_NONE to not set any.
- * @param[in] device_subtype RMNG manufacturer-data device subtype.
+ * @param[in] device_subtype RainMaker Neo manufacturer-data device subtype.
  *
  * @return OSAL_ERR_OK on success, otherwise an error code.
  */

@@ -24,7 +24,7 @@ static const char *TAG = "app_main";
 
 esp_rmaker_device_t *light_device;
 
-/* Bulk write callback to handle commands received from the RMNG cloud.
+/* Bulk write callback to handle commands received from the RainMaker Neo cloud.
  * All writable parameters of one request are delivered together, so the
  * light-mode auto-switch and force-power-on logic can weigh every change at once. */
 static esp_rmaker_error_t bulk_write_cb(const esp_rmaker_device_t *device, const esp_rmaker_param_write_req_t write_req[],
@@ -129,7 +129,7 @@ static esp_rmaker_ota_diag_status_t ota_diag_fn(esp_rmaker_ota_diag_priv_t *ota_
  * For how ESP-IDF and POSIX entry points use this, see the examples/common/app_entry component. */
 osal_err_t app_run(void)
 {
-    /* Initialise the RMNG serial console. */
+    /* Initialise the RainMaker Neo serial console. */
     esp_rmaker_console_init();
 
     /* Initialize application-specific hardware drivers and set the initial state. */
@@ -139,15 +139,15 @@ osal_err_t app_run(void)
     osal_storage_init(NULL);
     app_network_init();
 
-    /* RMNG provisioning runs before node init.
+    /* RainMaker Neo provisioning runs before node init.
      * See the examples/common/app_network component for more details. */
     app_network_provision(NEO_MFG_DATA_DEVICE_TYPE_LIGHT, NEO_MFG_DATA_DEVICE_SUBTYPE_LIGHT);
 
-    /* Register the default RMNG event handler (logs RMNG/OTA/network events).
+    /* Register the default RainMaker Neo event handler (logs RainMaker Neo/OTA/network events).
      * See the examples/common/app_event_loop component for more details. */
     app_event_loop_register_default_handler();
 
-    /* Initialize the RMNG agent. */
+    /* Initialize the RainMaker Neo agent. */
     esp_rmaker_config_t rainmaker_cfg = {
         .enable_time_sync = true,
     };
@@ -199,7 +199,7 @@ osal_err_t app_run(void)
     };
     esp_rmaker_ota_enable(&ota_config);
 
-    /* Start the RMNG agent. */
+    /* Start the RainMaker Neo agent. */
     esp_rmaker_start();
 
     OSAL_LOGI(TAG, "Light ready.");

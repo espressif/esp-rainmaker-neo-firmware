@@ -50,10 +50,10 @@ static const app_network_mfg_data_prefix_t __neo_mfg_data_prefix = {
 
 osal_err_t app_network_set_custom_mfg_data_neo(uint16_t device_type, uint8_t device_subtype)
 {
-    /* Set the RMNG manufacturer data prefix */
+    /* Set the RainMaker Neo manufacturer data prefix */
     esp_err_t err = app_network_set_custom_mfg_data_prefix(&__neo_mfg_data_prefix);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set the RMNG manufacturer data prefix: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Failed to set the RainMaker Neo manufacturer data prefix: %s", esp_err_to_name(err));
         return OSAL_ERR_FAIL;
     }
 

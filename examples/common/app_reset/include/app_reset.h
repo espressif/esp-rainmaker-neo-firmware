@@ -13,10 +13,10 @@
  * (`CONFIG_APP_RESET_FACTORY_TIME_MS`, default 10 s). Both are **enabled by default** --
  * see `CONFIG_APP_RESET_ENABLE` and the component README.
  *
- * This is the RMNG counterpart of esp-rainmaker's `espressif/rmaker_app_reset`. It cannot
+ * This is the RainMaker Neo counterpart of esp-rainmaker's `espressif/rmaker_app_reset`. It cannot
  * be replaced by that component: upstream calls esp_rainmaker's `esp_rmaker_wifi_reset()`
  * / `esp_rmaker_factory_reset()`, which do not exist here; the resets below go through
- * RMNG's own `esp_rmaker_system_ctrl_*` API.
+ * RainMaker Neo's own `esp_rmaker_system_ctrl_*` API.
  *
  * The reset thresholds sit on the same button as the application's own long-press action,
  * so a caller that has its own long-press handler must skip it while a reset hold is in
@@ -50,7 +50,7 @@ extern "C" {
  * @brief Register the hold-to-reset callbacks on an existing button.
  *
  * Registers the network- and factory-reset thresholds on @p btn_handle, and registers the
- * network-reset routine with RMNG so the SDK (and the `reset-network` console command) can
+ * network-reset routine with RainMaker Neo so the SDK (and the `reset-network` console command) can
  * trigger it without knowing the application's specifics.
  *
  * Does nothing and returns OSAL_ERR_OK when `CONFIG_APP_RESET_ENABLE` is disabled, so a

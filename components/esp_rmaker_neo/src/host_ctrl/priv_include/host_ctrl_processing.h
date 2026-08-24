@@ -19,7 +19,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_val.h"
 
 /* Types *******************************************************/

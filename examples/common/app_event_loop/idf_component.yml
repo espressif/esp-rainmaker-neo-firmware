@@ -1,6 +1,6 @@
 ## IDF Component Manager Manifest File
 version: "0.8.0"
-description: "RMNG event-loop integration for the examples: logs and reacts to SDK and OTA events."
+description: "RainMaker Neo event-loop integration for the examples: logs and reacts to SDK and OTA events."
 license: "CC0-1.0"
 dependencies:
   esp_rmaker_neo:

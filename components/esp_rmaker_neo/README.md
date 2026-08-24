@@ -1,6 +1,6 @@
 # esp_rmaker_neo
 
-The main RMNG SDK component: node lifecycle, data model, cloud connectivity and
+The main RainMaker Neo SDK component: node lifecycle, data model, cloud connectivity and
 services for ESP RainMaker Neo firmware. Public API lives in
 [`include/`](include/) (`esp_rmaker_core.h`, `esp_rmaker_data_model.h`, …);
 everything under `priv_include/` and `src/` is internal.
@@ -35,4 +35,4 @@ lives in [`overrides/`](overrides/README.md); test-only socket fault injection i
   ([host control](src/host_ctrl/host_ctrl_python/README.md)); selects heap
   monitoring and the virtual scheduler.
 - `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE` — bridged child devices.
-- `CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE` — RMNG serial console commands (default on).
+- `CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE` — RainMaker Neo serial console commands (default on).

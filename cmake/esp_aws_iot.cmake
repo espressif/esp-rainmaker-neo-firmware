@@ -29,7 +29,7 @@ if (NOT _rmng_eai_done)
     rmng_fetchcontent_source_ready("${RMNG_ESP_AWS_IOT_DIR}" "${RMNG_THIRD_PARTY_ESP_AWS_IOT_SHA256}" _rmng_eai_ready)
     if (NOT _rmng_eai_ready)
         rmng_fetchcontent_guard_checkout("${RMNG_ESP_AWS_IOT_DIR}" "${RMNG_THIRD_PARTY_ESP_AWS_IOT_COMMIT}")
-        message(STATUS "rmng-sdk: Fetching esp-aws-iot")
+        message(STATUS "RainMaker Neo SDK: Fetching esp-aws-iot")
         rmng_fetchcontent_reset(rmng_esp_aws_iot_fc)
         FetchContent_Declare(
             rmng_esp_aws_iot_fc
@@ -47,7 +47,7 @@ if (NOT _rmng_eai_done)
         set(_rmng_eai_lib_sha256 "${RMNG_THIRD_PARTY_ESP_AWS_IOT_${_rmng_eai_lib}_SHA256}")
         rmng_fetchcontent_source_ready("${_rmng_eai_lib_dir}" "${_rmng_eai_lib_sha256}" _rmng_eai_ready)
         if (NOT _rmng_eai_ready)
-            message(STATUS "rmng-sdk: Fetching esp-aws-iot library ${_rmng_eai_lib}")
+            message(STATUS "RainMaker Neo SDK: Fetching esp-aws-iot library ${_rmng_eai_lib}")
             rmng_fetchcontent_reset(rmng_eai_${_rmng_eai_lib}_fc)
             FetchContent_Declare(
                 rmng_eai_${_rmng_eai_lib}_fc

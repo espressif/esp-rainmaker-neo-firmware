@@ -1,6 +1,6 @@
 # Same style as ESP-IDF defaults.
 
-# Force enable RMNG remote.
+# Force enable RainMaker Neo remote.
 CONFIG_ESP_RMAKER_NEO_HOST_CTRL=y
 
 # device-sim is a remote-control harness, so the console is not built.

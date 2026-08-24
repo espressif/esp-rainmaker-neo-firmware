@@ -1,7 +1,7 @@
 # Locates backoffAlgorithm, coreMQTT-Agent, coreMQTT, and the ESP port layer inside the esp-aws-iot checkout. Included
 # from the osal/mqtt backoff / coreMQTT-Agent wrappers.
 #
-# ESP target uses esp-aws-iot's own ports (network_transport + freertos agent glue). POSIX target uses rmng-local ports
+# ESP target uses esp-aws-iot's own ports (network_transport + freertos agent glue). POSIX target uses SDK-local ports
 # (port/posix + port/common). See coreMQTT-Agent/CMakeLists.txt.
 
 include("${CMAKE_CURRENT_LIST_DIR}/../../../../cmake/esp_aws_iot.cmake")

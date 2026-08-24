@@ -1,9 +1,9 @@
 set(TEMP_SENSOR_SRCS "app_main.c" "app_driver.c" "temp_sim.c")
 set(TEMP_SENSOR_PRIV_REQUIRES
-    # RMNG SDK
+    # RainMaker Neo SDK
     "esp_rmaker_neo"
     "esp_rmaker_neo_ota"
-    # Network (provisioning + the RMNG pre-provisioning bring-up)
+    # Network (provisioning + the RainMaker Neo pre-provisioning bring-up)
     "app_network"
     # Event loop
     "app_event_loop"

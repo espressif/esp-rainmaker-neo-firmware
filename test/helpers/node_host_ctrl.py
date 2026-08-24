@@ -59,7 +59,7 @@ def restart_node_host_ctrl_without_reset(node_host_ctrl):
     Stop and start the node WITHOUT erasing NVS, then wait until it is
     fully online.
 
-    Note: this only restarts the RMNG start/stop layer; the underlying
+    Note: this only restarts the RainMaker Neo start/stop layer; the underlying
     subsystem singletons (bridge child pool, services, etc.) survive
     across the restart because ``esp_rmaker_stop`` does not run
     ``esp_rmaker_deinit``. For a true cold-reboot simulation that tears

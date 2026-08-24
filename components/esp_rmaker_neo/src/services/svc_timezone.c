@@ -26,7 +26,7 @@
 /* Timesync includes */
 #include "osal_timesync.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "event_loop.h"
 
 /* Variables *******************************************************/

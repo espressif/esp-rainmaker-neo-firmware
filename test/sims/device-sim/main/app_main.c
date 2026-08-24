@@ -48,7 +48,7 @@ osal_err_t app_run(void)
     OSAL_LOGI(TAG, "Starting device-sim");
 
 #if defined(ESP_PLATFORM)
-    /* Bring up NVS and the network, then run the RMNG provisioning sequence:
+    /* Bring up NVS and the network, then run the RainMaker Neo provisioning sequence:
      * 1. esp_rmaker_pre_prov_init()  - init SDK components required before provisioning
      * 2. app_network_start_neo()    - start the network and await provisioning completion
      * 3. esp_rmaker_pre_prov_deinit()- deinit those pre-provisioning components

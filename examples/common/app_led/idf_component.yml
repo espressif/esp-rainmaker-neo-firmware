@@ -1,6 +1,6 @@
 ## IDF Component Manager Manifest File
 version: "0.8.0"
-description: "LED helper for the RMNG examples: HSV/CCT state over a WS2812 or LEDC backend, no-op on POSIX."
+description: "LED helper for the RainMaker Neo examples: HSV/CCT state over a WS2812 or LEDC backend, no-op on POSIX."
 license: "CC0-1.0"
 dependencies:
   ## Required IDF version

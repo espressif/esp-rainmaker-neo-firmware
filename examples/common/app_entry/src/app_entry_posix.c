@@ -22,7 +22,7 @@
 /* App entry includes */
 #include "app_entry.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_core.h"
 #include "esp_rmaker_node.h"
 

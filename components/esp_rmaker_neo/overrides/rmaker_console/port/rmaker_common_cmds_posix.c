@@ -31,7 +31,7 @@
 
 #include <esp_rmaker_common_console.h>
 
-/* RainMaker NVS partition label (mirrors rmng-common's RMAKER_NVS_PART_NAME); avoids pulling rmng
+/* RainMaker NVS partition label (mirrors esp_rmaker_neo_common's RMAKER_NVS_PART_NAME); avoids pulling RainMaker Neo
  * private headers into this vendored glue. */
 #define RMAKER_CONSOLE_POSIX_NVS_PART "nvs"
 

@@ -37,7 +37,7 @@
 /* Heap monitor common includes */
 #include "osal_heap_monitor.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "host_ctrl_processing.h"
 #include "data_model/dm_handlers.h"
 #include "esp_rmaker_flow.h"
@@ -451,19 +451,19 @@ static void __handle_start(uint8_t *buffer, size_t buffer_length)
 
     esp_rmaker_error_t err = esp_rmaker_start();
     if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to start RMNG");
+        OSAL_LOGE(TAG, "Failed to start RainMaker Neo");
         esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_ERROR);
         return;
     }
 
     err = esp_rmaker_event_flags_wait(ESP_RMAKER_EVENT_FLAGS_STARTED, timeout_ms);
     if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to wait for RMNG to start. RMNG may not have started.");
+        OSAL_LOGE(TAG, "Failed to wait for RainMaker Neo to start. RainMaker Neo may not have started.");
         esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_TIMEOUT);
         return;
     }
 
-    OSAL_LOGI(TAG, "RMNG started");
+    OSAL_LOGI(TAG, "RainMaker Neo started");
     esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_OK);
 }
 
@@ -485,19 +485,19 @@ static void __handle_stop(uint8_t *buffer, size_t buffer_length)
 
     esp_rmaker_error_t err = esp_rmaker_stop();
     if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to initiate stop of RMNG");
+        OSAL_LOGE(TAG, "Failed to initiate stop of RainMaker Neo");
         esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_ERROR);
         return;
     }
 
     err = esp_rmaker_event_flags_wait(ESP_RMAKER_EVENT_FLAGS_STOPPED, timeout_ms);
     if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to wait for RMNG to stop. RMNG may not have stopped.");
+        OSAL_LOGE(TAG, "Failed to wait for RainMaker Neo to stop. RainMaker Neo may not have stopped.");
         esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_TIMEOUT);
         return;
     }
 
-    OSAL_LOGI(TAG, "RMNG stopped");
+    OSAL_LOGI(TAG, "RainMaker Neo stopped");
     esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_OK);
 }
 
@@ -507,12 +507,12 @@ static void __handle_reset(void)
 
     esp_rmaker_error_t err = __esp_rmaker_host_ctrl_reset();
     if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to reset RMNG");
+        OSAL_LOGE(TAG, "Failed to reset RainMaker Neo");
         esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_ERROR);
         return;
     }
 
-    OSAL_LOGI(TAG, "RMNG reset");
+    OSAL_LOGI(TAG, "RainMaker Neo reset");
     esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_OK);
 }
 
@@ -523,18 +523,18 @@ static void __handle_reset_keep_nvs(void)
      * full node deinit + reinit with NVS untouched. */
     esp_rmaker_error_t err = __esp_rmaker_host_ctrl_reset_keep_nvs();
     if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to reset RMNG (keep_nvs)");
+        OSAL_LOGE(TAG, "Failed to reset RainMaker Neo (keep_nvs)");
         esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_ERROR);
         return;
     }
 
-    OSAL_LOGI(TAG, "RMNG reset (NVS preserved)");
+    OSAL_LOGI(TAG, "RainMaker Neo reset (NVS preserved)");
     esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_OK);
 }
 
 static void __handle_kill(void)
 {
-    OSAL_LOGI(TAG, "RMNG kill command received");
+    OSAL_LOGI(TAG, "RainMaker Neo kill command received");
     esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_OK);
 
     esp_rmaker_host_ctrl_kill();

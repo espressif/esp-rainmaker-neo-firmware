@@ -264,7 +264,7 @@ Every field is optional and independently defaulted — a partial `download_wind
 ## Implementation Notes
 
 - The `afr_ota` section is required for compatibility with existing AFR-OTA implementations
-- The `rmng_ota` section is required and are fields specific to ESP RainMaker Neo. A job document without it is rejected with reason `"Missing RMNG-specific fields in job document"` (or handed to the custom job-document callback, see [below](#custom-non-ota-job-documents))
+- The `rmng_ota` section is required and are fields specific to ESP RainMaker Neo. A job document without it is rejected with reason `"Missing RainMaker Neo-specific fields in job document"` (or handed to the custom job-document callback, see [below](#custom-non-ota-job-documents))
 - `min_fw_version` requires `fw_version`: a job that declares a minimum without a target version is rejected
 - Download windows restrict when the device can perform the OTA update:
   - `validity` defines the overall time period when the update is allowed

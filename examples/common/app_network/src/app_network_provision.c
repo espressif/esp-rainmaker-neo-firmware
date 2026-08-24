@@ -6,7 +6,7 @@
 
 /**
  * @file app_network_provision.c
- * @brief ESP-IDF network bring-up: wraps Wi-Fi/Thread provisioning and the RMNG
+ * @brief ESP-IDF network bring-up: wraps Wi-Fi/Thread provisioning and the RainMaker Neo
  *        pre-provisioning flow into a single app_network_provision() call.
  */
 
@@ -20,7 +20,7 @@
 #include "prov_console_cmd.h"
 #endif /* CONFIG_APP_NETWORK_PROV_CONSOLE_CMD */
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_flow.h"
 #include "esp_rmaker_error_types.h"
 

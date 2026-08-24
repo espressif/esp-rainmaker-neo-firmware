@@ -65,7 +65,7 @@
  *
  * Allocated in external RAM when available. Unlike esp-rainmaker, the private key is
  * held as PEM rather than an mbedtls_pk_context, so this module needs no mbedTLS types:
- * all crypto goes through the esp_rmaker_crypto_* helpers in rmng-common.
+ * all crypto goes through the esp_rmaker_crypto_* helpers in esp_rmaker_neo_common.
  */
 typedef struct {
     esp_rmaker_claim_state_t state;

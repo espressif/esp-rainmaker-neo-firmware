@@ -23,7 +23,7 @@
 #include "osal_event_loop.h"
 #include "osal_log.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_event_loop.h"
 #include "esp_rmaker_standard_services.h"
 

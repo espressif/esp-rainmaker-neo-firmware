@@ -22,9 +22,9 @@ else ()
 
     set(RMNG_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../..)
 
-    # Layer the POSIX defaults (RMNG remote on, console off, coreMQTT) under any -DSDKCONFIG_DEFAULTS the caller (e.g.
-    # the itest harness) prepends, so the caller's values win. Must precede add_subdirectory(esp_rmaker_neo), which
-    # reads it.
+    # Layer the POSIX defaults (RainMaker Neo remote on, console off, coreMQTT) under any -DSDKCONFIG_DEFAULTS the
+    # caller (e.g. the itest harness) prepends, so the caller's values win. Must precede
+    # add_subdirectory(esp_rmaker_neo), which reads it.
     list(PREPEND SDKCONFIG_DEFAULTS ${CMAKE_CURRENT_LIST_DIR}/sdkconfig.defaults.posix)
 
     # esp_rmaker_neo first: it transitively adds osal (and its internal subtargets). app_entry FATAL_ERRORs unless

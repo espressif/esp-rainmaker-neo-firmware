@@ -13,7 +13,7 @@ function (rmng_fetchcontent_acquire_lock source_dir out_lock_var)
         RESULT_VARIABLE _rmng_fc_err
     )
     if (_rmng_fc_err)
-        message(FATAL_ERROR "rmng-sdk: FetchContent lock on ${_rmng_fc_lock} failed: ${_rmng_fc_err}")
+        message(FATAL_ERROR "RainMaker Neo SDK: FetchContent lock on ${_rmng_fc_lock} failed: ${_rmng_fc_err}")
     endif ()
     set(${out_lock_var}
         "${_rmng_fc_lock}"
@@ -69,8 +69,9 @@ function (rmng_fetchcontent_guard_checkout source_dir commit)
         endif ()
     endif ()
     if (NOT _rmng_fc_head STREQUAL commit OR NOT _rmng_fc_changes STREQUAL "")
-        message(FATAL_ERROR "rmng-sdk: '${source_dir}' is a git checkout that is not a clean clone of ${commit}. "
-                            "The fetch replaces this directory, so move or delete it, then configure again."
+        message(
+            FATAL_ERROR "RainMaker Neo SDK: '${source_dir}' is a git checkout that is not a clean clone of ${commit}. "
+                        "The fetch replaces this directory, so move or delete it, then configure again."
         )
     endif ()
 endfunction ()

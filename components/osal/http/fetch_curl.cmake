@@ -30,7 +30,7 @@ function (http_common_curl_make_available)
         return()
     endif ()
     rmng_fetchcontent_guard_checkout("${_curl_src}" "${_RMNG_HTTP_CURL_COMMIT}")
-    message(STATUS "rmng-sdk: Fetching curl")
+    message(STATUS "RainMaker Neo SDK: Fetching curl")
     rmng_fetchcontent_reset(rmng_curl_fc)
     FetchContent_Declare(
         rmng_curl_fc

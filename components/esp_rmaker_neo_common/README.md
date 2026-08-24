@@ -29,7 +29,7 @@ The osal port for the registry component `espressif/rmaker_aws_sign` (AWS SigV4 
 `CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT`. See [overrides/rmaker_aws_sign](overrides/rmaker_aws_sign/README.md).
 
 Two things are declared here but **owned at runtime by `esp_rmaker_neo`**:
-`esp_rmaker_mqtt_impl` starts zeroed and is populated during RMNG init, and the
+`esp_rmaker_mqtt_impl` starts zeroed and is populated during RainMaker Neo init, and the
 work queue is initialised at node init but only starts in `esp_rmaker_start()`
 — tasks queued earlier run once it starts. Calling through either before that
 point is a mistake dependents make.

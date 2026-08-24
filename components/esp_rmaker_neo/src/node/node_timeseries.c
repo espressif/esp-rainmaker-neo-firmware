@@ -35,7 +35,7 @@
 /* JSON includes */
 #include "json_generator.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_val.h"
 #include "esp_rmaker_work_queue.h"
 #include "esp_rmaker_runtime_gate.h"

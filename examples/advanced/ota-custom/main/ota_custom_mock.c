@@ -28,10 +28,10 @@
 #include "osal_mem_alloc.h"
 #include "osal_task.h"
 
-/* RMNG OTA includes */
+/* RainMaker Neo OTA includes */
 #include "esp_rmaker_ota.h"
 
-/* RMNG util includes */
+/* RainMaker Neo util includes */
 #include "util/esp_rmaker_crypto.h"
 #include "util/esp_rmaker_convert_base64.h"
 #include "util/esp_rmaker_nvs.h"
@@ -277,14 +277,14 @@ static esp_rmaker_error_t on_post_download_checks_complete(esp_rmaker_ota_ft_dow
     }
     free(base64_str);
 
-    /* Here we randomize the reboot result. You should NOT do this in a real implementation; only reboot the RMNG node if necessary. */
+    /* Here we randomize the reboot result. You should NOT do this in a real implementation; only reboot the RainMaker Neo node if necessary. */
     bool should_reboot = rand() % 2;
     if (should_reboot) {
-        OSAL_LOGI(TAG, "==> Rebooting the RMNG node");
+        OSAL_LOGI(TAG, "==> Rebooting the RainMaker Neo node");
 
         /* Delay the status reporting to post-reboot */
     } else {
-        OSAL_LOGI(TAG, "==> Not rebooting the RMNG node");
+        OSAL_LOGI(TAG, "==> Not rebooting the RainMaker Neo node");
 
         /* Need to report the status within a certain timeout. Here we report a success now since we are not rebooting. */
         err = write_final_success_status();
@@ -391,7 +391,7 @@ esp_rmaker_error_t custom_mock_custom_job_cb(const char *job_doc, size_t job_doc
         return ESP_RMAKER_INVALID_ARG;
     }
 
-    /* You should transfer work to another context outside of this context to avoid blocking the RMNG SDK. */
+    /* You should transfer work to another context outside of this context to avoid blocking the RainMaker Neo SDK. */
     /* Example: Create a new task to run the custom job */
     osal_err_t err = osal_task_create(
                          custom_job_callback_task,

@@ -16,7 +16,7 @@ set(RMNG_COMMON_SRCS
     "${CMAKE_CURRENT_LIST_DIR}/src/util/crypto.c"
     # Retry
     "${CMAKE_CURRENT_LIST_DIR}/src/retry/backoff.c"
-    # Common events + credentials provider (absorbed from rmng-common-ext)
+    # Common events + credentials provider
     "${CMAKE_CURRENT_LIST_DIR}/src/common_events.c"
     "${CMAKE_CURRENT_LIST_DIR}/src/credentials_provider.c"
 )

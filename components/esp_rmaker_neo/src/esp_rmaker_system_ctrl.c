@@ -277,7 +277,7 @@ static esp_rmaker_error_t __schedule_task(osal_scheduler_task_handle_t *handle, 
         return ESP_RMAKER_INVALID_ARG;
     }
 
-    /* Initialize the scheduler once so we can call system control functions without initializing RMNG as a whole */
+    /* Initialize the scheduler once so we can call system control functions without initializing RainMaker Neo as a whole */
     osal_err_t err;
     err = osal_scheduler_init();
     if (err != OSAL_ERR_OK) {
@@ -594,7 +594,7 @@ static esp_rmaker_error_t __drop_node_schedules_visitor(const esp_rmaker_node_t 
 
 esp_rmaker_error_t esp_rmaker_system_ctrl_clear_data_namespaces(void)
 {
-    /* Clear only the RMNG-owned data; leave the rest of the partition (incl. network credentials)
+    /* Clear only the RainMaker Neo-owned data; leave the rest of the partition (incl. network credentials)
      * intact.
      *
      * Every step is best-effort: report the first error. */

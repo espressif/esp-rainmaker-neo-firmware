@@ -19,7 +19,7 @@ function (mbedtls_install_requirements MBEDTLS_SRC)
     if (NOT _rmng_mbedtls_py_venv_ok EQUAL 0)
         message(
             FATAL_ERROR
-                "rmng-sdk: Python used for Mbed TLS (${Python3_EXECUTABLE}) must be a virtualenv interpreter. "
+                "RainMaker Neo SDK: Python used for Mbed TLS (${Python3_EXECUTABLE}) must be a virtualenv interpreter. "
                 "Create/activate a venv, ensure `cmake` sees that Python (e.g. PATH or -DPython3_EXECUTABLE=...), then reconfigure."
         )
     endif ()
@@ -31,7 +31,7 @@ function (mbedtls_install_requirements MBEDTLS_SRC)
             OUTPUT_QUIET ERROR_QUIET
         )
         if (NOT _pip_check_result EQUAL 0)
-            message(STATUS "rmng-sdk: Installing Python requirements for mbedtls")
+            message(STATUS "RainMaker Neo SDK: Installing Python requirements for mbedtls")
             execute_process(
                 COMMAND ${Python3_EXECUTABLE} -m pip install -r "${MBEDTLS_SRC}/scripts/basic.requirements.txt"
                 RESULT_VARIABLE _pip_install_result
@@ -72,7 +72,7 @@ function (mbedtls_make_available)
         add_subdirectory("${_mbedtls_src}" "${_mbedtls_bin}")
     else ()
         rmng_fetchcontent_guard_checkout("${_mbedtls_src}" "${RMNG_THIRD_PARTY_MBEDTLS_COMMIT}")
-        message(STATUS "rmng-sdk: Fetching Mbed TLS")
+        message(STATUS "RainMaker Neo SDK: Fetching Mbed TLS")
         rmng_fetchcontent_reset(rmng_mbedtls_fc)
         find_package(Python3 REQUIRED COMPONENTS Interpreter)
         FetchContent_Declare(

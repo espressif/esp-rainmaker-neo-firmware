@@ -23,7 +23,7 @@
 #include "osal_log.h"
 #include "osal_time.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_node.h"
 #include "esp_rmaker_data_model.h"
 

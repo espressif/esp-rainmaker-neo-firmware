@@ -145,7 +145,7 @@ static void __ota_event_handler(void *event_handler_arg, osal_event_base_t event
  * For how ESP-IDF and POSIX entry points use this, see the examples/common/app_entry component. */
 osal_err_t app_run(void)
 {
-    /* Initialise the RMNG serial console. */
+    /* Initialise the RainMaker Neo serial console. */
     esp_rmaker_console_init();
 
     /* Initialise and turn on the status LED (setup / white). */
@@ -161,16 +161,16 @@ osal_err_t app_run(void)
     /* Register the network reset function so the console reset-network command can trigger it. */
     esp_rmaker_system_ctrl_register_network_reset_fn(app_network_reset_credentials);
 
-    /* RMNG provisioning runs before node init. This example advertises no
+    /* RainMaker Neo provisioning runs before node init. This example advertises no
      * manufacturer-data device type (NONE).
      * See the examples/common/app_network component for more details. */
     app_network_provision(NEO_MFG_DATA_DEVICE_TYPE_NONE, NEO_MFG_DATA_DEVICE_SUBTYPE_NONE);
 
-    /* Register the default RMNG event handler (logs RMNG/OTA/network events).
+    /* Register the default RainMaker Neo event handler (logs RainMaker Neo/OTA/network events).
      * See the examples/common/app_event_loop component for more details. */
     app_event_loop_register_default_handler();
 
-    /* Initialize the RMNG agent. */
+    /* Initialize the RainMaker Neo agent. */
     esp_rmaker_config_t rainmaker_cfg = {
         .enable_time_sync = true,
     };
@@ -205,7 +205,7 @@ osal_err_t app_run(void)
     };
     esp_rmaker_ota_enable(&ota_config);
 
-    /* Start the RMNG agent. */
+    /* Start the RainMaker Neo agent. */
     esp_rmaker_start();
 
     /* Signal setup complete. */

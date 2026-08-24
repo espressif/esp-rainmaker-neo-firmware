@@ -1,4 +1,4 @@
-# Single ESP-IDF test app for RMNG SDK (osal, esp_rmaker_neo_common, esp_rmaker_neo,
+# Single ESP-IDF test app for RainMaker Neo SDK (osal, esp_rmaker_neo_common, esp_rmaker_neo,
 # esp_rmaker_neo_ota). Requires those components to be present under components/.
 
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
@@ -15,7 +15,7 @@ CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE=y
 CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT=y
 CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT=y
 
-# Enable virtual scheduler (required by RMNG testing)
+# Enable virtual scheduler (required by RainMaker Neo testing)
 CONFIG_OSAL_USING_VIRTUAL_SCHEDULER=y
 
 # test_osal_http is always built here (ESP-IDF auto-discovers it and test_app.c runs its suite), so the osal http area

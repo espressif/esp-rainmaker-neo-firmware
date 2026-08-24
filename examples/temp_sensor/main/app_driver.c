@@ -7,7 +7,7 @@
 /* Temperature sensor driver: on-board RGB LED used as a temperature indicator,
  * via the app_led common component. The sensor "hardware" - a reading that
  * random-walks once a second - is simulated by temp_sim.c;
- * this driver reports each reading to RMNG and drives the LED from
+ * this driver reports each reading to RainMaker Neo and drives the LED from
  * it. On POSIX the LED component is a no-op stub, so the whole thing runs
  * simulated on the host. */
 
@@ -52,7 +52,7 @@ static void update_temperature_led(float temperature)
     OSAL_LOGD(TAG, "Temperature LED: %.1f degC -> hue %d deg", temperature, hue);
 }
 
-/* Registered as the temp_sim reading callback: report the new reading to RMNG
+/* Registered as the temp_sim reading callback: report the new reading to RainMaker Neo
  * and reflect it on the LED. Invoked from the simulation task. */
 static void on_temperature_reading(float temperature)
 {

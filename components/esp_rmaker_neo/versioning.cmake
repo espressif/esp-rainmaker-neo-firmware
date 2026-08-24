@@ -1,4 +1,4 @@
-# This is where the versioning is handled for the RMNG component.
+# This is where the versioning is handled for the RainMaker Neo component.
 
 # Current: v0.8.0
 set(RMNG_VERSION_MAJOR 0)
