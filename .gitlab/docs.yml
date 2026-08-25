@@ -19,10 +19,10 @@
     # uses main, not the master it defaults to.
     ESP_DOCS_LATEST_BRANCH_NAME: "main"
 
-# Docs gate: run on MRs that touch the Sphinx tree or any header the Doxyfile
-# could pick up; push = manual.
 .rules_docs_gate:
   rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: on_success
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         paths:
@@ -66,12 +66,15 @@ build_docs:
 
 # Deploy jobs pull the built HTML from build_docs' artifacts and rsync it to the
 # doc server. They need the DOCS_{PREVIEW,PROD}_* CI variables and a runner
-# tagged deploy_docs; without those, leave them unrun (both are manual).
+# tagged deploy_docs.
 .deploy_docs_template:
   extends: .docs_template
   stage: deploy
   tags:
     - deploy_docs
+  # The server-side update is rm -rf followed by untar: a cancelled deploy can
+  # leave the published version half-written.
+  interruptible: false
   needs:
     - build_docs
   variables:
@@ -116,6 +119,9 @@ deploy_docs_preview:
 
 deploy_docs_production:
   extends: .deploy_docs_template
+  # Serialize: two main merges landing together would otherwise overlap in the
+  # rm -rf/untar window and serve a broken tree.
+  resource_group: docs_production
   variables:
     TYPE: "production"
     DOCS_DEPLOY_PRIVATEKEY: "$DOCS_PROD_PRIVATEKEY"
@@ -125,4 +131,5 @@ deploy_docs_production:
     DOCS_DEPLOY_URL_BASE: "$DOCS_PROD_URL_BASE"
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      when: manual
+      when: on_success
+    - when: never

@@ -3,6 +3,11 @@ pre_commit:
   extends: .lint_template
   image: python:3.11
   before_script: []
+  needs: []
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: on_success
+    - !reference [.job_rules, rules]
   variables:
     # pre-commit --all-files lints the checked-out tree only — no git history and
     # no submodules needed. Shallowest possible clone.
