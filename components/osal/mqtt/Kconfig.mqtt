@@ -98,6 +98,13 @@ menu "MQTT Common Interface"
             help
                 The timeout for receiving CONNACK after sending an MQTT CONNECT packet.
 
+        config OSAL_MQTT_CORE_TLS_CONNECT_TIMEOUT_MS
+            int "TLS connect timeout (ms)"
+            range 1 65535
+            default 3000
+            help
+                The timeout (in milliseconds) for establishing a TLS connection.
+
         config OSAL_MQTT_CORE_RETRY_MAX_BACKOFF_DELAY_MS
             int "Retry max backoff delay"
             default 5000

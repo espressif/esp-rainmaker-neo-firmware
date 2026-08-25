@@ -67,6 +67,11 @@
 #define configOSAL_MQTT_CORE_CONNACK_RECV_TIMEOUT_MS                     ( CONFIG_OSAL_MQTT_CORE_CONNACK_RECV_TIMEOUT_MS )
 
 /**
+ * @brief The timeout for establishing a TLS connection, in milliseconds.
+ */
+#define configOSAL_MQTT_CORE_TLS_CONNECT_TIMEOUT_MS                      ( CONFIG_OSAL_MQTT_CORE_TLS_CONNECT_TIMEOUT_MS )
+
+/**
  * @brief The maximum back-off delay (in milliseconds) for retrying failed operation
  *  with server.
  */
