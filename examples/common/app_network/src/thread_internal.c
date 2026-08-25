@@ -32,7 +32,6 @@ osal_err_t app_network_reset_credentials(void)
         (void)otThreadSetEnabled(instance, false);
     }
     (void)otInstanceErasePersistentInfo(instance);
-    (void)otThreadSetEnabled(instance, enabled);
     esp_openthread_lock_release();
     return OSAL_ERR_OK;
 }

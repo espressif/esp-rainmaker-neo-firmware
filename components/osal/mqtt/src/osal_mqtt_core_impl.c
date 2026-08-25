@@ -667,7 +667,7 @@ static MQTTStatus_t prvCoreMqttAgentInit( NetworkContext_t *pxNetworkContext )
     xTransport.send = iTlsTransportSend;
     xTransport.recv = iTlsTransportRecv;
 
-    vTlsSetConnectTimeout( 3000 );
+    vTlsSetConnectTimeout( configOSAL_MQTT_CORE_TLS_CONNECT_TIMEOUT_MS );
     vTlsSetRecvTimeout( 100 );
 
     /* Initialize MQTT library. */
