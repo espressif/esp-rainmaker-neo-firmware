@@ -13,6 +13,7 @@
 #define __ESP_RMAKER_WORK_QUEUE_H__
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include "esp_rmaker_error_types.h"
 
@@ -92,6 +93,106 @@ esp_rmaker_error_t esp_rmaker_work_queue_add_task(esp_rmaker_work_fn_t work_fn, 
  * @return true if called from the Work Queue task.
  */
 bool esp_rmaker_work_queue_is_current_task(void);
+
+/* Work Queue instances *******************************************************/
+
+/**
+ * @brief Handle to a Work Queue instance.
+ */
+typedef struct esp_rmaker_work_queue *esp_rmaker_work_queue_handle_t;
+
+/**
+ * @brief Configuration for a Work Queue instance.
+ */
+typedef struct {
+    const char *name;        /**< Task name, and the log prefix that tells two queues apart. Kept by
+                                  pointer, so it must outlive the instance (a string literal does). */
+    size_t queue_size;       /**< Number of entries the queue holds. */
+    size_t task_stack;       /**< Stack depth of the worker task. */
+    unsigned task_priority;  /**< Priority of the worker task. */
+} esp_rmaker_work_queue_config_t;
+
+/**
+ * @brief Create a Work Queue instance.
+ *
+ * @note An instance lives for the process lifetime. There is deliberately no delete call: freeing
+ *       the queue opens a use-after-free window against a producer calling add_task concurrently.
+ *       Create each instance once and reuse it across init/deinit cycles.
+ *
+ * @param[in] config Instance configuration. Copied.
+ *
+ * @return The instance handle, or NULL on failure.
+ */
+esp_rmaker_work_queue_handle_t esp_rmaker_work_queue_create_inst(const esp_rmaker_work_queue_config_t *config);
+
+/**
+ * @brief Initialize a Work Queue instance.
+ *
+ * Creates the queue on first call and reopens it after a deinit. Queued work runs only after
+ * esp_rmaker_work_queue_start_inst().
+ *
+ * @param[in] wq Instance handle.
+ *
+ * @return ESP_RMAKER_OK on success.
+ */
+esp_rmaker_error_t esp_rmaker_work_queue_init_inst(esp_rmaker_work_queue_handle_t wq);
+
+/**
+ * @brief De-initialize a Work Queue instance.
+ *
+ * Stops the worker if it runs, drains pending entries and parks the instance. The queue handle is
+ * retained for the next init.
+ *
+ * @param[in] wq Instance handle.
+ *
+ * @return ESP_RMAKER_OK on success.
+ */
+esp_rmaker_error_t esp_rmaker_work_queue_deinit_inst(esp_rmaker_work_queue_handle_t wq);
+
+/**
+ * @brief Start a Work Queue instance's worker task.
+ *
+ * @param[in] wq Instance handle.
+ *
+ * @return ESP_RMAKER_OK on success.
+ */
+esp_rmaker_error_t esp_rmaker_work_queue_start_inst(esp_rmaker_work_queue_handle_t wq);
+
+/**
+ * @brief Stop a running Work Queue instance's worker task.
+ *
+ * Entries already queued run before the worker exits.
+ *
+ * @param[in] wq Instance handle.
+ *
+ * @return ESP_RMAKER_OK on success.
+ */
+esp_rmaker_error_t esp_rmaker_work_queue_stop_inst(esp_rmaker_work_queue_handle_t wq);
+
+/**
+ * @brief Queue a function on a Work Queue instance.
+ *
+ * @param[in] wq Instance handle.
+ * @param[in] work_fn The work function to queue.
+ * @param[in] priv_data Private data passed to the work function.
+ * @param[in] timeout_ticks How long to block while the queue is full. 0 drops immediately.
+ *
+ * @return ESP_RMAKER_OK on success.
+ */
+esp_rmaker_error_t esp_rmaker_work_queue_add_task_inst(esp_rmaker_work_queue_handle_t wq,
+        esp_rmaker_work_fn_t work_fn, void *priv_data, uint32_t timeout_ticks);
+
+/**
+ * @brief Report whether the calling task is this instance's worker task.
+ *
+ * @note Use this to run work inline instead of queueing it when a work function calls back into
+ *       the same queue, which would otherwise deadlock.
+ *
+ * @param[in] wq Instance handle.
+ *
+ * @return true when the caller is the instance's worker task.
+ */
+bool esp_rmaker_work_queue_is_current_task_inst(esp_rmaker_work_queue_handle_t wq);
 
 #ifdef __cplusplus
 }

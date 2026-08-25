@@ -181,3 +181,169 @@ void test_work_queue_error_paths(void)
 
     __delete_event_group();
 }
+
+/* Instances *******************************************************************/
+
+/* The singleton cases above must keep passing unchanged: that is the proof the singleton API is a
+ * faithful wrapper over one static instance. These cover what only instances can do. */
+
+#define TEST_WQ_INSTANCE_QUEUE_SIZE 4
+#define TEST_WQ_A_DONE_FLAG 0x04
+#define TEST_WQ_B_DONE_FLAG 0x08
+
+static int wq_a_runs;
+static int wq_b_runs;
+static bool wq_current_inside;
+static esp_rmaker_work_queue_handle_t wq_a;
+static esp_rmaker_work_queue_handle_t wq_b;
+
+static esp_rmaker_work_queue_handle_t __make_queue(const char *name)
+{
+    const esp_rmaker_work_queue_config_t cfg = {
+        .name = name,
+        .queue_size = TEST_WQ_INSTANCE_QUEUE_SIZE,
+        .task_stack = 8192,
+        .task_priority = 1,
+    };
+    esp_rmaker_work_queue_handle_t wq = esp_rmaker_work_queue_create_inst(&cfg);
+    TEST_ASSERT_NOT_NULL_MESSAGE(wq, "Failed to create the work queue instance");
+    return wq;
+}
+
+static void __count_a(void *p)
+{
+    (void)p;
+    wq_a_runs++;
+    osal_event_group_set_bits(execution_event_group, TEST_WQ_A_DONE_FLAG);
+}
+
+static void __count_b(void *p)
+{
+    (void)p;
+    wq_b_runs++;
+    osal_event_group_set_bits(execution_event_group, TEST_WQ_B_DONE_FLAG);
+}
+
+static void __probe_current_task(void *p)
+{
+    /* True only on this instance's own worker, which is what lets a work function run a nested job
+     * inline instead of deadlocking on the task that would have to run it. */
+    wq_current_inside = esp_rmaker_work_queue_is_current_task_inst(wq_a)
+                        && !esp_rmaker_work_queue_is_current_task_inst(wq_b);
+    osal_event_group_set_bits(execution_event_group, TEST_WQ_A_DONE_FLAG);
+}
+
+void test_work_queue_instances_run_independently(void)
+{
+    __init_event_group();
+    wq_a = __make_queue("test_wq_a");
+    wq_b = __make_queue("test_wq_b");
+    wq_a_runs = 0;
+    wq_b_runs = 0;
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_init_inst(wq_a));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_init_inst(wq_b));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_start_inst(wq_a));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_start_inst(wq_b));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_add_task_inst(wq_a, __count_a, NULL, 0));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_add_task_inst(wq_b, __count_b, NULL, 0));
+    TEST_ASSERT_EQUAL(TEST_WQ_A_DONE_FLAG | TEST_WQ_B_DONE_FLAG,
+                      osal_event_group_wait_bits(execution_event_group,
+                              TEST_WQ_A_DONE_FLAG | TEST_WQ_B_DONE_FLAG,
+                              true, true, osal_ticks_from_ms(2000)));
+    TEST_ASSERT_EQUAL_INT(1, wq_a_runs);
+    TEST_ASSERT_EQUAL_INT(1, wq_b_runs);
+
+    /* Parking one must leave the other draining. */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_deinit_inst(wq_a));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_FAIL, esp_rmaker_work_queue_add_task_inst(wq_a, __count_a, NULL, 0));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_add_task_inst(wq_b, __count_b, NULL, 0));
+    TEST_ASSERT_EQUAL(TEST_WQ_B_DONE_FLAG,
+                      osal_event_group_wait_bits(execution_event_group, TEST_WQ_B_DONE_FLAG, true, true,
+                              osal_ticks_from_ms(2000)));
+    TEST_ASSERT_EQUAL_INT(1, wq_a_runs);
+    TEST_ASSERT_EQUAL_INT(2, wq_b_runs);
+
+    /* An instance is reopened by the next init, exactly as the singleton is. */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_init_inst(wq_a));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_start_inst(wq_a));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_add_task_inst(wq_a, __count_a, NULL, 0));
+    TEST_ASSERT_EQUAL(TEST_WQ_A_DONE_FLAG,
+                      osal_event_group_wait_bits(execution_event_group, TEST_WQ_A_DONE_FLAG, true, true,
+                              osal_ticks_from_ms(2000)));
+    TEST_ASSERT_EQUAL_INT(2, wq_a_runs);
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_deinit_inst(wq_a));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_deinit_inst(wq_b));
+    __delete_event_group();
+}
+
+void test_work_queue_instance_capacity_is_per_instance(void)
+{
+    __init_event_group();
+    wq_a = __make_queue("test_wq_cap_a");
+    wq_b = __make_queue("test_wq_cap_b");
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_init_inst(wq_a));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_init_inst(wq_b));
+
+    /* Neither is started, so nothing drains and the queue fills to its own configured depth. */
+    for (int i = 0; i < TEST_WQ_INSTANCE_QUEUE_SIZE; i++) {
+        TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_add_task_inst(wq_a, __dummy, NULL, 0));
+    }
+    TEST_ASSERT_EQUAL(ESP_RMAKER_FAIL, esp_rmaker_work_queue_add_task_inst(wq_a, __dummy, NULL, 0));
+    /* Filling one must not consume the other's capacity. */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_add_task_inst(wq_b, __dummy, NULL, 0));
+
+    /* A finite timeout on a full queue reports the failure rather than dropping silently. */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_FAIL,
+                      esp_rmaker_work_queue_add_task_inst(wq_a, __dummy, NULL, osal_ticks_from_ms(50)));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_deinit_inst(wq_a));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_deinit_inst(wq_b));
+    __delete_event_group();
+}
+
+void test_work_queue_instance_reports_its_own_task(void)
+{
+    __init_event_group();
+    wq_a = __make_queue("test_wq_cur_a");
+    wq_b = __make_queue("test_wq_cur_b");
+    wq_current_inside = false;
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_init_inst(wq_a));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_start_inst(wq_a));
+
+    /* False outside any work function. */
+    TEST_ASSERT_FALSE(esp_rmaker_work_queue_is_current_task_inst(wq_a));
+    TEST_ASSERT_FALSE(esp_rmaker_work_queue_is_current_task_inst(NULL));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK,
+                      esp_rmaker_work_queue_add_task_inst(wq_a, __probe_current_task, NULL, 0));
+    TEST_ASSERT_EQUAL(TEST_WQ_A_DONE_FLAG,
+                      osal_event_group_wait_bits(execution_event_group, TEST_WQ_A_DONE_FLAG, true, true,
+                              osal_ticks_from_ms(2000)));
+    TEST_ASSERT_TRUE(wq_current_inside);
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_deinit_inst(wq_a));
+    __delete_event_group();
+}
+
+void test_work_queue_instance_arg_validation(void)
+{
+    TEST_ASSERT_NULL(esp_rmaker_work_queue_create_inst(NULL));
+    const esp_rmaker_work_queue_config_t no_name = { .queue_size = 2, .task_stack = 4096 };
+    TEST_ASSERT_NULL(esp_rmaker_work_queue_create_inst(&no_name));
+    const esp_rmaker_work_queue_config_t no_depth = { .name = "x", .task_stack = 4096 };
+    TEST_ASSERT_NULL(esp_rmaker_work_queue_create_inst(&no_depth));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_work_queue_init_inst(NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_work_queue_start_inst(NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_work_queue_stop_inst(NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_work_queue_deinit_inst(NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_work_queue_add_task_inst(NULL, __dummy, NULL, 0));
+
+    esp_rmaker_work_queue_handle_t wq = __make_queue("test_wq_args");
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_work_queue_add_task_inst(wq, NULL, NULL, 0));
+}

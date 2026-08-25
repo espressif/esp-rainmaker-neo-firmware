@@ -21,6 +21,10 @@ int test_rmaker_neo_common_all_tests_unity(void)
     /* Work queue *****************************************************************/
     RUN_TEST(test_work_queue_basic);
     RUN_TEST(test_work_queue_error_paths);
+    RUN_TEST(test_work_queue_instances_run_independently);
+    RUN_TEST(test_work_queue_instance_capacity_is_per_instance);
+    RUN_TEST(test_work_queue_instance_reports_its_own_task);
+    RUN_TEST(test_work_queue_instance_arg_validation);
 
     /* Utilities - convert ***********************************************************/
     RUN_TEST(test_rmaker_convert_bytes_to_hex);
