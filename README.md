@@ -1,9 +1,18 @@
 # ESP RainMaker Neo - Firmware SDK
 
 [![Build](https://github.com/espressif/esp-rainmaker-neo-firmware/actions/workflows/build.yml/badge.svg)](https://github.com/espressif/esp-rainmaker-neo-firmware/actions/workflows/build.yml)
+&nbsp;
 [![Lint](https://github.com/espressif/esp-rainmaker-neo-firmware/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/espressif/esp-rainmaker-neo-firmware/actions/workflows/pre-commit.yml)
+&nbsp;
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
+**Tools**
+
 [![Try With Launchpad](https://img.shields.io/badge/Try_With-ESP_Launchpad-0066CC?logo=espressif)](https://espressif.github.io/esp-launchpad/?flashConfigURL=https://espressif.github.io/esp-rainmaker-neo-firmware/launchpad.toml)
+&nbsp;
+[![Download iOS App](https://img.shields.io/badge/Download-iOS_App-0066CC?logo=appstore)](https://apps.apple.com/us/app/esp-rainmaker-home/id1563728960)
+&nbsp;
+[![Download Android App](https://img.shields.io/badge/Download-Android_App-0066CC?logo=googleplay)](https://play.google.com/store/apps/details?id=com.espressif.novahome)
 
 **Documentation**
 
