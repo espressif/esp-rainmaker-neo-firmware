@@ -67,6 +67,24 @@
     osal_mqtt_subscription_element_t *osal_mqtt_subscription_get_list( void );
 
     /**
+     * @brief Report whether the subscription list already holds this exact subscription.
+     *
+     * @note Identity is the whole triple that osal_mqtt_subscription_add() dedups on, so a
+     * `true` result means that add() would be a no-op.
+     *
+     * @param[in] pcTopicFilterString Topic filter string of the subscription.
+     * @param[in] usTopicFilterLength Length of the topic filter string.
+     * @param[in] callback Callback function for the subscription.
+     * @param[in] priv_data Private data for the subscription callback.
+     *
+     * @return `true` if the subscription is present, `false` otherwise.
+     */
+    bool osal_mqtt_subscription_exists( const char *pcTopicFilterString,
+                                        uint16_t usTopicFilterLength,
+                                        osal_mqtt_subscribe_cb_t callback,
+                                        void *priv_data );
+
+    /**
      * @brief Add a subscription to the subscription list.
      *
      * @note Multiple tasks can be subscribed to the same topic with different
