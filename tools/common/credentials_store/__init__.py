@@ -102,6 +102,14 @@ def build_rm_config(rmng_outputs_source) -> dict:
         region: stack_outputs.get("AlexaSkillFunctionArn")
         for region, stack_outputs in alexa_stack_outputs.get("regions", {}).items()
     }
+
+    # Collect SmartThings Schema App function ARNs from rmng-st-core-<REGION> outputs
+    st_stack_outputs = rmng_outputs.get(f"rmng-st-core-{config['StackRegion']}", {})
+    config["STSchemaAppFunctionArns"] = {
+        region: stack_outputs.get("STSchemaAppFunctionArn")
+        for region, stack_outputs in st_stack_outputs.get("regions", {}).items()
+        if stack_outputs.get("STSchemaAppFunctionArn")
+    }
     return config
 
 

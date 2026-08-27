@@ -19,6 +19,7 @@ if _RMNG_ROOT not in sys.path:
 from py_sdk.test_user import User as _User
 from py_sdk.test_group import Group as _Group
 from py_sdk.test_device import Device as _Device
+from py_sdk.test_smartthings import st_external_device_id as _st_external_device_id
 from test.itest.email_utils import generate_random_email as _generate_random_email
 
 DRX_PATH = os.path.abspath(os.path.join(_RMNG_ROOT, "tools", "drx.py"))
@@ -28,6 +29,7 @@ __all__ = [
     "Group",
     "Device",
     "generate_random_email",
+    "st_external_device_id",
     "DRX_PATH",
 ]
 
@@ -35,3 +37,4 @@ User = _User
 Group = _Group
 Device = _Device
 generate_random_email = _generate_random_email
+st_external_device_id = _st_external_device_id

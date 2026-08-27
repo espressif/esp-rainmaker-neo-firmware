@@ -62,7 +62,7 @@ from helpers.fixtures import (
 from fwlib.instances.posix import FirmwareInstancePosixHostCtrl
 from host_ctrl_python.host_ctrl import NodeConfig
 from util.protobuf import ChalRespStatus, Status
-from rmng_backend import Group
+from rmng_backend import Group, st_external_device_id
 from credentials_store import RM_CONFIG
 from util.local_ctrl import (
     LocalController,
@@ -4381,6 +4381,245 @@ def test_firmware_gva_control(associated_user1_node_host_ctrl_with_user1_connect
     set_brightness(25)
     query_state(True, 50)
     query_state(False, 30)
+
+
+def _firmware_smartthings_prepare_light_discovered(node_host_ctrl, user):
+    """
+    Shared setup for firmware SmartThings tests: lightbulb config, node start, Schema App
+    discovery, and wait until the node is SmartThings enabled.
+
+    Returns (invoke_region, external_device_id, device_cookie).
+    """
+    assert len(RM_CONFIG["STSchemaAppFunctionArns"]) > 0, (
+        "No SmartThings Schema App function ARNs found"
+    )
+    invoke_region, st_function_arn = random.choice(
+        list(RM_CONFIG["STSchemaAppFunctionArns"].items())
+    )
+
+    thing_name = node_host_ctrl.node_thing_name
+    assert thing_name is not None, "Node did not receive thing name"
+
+    node_config = {
+        "devices": [
+            {
+                "id": "Light",
+                "type": "esp.device.lightbulb",
+                "params": [
+                    {
+                        "id": "Power",
+                        "type": "esp.param.power",
+                        "data_type": "bool",
+                        "value": False,
+                        "properties": ["read", "write"],
+                    },
+                    {
+                        "id": "Brightness",
+                        "type": "esp.param.brightness",
+                        "data_type": "int",
+                        "value": 0,
+                        "bounds": {"min": 0, "max": 100, "step": 1},
+                        "properties": ["read", "write"],
+                    },
+                ],
+            }
+        ],
+        "services": [],
+        "tags": {},
+    }
+    assert node_host_ctrl.set_config(NodeConfig(node_config)), (
+        "Failed to set node config"
+    )
+    start_node_host_ctrl(node_host_ctrl)
+
+    user.get_aws_credentials()
+
+    node_host_ctrl.clear_on_st_enabled()
+    user.st_set_lambda_arn(st_function_arn)
+    discovery_response = user.st_discover_devices(region=invoke_region)
+    assert "errorMessage" not in discovery_response, (
+        f"Discovery response returned error: {discovery_response.get('errorMessage')}"
+    )
+
+    interaction_type = discovery_response["headers"]["interactionType"]
+    assert interaction_type == "discoveryResponse", (
+        f"Discovery interactionType should be discoveryResponse, got {interaction_type}"
+    )
+
+    external_device_id = st_external_device_id(thing_name, "Light")
+    discovered = discovery_response.get("devices") or []
+    st_device = next(
+        (d for d in discovered if d["externalDeviceId"] == external_device_id), None
+    )
+    assert st_device is not None, (
+        f"Discovery should have device {external_device_id}, got {', '.join(d['externalDeviceId'] for d in discovered)}"
+    )
+    # Power + Brightness is what SmartThings renders as a dimmer.
+    assert st_device["deviceHandlerType"] == "c2c-dimmer", (
+        f"Handler type should be c2c-dimmer, got {st_device['deviceHandlerType']}"
+    )
+
+    # SmartThings stores the cookie from discovery and returns it with every command.
+    device_cookie = st_device.get("deviceCookie")
+    assert device_cookie and device_cookie.get("esp.param.power") == "Power", (
+        f"Discovery did not return a usable deviceCookie: {st_device}"
+    )
+
+    assert node_host_ctrl.wait_on_st_enabled(5000), "Node did not receive getSTEn event"
+    assert node_host_ctrl.get_st_enabled(), "Node is not SmartThings enabled"
+
+    return invoke_region, external_device_id, device_cookie
+
+
+@pytest.mark.firmware
+@pytest.mark.skipif(
+    not RM_CONFIG["STSchemaAppFunctionArns"],
+    reason="rmng-st-core is not deployed (no STSchemaAppFunctionArns in rmng-outputs.json)",
+)
+def test_firmware_smartthings_control(
+    associated_user1_node_host_ctrl_with_user1_connected,
+):
+    """
+    Verify the SmartThings Schema App control path: discovery reports the node as a dimmer and
+    enables it, commandRequest (st.switch, st.switchLevel) updates the device parameters, and
+    stateRefreshRequest reports those parameters back together with st.healthCheck.
+    """
+    node_host_ctrl, user, group_id = (
+        associated_user1_node_host_ctrl_with_user1_connected
+    )
+    print("🔄 Starting firmware SmartThings control test...")
+    invoke_region, device_id, device_cookie = (
+        _firmware_smartthings_prepare_light_discovered(node_host_ctrl, user)
+    )
+
+    def st_state_value(device_state, capability, attribute):
+        states = [
+            s
+            for s in device_state["states"]
+            if s["capability"] == capability and s["attribute"] == attribute
+        ]
+        assert states, f"No {capability}/{attribute} state in response: {device_state}"
+        return states[0]["value"]
+
+    def validate_st_command(commands):
+        node_host_ctrl.clear_on_state_reported()
+        response = user.st_control_device(
+            device_id, commands, device_cookie=device_cookie, region=invoke_region
+        )
+        print(f"SmartThings command response for {commands} is ", response)
+
+        assert response["headers"]["interactionType"] == "commandResponse", (
+            f"Response interactionType should be commandResponse, got {response}"
+        )
+        device_states = response.get("deviceState") or []
+        assert len(device_states) == 1, (
+            f"Expected exactly 1 deviceState, got {response}"
+        )
+        device_state = device_states[0]
+        assert device_state["externalDeviceId"] == device_id, f"{device_state}"
+        assert not device_state.get("deviceError"), (
+            f"Command returned an error: {device_state}"
+        )
+        assert node_host_ctrl.wait_on_state_reported(5000), (
+            f"Node did not report state after {commands}"
+        )
+        return device_state
+
+    # Ensure the node starts at OFF
+    node_host_ctrl.clear_on_state_reported()
+    node_host_ctrl.update_param("Light", "Power", False)
+    node_host_ctrl.update_param("Light", "Brightness", 0)
+    node_host_ctrl.wait_on_state_reported(5000)  # Clear stale state
+    assert not node_host_ctrl.get_param("Light", "Power").value, (
+        "Power parameter should be False after Power parameter update"
+    )
+
+    print("   - Testing st.switch on...")
+    device_state = validate_st_command(
+        [
+            {
+                "component": "main",
+                "capability": "st.switch",
+                "command": "on",
+                "arguments": [],
+            }
+        ]
+    )
+    assert st_state_value(device_state, "st.switch", "switch") == "on", (
+        f"Switch state should be on, got {device_state}"
+    )
+    assert node_host_ctrl.get_param("Light", "Power").value, (
+        "Power parameter should be True after st.switch on"
+    )
+
+    print("   - Testing st.switch off...")
+    device_state = validate_st_command(
+        [
+            {
+                "component": "main",
+                "capability": "st.switch",
+                "command": "off",
+                "arguments": [],
+            }
+        ]
+    )
+    assert st_state_value(device_state, "st.switch", "switch") == "off", (
+        f"Switch state should be off, got {device_state}"
+    )
+    assert not node_host_ctrl.get_param("Light", "Power").value, (
+        "Power parameter should be False after st.switch off"
+    )
+
+    print("   - Testing st.switchLevel setLevel...")
+    device_state = validate_st_command(
+        [
+            {
+                "component": "main",
+                "capability": "st.switchLevel",
+                "command": "setLevel",
+                "arguments": [60],
+            }
+        ]
+    )
+    assert st_state_value(device_state, "st.switchLevel", "level") == 60, (
+        f"Level state should be 60, got {device_state}"
+    )
+    assert node_host_ctrl.get_param("Light", "Brightness").value == 60, (
+        "Brightness parameter should be 60 after st.switchLevel setLevel"
+    )
+
+    print("   - Testing stateRefreshRequest...")
+    node_host_ctrl.clear_on_state_reported()
+    assert node_host_ctrl.update_param("Light", "Power", True), (
+        "Failed to update Power parameter"
+    )
+    assert node_host_ctrl.wait_on_state_reported(5000), (
+        "Node did not report state after parameter update"
+    )
+
+    refresh_response = user.st_state_refresh([device_id], region=invoke_region)
+    print("SmartThings state refresh response is ", refresh_response)
+
+    assert refresh_response["headers"]["interactionType"] == "stateRefreshResponse", (
+        f"Response interactionType should be stateRefreshResponse, got {refresh_response}"
+    )
+    device_states = refresh_response.get("deviceState") or []
+    assert len(device_states) == 1, (
+        f"Expected exactly 1 deviceState, got {refresh_response}"
+    )
+    device_state = device_states[0]
+    assert device_state["externalDeviceId"] == device_id, f"{device_state}"
+    assert st_state_value(device_state, "st.switch", "switch") == "on", (
+        f"State refresh should report the switch on, got {device_state}"
+    )
+    assert st_state_value(device_state, "st.switchLevel", "level") == 60, (
+        f"State refresh should report level 60, got {device_state}"
+    )
+    assert st_state_value(device_state, "st.healthCheck", "healthStatus") == "online", (
+        f"State refresh should report the node online, got {device_state}"
+    )
+
+    print("🎉 Firmware SmartThings control test completed successfully!")
 
 
 @pytest.fixture(scope="session")

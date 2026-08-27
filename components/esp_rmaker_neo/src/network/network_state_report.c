@@ -112,6 +112,8 @@ typedef struct {
     bool alexa_enabled;
     /** GVA (Google Voice Assistant) notifications enabled */
     bool gva_enabled;
+    /** SmartThings notifications enabled */
+    bool st_enabled;
 } state_report_notify_info_t;
 
 /**
@@ -1156,6 +1158,9 @@ static esp_rmaker_error_t __populate_shadow_payloads(const esp_rmaker_node_t *no
             /* GVA notification enabled */
             json_gen_obj_set_bool(&jstr_named, "gva", p_notify_info->gva_enabled);
 
+            /* SmartThings notification enabled */
+            json_gen_obj_set_bool(&jstr_named, "smartthings", p_notify_info->st_enabled);
+
             json_gen_pop_object(&jstr_named);
         }
 
@@ -1406,9 +1411,10 @@ static esp_rmaker_error_t __get_notify_info(state_report_notify_info_t *p_notify
     /* Get all flags based on local configuration */
     bool alexa_enabled = esp_rmaker_local_config_get_alexa_en();
     bool gva_enabled = esp_rmaker_local_config_get_gva_en();
+    bool st_enabled = esp_rmaker_local_config_get_st_en();
 
     /* Return if no flags are set */
-    bool at_least_one_flag_set = alexa_enabled || gva_enabled;
+    bool at_least_one_flag_set = alexa_enabled || gva_enabled || st_enabled;
     if (!at_least_one_flag_set) {
         return ESP_RMAKER_INVALID_STATE;
     }
@@ -1423,6 +1429,7 @@ static esp_rmaker_error_t __get_notify_info(state_report_notify_info_t *p_notify
     /* Set the flags */
     p_notify_info->alexa_enabled = alexa_enabled;
     p_notify_info->gva_enabled = gva_enabled;
+    p_notify_info->st_enabled = st_enabled;
 
     return ESP_RMAKER_OK;
 }
