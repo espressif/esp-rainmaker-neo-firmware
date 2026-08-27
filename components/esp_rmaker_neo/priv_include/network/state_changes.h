@@ -65,10 +65,10 @@ typedef enum {
     RMAKER_STATE_UPDATE_FLAG_ONLINE = (1 << 0),
     /** ``ncfg_ver`` shadow field - value carried in ``ncfg_ver_hash``.
      *  Emitted as ``"ncfg_ver": "<hex>"`` (the node-config SHA-256 checksum
-     *  rendered as a lowercase hex string, no ``0x``) into both the named
-     *  (params) and indexed (iparams) shadow payloads for the entry's thing.
-     *  The checksum is a change-token: it differs iff the node config
-     *  differs, so it needs no synced wall clock. */
+     *  rendered as a lowercase hex string, no ``0x``) into the named
+     *  (params) shadow payload for the entry's thing. The checksum is a
+     *  change-token: it differs iff the node config differs, so it needs
+     *  no synced wall clock. */
     RMAKER_STATE_UPDATE_FLAG_NCFG_VER = (1 << 1),
 } esp_rmaker_state_update_flag_t;
 
@@ -227,8 +227,8 @@ esp_rmaker_error_t esp_rmaker_state_mark_for_update_online_for_node(const esp_rm
  *        in the state ctx identified by ``node``.
  *
  * The next published state report carries ``"ncfg_ver": "<hex>"`` at the
- * top level of both the named (params) and indexed (iparams) shadow for
- * the node's Thing, where ``<hex>`` is ``hash`` rendered as lowercase hex.
+ * top level of the named (params) shadow for the node's Thing, where
+ * ``<hex>`` is ``hash`` rendered as lowercase hex.
  *
  * @param[in] node  Node handle (NULL -> self).
  * @param[in] hash  New node-config SHA-256 checksum (RMAKER_CHECKSUM_LEN bytes).
