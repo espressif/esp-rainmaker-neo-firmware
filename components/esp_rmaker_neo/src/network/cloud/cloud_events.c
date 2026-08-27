@@ -86,6 +86,7 @@ const esp_rmaker_cloud_event_builder_t RMAKER_CLOUD_EVENT_BUILDERS[] = {
     esp_rmaker_cloud_event_getTriggerDetails,
     esp_rmaker_cloud_event_getGVAEn,
     esp_rmaker_cloud_event_getTimeSync,
+    esp_rmaker_cloud_event_getSTEn,
 };
 
 /* Private variables **************************************************************/
@@ -572,6 +573,23 @@ void esp_rmaker_cloud_event_response_getTimeSync(esp_rmaker_cloud_events_tracker
         OSAL_LOGD(TAG, "Time already synchronized, ignoring cloud time");
     }
     p_events_tracker->events_processed |= (1 << RMAKER_CLOUD_EVENT_FLAG_POS_getTimeSync);
+}
+
+esp_rmaker_error_t esp_rmaker_cloud_event_getSTEn(esp_rmaker_cloud_event_t *p_event)
+{
+    p_event->name = "getSTEn";
+    p_event->data = NULL;
+    p_event->p_set_response_cb_context = NULL;
+    OSAL_LOGD(TAG, "Built getSTEn event");
+    return ESP_RMAKER_OK;
+}
+
+void esp_rmaker_cloud_event_response_getSTEn(esp_rmaker_cloud_events_tracker_t *p_events_tracker, bool st_en)
+{
+    OSAL_LOGI(TAG, "Updating SmartThings enable: %d", st_en);
+    esp_rmaker_local_config_set_st_en(st_en);
+    p_events_tracker->events_processed |= (1 << RMAKER_CLOUD_EVENT_FLAG_POS_getSTEn);
+    esp_rmaker_event_flags_set_st_enabled_received();
 }
 
 esp_rmaker_error_t esp_rmaker_cloud_event_getSchedVer(esp_rmaker_cloud_event_t *p_event)

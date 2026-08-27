@@ -1104,7 +1104,7 @@ static void esp_rmaker_on_reconnect_task(void *unused)
 
 static esp_rmaker_error_t esp_rmaker_get_cloud_info(void)
 {
-    esp_rmaker_cloud_event_t events[6];
+    esp_rmaker_cloud_event_t events[7];
     esp_rmaker_cloud_event_t *p_event = events;
     esp_rmaker_error_t err = esp_rmaker_cloud_event_getGroupInfo(p_event++);
     if (err != ESP_RMAKER_OK) {
@@ -1119,6 +1119,11 @@ static esp_rmaker_error_t esp_rmaker_get_cloud_info(void)
     err = esp_rmaker_cloud_event_getGVAEn(p_event++);
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to add getGVAEn event");
+        goto get_cloud_info_fail;
+    }
+    err = esp_rmaker_cloud_event_getSTEn(p_event++);
+    if (err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to add getSTEn event");
         goto get_cloud_info_fail;
     }
     err = esp_rmaker_cloud_event_getSchedVer(p_event++);
@@ -1162,6 +1167,8 @@ static void esp_rmaker_cloud_setup_on_failure(void)
     esp_rmaker_event_flags_clear_alexa_enabled_received();
     esp_rmaker_cloud_event_response_getGVAEn(&tracker, false);
     esp_rmaker_event_flags_clear_gva_enabled_received();
+    esp_rmaker_cloud_event_response_getSTEn(&tracker, false);
+    esp_rmaker_event_flags_clear_st_enabled_received();
     esp_rmaker_cloud_event_response_getSchedVer(&tracker, -1);
     esp_rmaker_event_flags_clear_sched_version_received();
     esp_rmaker_cloud_event_response_getTriggerVer(&tracker, -1);

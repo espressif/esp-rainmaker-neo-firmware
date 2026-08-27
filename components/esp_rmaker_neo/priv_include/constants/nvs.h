@@ -28,6 +28,7 @@
 #define RMAKER_NVS_LOCAL_CONFIG_KEY_GROUP_INFO_STRING  "grp_info"
 #define RMAKER_NVS_LOCAL_CONFIG_KEY_ALEXA_EN           "alexa_en"
 #define RMAKER_NVS_LOCAL_CONFIG_KEY_GVA_EN             "gva_en"
+#define RMAKER_NVS_LOCAL_CONFIG_KEY_ST_EN              "st_en"
 #define RMAKER_NVS_LOCAL_CONFIG_KEY_SCHED_VER          "sched_ver"
 #define RMAKER_NVS_LOCAL_CONFIG_KEY_SCHED_DETAILS      "sched_det"
 #define RMAKER_NVS_LOCAL_CONFIG_KEY_TRIGGER_VER        "trg_ver"

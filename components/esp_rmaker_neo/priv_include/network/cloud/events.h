@@ -113,6 +113,7 @@ typedef enum {
     RMAKER_CLOUD_EVENT_FLAG_POS_getTriggerDetails = 5, /**< Get trigger details. */
     RMAKER_CLOUD_EVENT_FLAG_POS_getGVAEn = 6, /**< Get GVA (Google Voice Assistant) enable. */
     RMAKER_CLOUD_EVENT_FLAG_POS_getTimeSync = 7, /**< Get current server time. */
+    RMAKER_CLOUD_EVENT_FLAG_POS_getSTEn = 8, /**< Get SmartThings enable. */
 } esp_rmaker_cloud_event_flag_pos_t;
 
 #ifdef __cplusplus
@@ -194,6 +195,22 @@ esp_rmaker_error_t esp_rmaker_cloud_event_getTimeSync(esp_rmaker_cloud_event_t *
  * @param[in] time_ms Server time in milliseconds since the Unix epoch (UTC).
  */
 void esp_rmaker_cloud_event_response_getTimeSync(esp_rmaker_cloud_events_tracker_t *p_events_tracker, int64_t time_ms);
+
+/**
+ * @brief Set cloud event 'getSTEn'.
+ * @note This event is used to check if SmartThings is enabled.
+ *
+ * @param[out] p_event Pointer to the event.
+ * @return ESP_RMAKER_OK on success, otherwise error code.
+ */
+esp_rmaker_error_t esp_rmaker_cloud_event_getSTEn(esp_rmaker_cloud_event_t *p_event);
+
+/**
+ * @brief Handle 'getSTEn' response.
+ * @param[in] p_events_tracker Pointer to the events tracker.
+ * @param[in] st_en True if SmartThings is enabled, false otherwise.
+ */
+void esp_rmaker_cloud_event_response_getSTEn(esp_rmaker_cloud_events_tracker_t *p_events_tracker, bool st_en);
 
 /**
  * @brief Set cloud event 'getSchedVer'.

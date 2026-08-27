@@ -105,6 +105,7 @@
 #define RMAKER_HOST_CTRL_GETTABLE_CHAR_GROUP_INFO       'g' // Group information
 #define RMAKER_HOST_CTRL_GETTABLE_CHAR_ALEXA_ENABLED    'a' // Alexa enabled
 #define RMAKER_HOST_CTRL_GETTABLE_CHAR_GVA_ENABLED      'v' // GVA (Google Voice Assistant) enabled
+#define RMAKER_HOST_CTRL_GETTABLE_CHAR_ST_ENABLED       'h' // SmartThings enabled
 #define RMAKER_HOST_CTRL_GETTABLE_CHAR_SCHED_VERSION    's' // Schedule version
 #define RMAKER_HOST_CTRL_GETTABLE_CHAR_TRIGGER_VERSION  'r' // Trigger version
 #define RMAKER_HOST_CTRL_GETTABLE_CHAR_HEAP_STATUS      'H' // Heap status
@@ -122,6 +123,7 @@
 #define RMAKER_HOST_CTRL_FLAG_CHAR_GROUP_INFO              'g' // Group information received
 #define RMAKER_HOST_CTRL_FLAG_CHAR_ALEXA_ENABLED           'a' // Alexa enabled received
 #define RMAKER_HOST_CTRL_FLAG_CHAR_GVA_ENABLED             'v' // GVA enabled received
+#define RMAKER_HOST_CTRL_FLAG_CHAR_ST_ENABLED              'h' // SmartThings enabled received
 #define RMAKER_HOST_CTRL_FLAG_CHAR_SCHED_VERSION           's' // Schedule version received
 #define RMAKER_HOST_CTRL_FLAG_CHAR_SCHED_DETAILS           'S' // Schedule details received
 #define RMAKER_HOST_CTRL_FLAG_CHAR_TRIGGER_VERSION         'r' // Trigger version received

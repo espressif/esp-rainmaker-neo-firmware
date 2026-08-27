@@ -293,6 +293,15 @@ static void __handle_get_alexa_enabled(uint8_t *buffer, size_t buffer_length);
 static void __handle_get_gva_enabled(uint8_t *buffer, size_t buffer_length);
 
 /**
+ * @brief Gets the current SmartThings enabled state.
+ * @note The buffer is not used.
+ * @note The response is in the format: "<st_enabled>".
+ * @param[in] buffer The buffer to handle.
+ * @param[in] buffer_length The length of the buffer.
+ */
+static void __handle_get_st_enabled(uint8_t *buffer, size_t buffer_length);
+
+/**
  * @brief Gets the current trigger version.
  * @note The buffer is not used.
  * @note The response is in the format: "<trigger_version>".
@@ -1010,6 +1019,12 @@ static void __handle_get_gva_enabled(uint8_t *buffer, size_t buffer_length)
     esp_rmaker_host_ctrl_send_response_with_payload(RMAKER_HOST_CTRL_RESPONSE_CHAR_OK, gva_enabled ? "1" : "0", 1);
 }
 
+static void __handle_get_st_enabled(uint8_t *buffer, size_t buffer_length)
+{
+    bool st_enabled = esp_rmaker_local_config_get_st_en();
+    esp_rmaker_host_ctrl_send_response_with_payload(RMAKER_HOST_CTRL_RESPONSE_CHAR_OK, st_enabled ? "1" : "0", 1);
+}
+
 static void __handle_get_sched_version(uint8_t *buffer, size_t buffer_length)
 {
     int sched_version = esp_rmaker_local_config_get_sched_ver();
@@ -1292,6 +1307,9 @@ static osal_event_group_bits_t __get_event_flags(char *event_flags_start, char *
         case RMAKER_HOST_CTRL_FLAG_CHAR_GVA_ENABLED:
             event_flags |= ESP_RMAKER_EVENT_FLAGS_GVA_ENABLED_RECEIVED;
             break;
+        case RMAKER_HOST_CTRL_FLAG_CHAR_ST_ENABLED:
+            event_flags |= ESP_RMAKER_EVENT_FLAGS_ST_ENABLED_RECEIVED;
+            break;
         case RMAKER_HOST_CTRL_FLAG_CHAR_SCHED_VERSION:
             event_flags |= ESP_RMAKER_EVENT_FLAGS_SCHED_VERSION_RECEIVED;
             break;
@@ -1457,6 +1475,9 @@ void __esp_rmaker_host_ctrl_handle_buffer(uint8_t *buffer, size_t buffer_length)
             return;
         } else if (payload_type == RMAKER_HOST_CTRL_GETTABLE_CHAR_GVA_ENABLED) {
             __handle_get_gva_enabled(NULL, 0);
+            return;
+        } else if (payload_type == RMAKER_HOST_CTRL_GETTABLE_CHAR_ST_ENABLED) {
+            __handle_get_st_enabled(NULL, 0);
             return;
         } else if (payload_type == RMAKER_HOST_CTRL_GETTABLE_CHAR_SCHED_VERSION) {
             __handle_get_sched_version(NULL, 0);

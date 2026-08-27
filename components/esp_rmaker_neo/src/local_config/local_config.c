@@ -209,3 +209,16 @@ bool esp_rmaker_local_config_get_gva_en(void)
     }
     return value;
 }
+
+/* --- SmartThings configuration ------------------------------------------------ */
+
+bool esp_rmaker_local_config_get_st_en(void)
+{
+    bool value = false;
+    esp_rmaker_error_t err = esp_rmaker_nvs_get_bool_with_handle(esp_rmaker_local_config_nvs_handle, RMAKER_NVS_LOCAL_CONFIG_KEY_ST_EN, &value);
+    if (err != ESP_RMAKER_OK) {
+        OSAL_LOGW(TAG, "Failed to get ST en from NVS, defaulting to false");
+        value = false;
+    }
+    return value;
+}

@@ -127,6 +127,21 @@ bool esp_rmaker_local_config_get_gva_en(void);
  */
 #define esp_rmaker_local_config_set_gva_en(gva_en) esp_rmaker_nvs_update_bool_with_handle(esp_rmaker_local_config_nvs_handle, RMAKER_NVS_LOCAL_CONFIG_KEY_GVA_EN, gva_en)
 
+/* --- SmartThings configuration ----------------------------------------------- */
+
+/**
+ * @brief Get the SmartThings enable flag
+ * @return True if SmartThings is enabled, false otherwise
+ */
+bool esp_rmaker_local_config_get_st_en(void);
+
+/**
+ * @brief Set the SmartThings enable flag
+ * @param[in] st_en True if SmartThings is enabled, false otherwise
+ * @return ESP_RMAKER_OK on success, otherwise an error code
+ */
+#define esp_rmaker_local_config_set_st_en(st_en) esp_rmaker_nvs_update_bool_with_handle(esp_rmaker_local_config_nvs_handle, RMAKER_NVS_LOCAL_CONFIG_KEY_ST_EN, st_en)
+
 /* --- Versioning -------------------------------------------------------------- */
 
 /**

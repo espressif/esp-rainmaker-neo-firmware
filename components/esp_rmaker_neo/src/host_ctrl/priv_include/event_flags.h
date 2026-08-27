@@ -30,6 +30,7 @@ typedef enum {
     ESP_RMAKER_EVENT_FLAGS_GROUP_INFO_RECEIVED = (1 << 7),
     ESP_RMAKER_EVENT_FLAGS_ALEXA_ENABLED_RECEIVED = (1 << 8),
     ESP_RMAKER_EVENT_FLAGS_GVA_ENABLED_RECEIVED = (1 << 16),
+    ESP_RMAKER_EVENT_FLAGS_ST_ENABLED_RECEIVED = (1 << 17),
     ESP_RMAKER_EVENT_FLAGS_SCHED_VERSION_RECEIVED = (1 << 9),
     ESP_RMAKER_EVENT_FLAGS_SCHED_DETAILS_RECEIVED = (1 << 10),
     ESP_RMAKER_EVENT_FLAGS_TRIGGER_VERSION_RECEIVED = (1 << 11),
@@ -48,6 +49,7 @@ typedef enum {
                                   ESP_RMAKER_EVENT_FLAGS_GROUP_INFO_RECEIVED |
                                   ESP_RMAKER_EVENT_FLAGS_ALEXA_ENABLED_RECEIVED |
                                   ESP_RMAKER_EVENT_FLAGS_GVA_ENABLED_RECEIVED |
+                                  ESP_RMAKER_EVENT_FLAGS_ST_ENABLED_RECEIVED |
                                   ESP_RMAKER_EVENT_FLAGS_SCHED_VERSION_RECEIVED |
                                   ESP_RMAKER_EVENT_FLAGS_SCHED_DETAILS_RECEIVED |
                                   ESP_RMAKER_EVENT_FLAGS_TRIGGER_VERSION_RECEIVED |
@@ -66,6 +68,7 @@ typedef enum {
 #define esp_rmaker_event_flags_set_group_info_received()        esp_rmaker_event_flags_set(ESP_RMAKER_EVENT_FLAGS_GROUP_INFO_RECEIVED)
 #define esp_rmaker_event_flags_set_alexa_enabled_received()     esp_rmaker_event_flags_set(ESP_RMAKER_EVENT_FLAGS_ALEXA_ENABLED_RECEIVED)
 #define esp_rmaker_event_flags_set_gva_enabled_received()       esp_rmaker_event_flags_set(ESP_RMAKER_EVENT_FLAGS_GVA_ENABLED_RECEIVED)
+#define esp_rmaker_event_flags_set_st_enabled_received()        esp_rmaker_event_flags_set(ESP_RMAKER_EVENT_FLAGS_ST_ENABLED_RECEIVED)
 #define esp_rmaker_event_flags_set_sched_version_received()     esp_rmaker_event_flags_set(ESP_RMAKER_EVENT_FLAGS_SCHED_VERSION_RECEIVED)
 #define esp_rmaker_event_flags_set_sched_details_received()     esp_rmaker_event_flags_set(ESP_RMAKER_EVENT_FLAGS_SCHED_DETAILS_RECEIVED)
 #define esp_rmaker_event_flags_set_trigger_version_received()   esp_rmaker_event_flags_set(ESP_RMAKER_EVENT_FLAGS_TRIGGER_VERSION_RECEIVED)
@@ -76,6 +79,7 @@ typedef enum {
 #define esp_rmaker_event_flags_clear_group_info_received()        esp_rmaker_event_flags_clear(ESP_RMAKER_EVENT_FLAGS_GROUP_INFO_RECEIVED)
 #define esp_rmaker_event_flags_clear_alexa_enabled_received()     esp_rmaker_event_flags_clear(ESP_RMAKER_EVENT_FLAGS_ALEXA_ENABLED_RECEIVED)
 #define esp_rmaker_event_flags_clear_gva_enabled_received()       esp_rmaker_event_flags_clear(ESP_RMAKER_EVENT_FLAGS_GVA_ENABLED_RECEIVED)
+#define esp_rmaker_event_flags_clear_st_enabled_received()        esp_rmaker_event_flags_clear(ESP_RMAKER_EVENT_FLAGS_ST_ENABLED_RECEIVED)
 #define esp_rmaker_event_flags_clear_sched_version_received()     esp_rmaker_event_flags_clear(ESP_RMAKER_EVENT_FLAGS_SCHED_VERSION_RECEIVED)
 #define esp_rmaker_event_flags_clear_trigger_version_received()   esp_rmaker_event_flags_clear(ESP_RMAKER_EVENT_FLAGS_TRIGGER_VERSION_RECEIVED)
 

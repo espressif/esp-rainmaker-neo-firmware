@@ -625,6 +625,16 @@ static void __get_event_response_payload_handler(char *event_name, jparse_ctx_t 
         esp_rmaker_cloud_event_response_getGVAEn(p_events_tracker, gva_en);
     }
 
+    /* Get SmartThings enable */
+    else if (strcmp(event_name, "getSTEn") == 0) {
+        bool st_en;
+        if (json_obj_get_bool(p_jctx, "enabled", &st_en) != 0) {
+            OSAL_LOGE(TAG, "Failed to get SmartThings enable");
+            goto get_handler_end;
+        }
+        esp_rmaker_cloud_event_response_getSTEn(p_events_tracker, st_en);
+    }
+
     /* Get schedule version */
     else if (strcmp(event_name, "getSchedVer") == 0) {
         int sched_ver;

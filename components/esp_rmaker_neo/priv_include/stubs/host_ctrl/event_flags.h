@@ -24,6 +24,7 @@
 #define esp_rmaker_event_flags_set_group_info_received()            do {} while (0)
 #define esp_rmaker_event_flags_set_alexa_enabled_received()         do {} while (0)
 #define esp_rmaker_event_flags_set_gva_enabled_received()           do {} while (0)
+#define esp_rmaker_event_flags_set_st_enabled_received()            do {} while (0)
 #define esp_rmaker_event_flags_set_sched_version_received()         do {} while (0)
 #define esp_rmaker_event_flags_set_sched_details_received()         do {} while (0)
 #define esp_rmaker_event_flags_set_trigger_version_received()       do {} while (0)
@@ -34,6 +35,7 @@
 #define esp_rmaker_event_flags_clear_group_info_received()          do {} while (0)
 #define esp_rmaker_event_flags_clear_alexa_enabled_received()       do {} while (0)
 #define esp_rmaker_event_flags_clear_gva_enabled_received()         do {} while (0)
+#define esp_rmaker_event_flags_clear_st_enabled_received()          do {} while (0)
 #define esp_rmaker_event_flags_clear_sched_version_received()       do {} while (0)
 #define esp_rmaker_event_flags_clear_trigger_version_received()     do {} while (0)
 

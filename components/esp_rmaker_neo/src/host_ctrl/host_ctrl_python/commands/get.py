@@ -188,6 +188,18 @@ class CommandGetGvaEnabled(Command):
         print("-> Command: Getting GVA enabled status")
 
 
+class CommandGetStEnabled(Command):
+    """
+    Represents a command to get the SmartThings enabled status.
+    """
+
+    def build(self, protocol: CommunicationProtocol) -> str:
+        return f"{protocol.command_get}{protocol.gettable_st_enabled}"
+
+    def log(self, protocol: CommunicationProtocol) -> None:
+        print("-> Command: Getting SmartThings enabled status")
+
+
 class CommandGetSchedVersion(Command):
     """
     Represents a command to get the sched version.

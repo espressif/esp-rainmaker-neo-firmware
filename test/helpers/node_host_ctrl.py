@@ -16,6 +16,7 @@ def start_node_host_ctrl(
     wait_on_node_config_sent: bool = True,
     wait_on_alexa_enabled: bool = True,
     wait_on_gva_enabled: bool = True,
+    wait_on_st_enabled: bool = True,
 ):
     """
     Start the node.
@@ -41,6 +42,7 @@ def start_node_host_ctrl(
         10000,
         add_alexa_enabled=wait_on_alexa_enabled,
         add_gva_enabled=wait_on_gva_enabled,
+        add_st_enabled=wait_on_st_enabled,
     ), "Node did not receive all cloud get events"
     # Wait for the node to start listening for state changes. The IAM policy may take a while to be applied, so it might reconnect once.
     assert node_host_ctrl.wait_on_state_started_listening(20000), (

@@ -39,6 +39,7 @@ from .commands.get import (
     CommandGetGroupInfo,
     CommandGetAlexaEnabled,
     CommandGetGvaEnabled,
+    CommandGetStEnabled,
     CommandGetSchedVersion,
     CommandGetTriggerVersion,
     CommandGetHeapStatus,
@@ -648,6 +649,12 @@ class NodeHostCtrl:
         """
         return self._wait([self.protocol.flag_gva_enabled], timeout_ms)
 
+    def wait_on_st_enabled(self, timeout_ms: int) -> bool:
+        """
+        Wait for the SmartThings enable response from the cloud.
+        """
+        return self._wait([self.protocol.flag_st_enabled], timeout_ms)
+
     def wait_on_state_started_listening(self, timeout_ms: int) -> bool:
         """
         Wait for the node to start listening for state changes.
@@ -713,6 +720,7 @@ class NodeHostCtrl:
         timeout_ms: int,
         add_alexa_enabled: bool = True,
         add_gva_enabled: bool = True,
+        add_st_enabled: bool = True,
     ) -> bool:
         """
         Wait for all cloud events to be received.
@@ -726,6 +734,8 @@ class NodeHostCtrl:
             flags.append(self.protocol.flag_alexa_enabled)
         if add_gva_enabled:
             flags.append(self.protocol.flag_gva_enabled)
+        if add_st_enabled:
+            flags.append(self.protocol.flag_st_enabled)
         return self._wait(flags, timeout_ms)
 
     def wait_on_all_sched_events(self, timeout_ms: int) -> bool:
@@ -763,6 +773,12 @@ class NodeHostCtrl:
         Clear the GVA enabled flag.
         """
         return self._clear([self.protocol.flag_gva_enabled])
+
+    def clear_on_st_enabled(self) -> bool:
+        """
+        Clear the SmartThings enabled flag.
+        """
+        return self._clear([self.protocol.flag_st_enabled])
 
     def clear_on_state_started_listening(self) -> bool:
         """
@@ -832,6 +848,7 @@ class NodeHostCtrl:
             self.protocol.flag_group_info,
             self.protocol.flag_alexa_enabled,
             self.protocol.flag_gva_enabled,
+            self.protocol.flag_st_enabled,
             self.protocol.flag_sched_version,
             self.protocol.flag_trigger_version,
         ]
@@ -966,6 +983,16 @@ class NodeHostCtrl:
         Get the GVA enabled status.
         """
         cmd = CommandGetGvaEnabled()
+        payload = self._send_cmd_for_payload(cmd)
+        if payload is None:
+            return False
+        return self.protocol.parse_param_value(f"b{payload}")
+
+    def get_st_enabled(self) -> bool:
+        """
+        Get the SmartThings enabled status.
+        """
+        cmd = CommandGetStEnabled()
         payload = self._send_cmd_for_payload(cmd)
         if payload is None:
             return False

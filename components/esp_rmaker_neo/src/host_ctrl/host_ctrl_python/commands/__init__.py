@@ -239,6 +239,9 @@ class CommunicationProtocol:
         self.gettable_gva_enabled = self._constants.get(
             "RMAKER_HOST_CTRL_GETTABLE_CHAR_GVA_ENABLED"
         )
+        self.gettable_st_enabled = self._constants.get(
+            "RMAKER_HOST_CTRL_GETTABLE_CHAR_ST_ENABLED"
+        )
         self.gettable_sched_version = self._constants.get(
             "RMAKER_HOST_CTRL_GETTABLE_CHAR_SCHED_VERSION"
         )
@@ -274,6 +277,9 @@ class CommunicationProtocol:
         )
         self.flag_gva_enabled = self._constants.get(
             "RMAKER_HOST_CTRL_FLAG_CHAR_GVA_ENABLED"
+        )
+        self.flag_st_enabled = self._constants.get(
+            "RMAKER_HOST_CTRL_FLAG_CHAR_ST_ENABLED"
         )
         self.flag_sched_version = self._constants.get(
             "RMAKER_HOST_CTRL_FLAG_CHAR_SCHED_VERSION"
@@ -402,6 +408,7 @@ class CommunicationProtocol:
             self.flag_group_info: "group info",
             self.flag_alexa_enabled: "Alexa enabled",
             self.flag_gva_enabled: "GVA enabled",
+            self.flag_st_enabled: "SmartThings enabled",
             self.flag_sched_version: "sched version",
             self.flag_sched_details: "sched details",
             self.flag_trigger_version: "trigger version",
