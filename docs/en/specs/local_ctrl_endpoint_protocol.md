@@ -90,6 +90,40 @@ the response is flushed; a ch_resp-only instance is stopped entirely), later
 enable attempts are refused, and the state is cleared only by a factory
 reset.
 
+## BLE transport
+
+The endpoints are plain protocomm handlers, so the same messages run over
+protocomm's BLE GATT transport when a node serves them there. Only the
+addressing and the session/version endpoint names change:
+
+| | HTTP | BLE |
+|---|---|---|
+| session | `rmaker_local_ctrl/session` | `prov-session` |
+| version | `rmaker_local_ctrl/version` | `proto-ver` |
+| capability source | `cap` TXT record | version endpoint |
+| addressing | node ID, resolved by mDNS | advertised BLE name |
+
+Each endpoint is one GATT characteristic in the node's provisioning service.
+The characteristic's user description descriptor (0x2901) holds the endpoint
+name, which is how a client maps a name to a characteristic. The 16-bit UUIDs
+are assigned in registration order, so they shift with the build; **clients must
+read the descriptors and must not hardcode the UUIDs**.
+
+The version endpoint answers with the provisioning manager's JSON rather than
+the format above. Capabilities arrive under `rmaker_extra` using the same tokens
+as the `cap` TXT record, while the security version arrives under `prov`:
+
+```json
+{"rmaker_extra": {"ver": "1.0", "cap": ["ch_resp", "local_ctrl"]},
+ "prov": {"ver": "v1.1", "sec_ver": 2, "sec_patch_ver": 1,
+          "cap": ["wifi_prov", "wifi_scan"]}}
+```
+
+Note `prov.cap` lists *provisioning* capabilities and never the local-control
+endpoint sets. A BLE-local-control-only build may register a different security
+version from a provisioning build, so a client reads `prov.sec_ver` and never
+assumes it.
+
 ## Fragmentation (get_params / get_config)
 
 Client-pull, 200-byte fragments:
@@ -117,5 +151,6 @@ always carry the raw params/config JSON.
 
 - Firmware: [`local_ctrl/`](https://github.com/espressif/esp-rainmaker-neo-firmware/tree/main/components/esp_rmaker_neo/src/local_ctrl) (handlers + proto), served by
   [`svc_local_endpoints.c`](https://github.com/espressif/esp-rainmaker-neo-firmware/blob/main/components/esp_rmaker_neo/src/services/svc_local_endpoints.c).
-- Client: [`local_ctrl.py`](https://github.com/espressif/esp-rainmaker-neo-firmware/blob/main/tools/common/util/local_ctrl.py) (`LocalController`) and the
+- Client: [`local_ctrl.py`](https://github.com/espressif/esp-rainmaker-neo-firmware/blob/main/tools/common/util/local_ctrl.py) (`LocalController`),
+  its transports in [`local_ctrl_transport.py`](https://github.com/espressif/esp-rainmaker-neo-firmware/blob/main/tools/common/util/local_ctrl_transport.py), and the
   interactive [`local_ctrl_cli/`](https://github.com/espressif/esp-rainmaker-neo-firmware/tree/main/tools/local_ctrl_cli).

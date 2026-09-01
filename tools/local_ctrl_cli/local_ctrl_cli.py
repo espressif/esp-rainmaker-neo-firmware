@@ -18,7 +18,13 @@ from util.local_ctrl import (  # noqa: E402
     LocalController,
     LOCAL_CTRL_SERVICE_NAME,
     CAPABILITY_LOCAL_CTRL,
+    PROTOCOL_BLE,
+    PROTOCOL_TCP,
     SEC2_USERNAME,
+)
+from util.local_ctrl_transport import (  # noqa: E402
+    DEFAULT_BLE_ADAPTER,
+    TransportError,
 )
 
 # One advertised service; the active capabilities come from its `cap` TXT record.
@@ -34,15 +40,21 @@ def _status_text(value: Any) -> str:
 class LocalCtrlCli:
     def __init__(
         self,
-        node_id: str,
+        node_id: Optional[str],
         pop: Optional[str],
         auto_reconnect: bool,
         verbose: bool,
+        use_ble: bool = False,
+        ble_name: Optional[str] = None,
+        ble_adapter: str = DEFAULT_BLE_ADAPTER,
     ):
         self.node_id = node_id
         self.pop = pop
         self.username = SEC2_USERNAME
         self.auto_reconnect = auto_reconnect
+        self.use_ble = use_ble
+        self.ble_name = ble_name
+        self.ble_adapter = ble_adapter
         self.ctrl = LocalController(logging=verbose)
         self.connected = False
         self._prompted_for_pop = False
@@ -50,6 +62,8 @@ class LocalCtrlCli:
 
     def _resolved_local_ctrl_endpoint(self) -> Optional[tuple[str, int]]:
         """Return currently cached local-control endpoint from mDNS metadata."""
+        if self.use_ble:
+            return None
         for session_data in self.ctrl._local_ctrl_sessions.values():
             if (
                 session_data.get("mdns_service_type") == LOCAL_CTRL_SERVICE_NAME
@@ -83,7 +97,31 @@ class LocalCtrlCli:
         return self.username
 
     def connect(self) -> bool:
+        if self.use_ble:
+            return self._connect_ble()
+        return self._connect_tcp()
+
+    def _connect_tcp(self) -> bool:
         state = self.ctrl.discover_sessions(self.node_id)
+        return self._finish_connect(state, PROTOCOL_TCP)
+
+    def _connect_ble(self) -> bool:
+        try:
+            state = self.ctrl.discover_ble_session(
+                devname=self.ble_name,
+                adapter=self.ble_adapter,
+                force_refresh=True,
+            )
+        except TransportError as exc:
+            print(f"BLE connect failed: {exc}")
+            self.connected = False
+            self.node_state = {}
+            return False
+        self.node_id = state["node_id"]
+        self.ble_name = self.node_id
+        return self._finish_connect(state, PROTOCOL_BLE)
+
+    def _finish_connect(self, state: dict[str, Any], protocol: str) -> bool:
         self.node_state = state
         has_local = bool(state.get("local_ctrl", {}).get("available"))
         has_chal = bool(state.get("chal_resp", {}).get("available"))
@@ -97,7 +135,7 @@ class LocalCtrlCli:
             node_id=self.node_id,
             pop_retrieval_fn=self._pop_retrieval_fn,
             capability=CAPABILITY_LOCAL_CTRL,
-            protocol="tcp",
+            protocol=protocol,
             username_retrieval_fn=self._username_retrieval_fn,
         )
         self.connected = True
@@ -136,19 +174,21 @@ class LocalCtrlCli:
         return fn()
 
     def print_status(self) -> None:
-        resolved = self._resolved_local_ctrl_endpoint()
-        if resolved:
-            endpoint_text = f"{resolved[0]}:{resolved[1]}"
+        if self.use_ble:
+            location = f"protocol=ble, device={self.ble_name or 'unknown'}"
         else:
-            endpoint_text = "unresolved"
+            resolved = self._resolved_local_ctrl_endpoint()
+            endpoint_text = f"{resolved[0]}:{resolved[1]}" if resolved else "unresolved"
+            location = (
+                f"service={_SERVICE}, protocol=tcp, resolved_endpoint={endpoint_text}"
+            )
         node_mode = self.node_state.get("state", "unknown")
         local_available = "yes" if self._supports_local_ctrl() else "no"
         chal_available = "yes" if self._supports_chal_resp() else "no"
         print(
             f"node={self.node_id}, "
-            f"service={_SERVICE}, protocol=tcp, "
+            f"{location}, "
             f"node_state={node_mode}, local_ctrl={local_available}, chal_resp={chal_available}, "
-            f"resolved_endpoint={endpoint_text}, "
             f"connected={'yes' if self.connected else 'no'}, "
             f"auto_reconnect={'on' if self.auto_reconnect else 'off'}"
         )
@@ -167,10 +207,11 @@ class LocalCtrlCli:
         except Exception:
             print(resp.value.decode("utf-8", errors="replace"))
 
-    def cmd_get_params(self) -> None:
+    def cmd_get_params(self, params_filter: str | None = None) -> None:
+        filter_bytes = params_filter.encode("utf-8") if params_filter else None
         resp = self._with_reconnect(
             "get-params",
-            lambda: self.ctrl.get_node_params(self.node_id),
+            lambda: self.ctrl.get_node_params(self.node_id, filter_bytes),
         )
         if resp is None:
             print("get-params failed.")
@@ -281,7 +322,7 @@ def _print_help_for_state(cli: LocalCtrlCli) -> None:
             "  get-config                          Read node config via local control"
         )
         print(
-            "  get-params                          Read node params via local control"
+            "  get-params [<filter_json>]          Read node params via local control"
         )
         print("  set <device> <param> <json_value>   Set one parameter")
         print("  set-json <json_object>              Set params using JSON object")
@@ -344,7 +385,7 @@ def _run_repl(cli: LocalCtrlCli) -> int:
                     "Command unavailable: local-control service is not advertised by this node."
                 )
                 continue
-            cli.cmd_get_params()
+            cli.cmd_get_params(" ".join(args) or None)
             continue
         if cmd == "set":
             if not cli._supports_local_ctrl():
@@ -408,9 +449,14 @@ def _run_repl(cli: LocalCtrlCli) -> int:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Local control + challenge-response CLI tool",
+        description="Local control + challenge-response CLI tool (mDNS/TCP or BLE)",
     )
-    parser.add_argument("node_id", help="Node id / thing name")
+    parser.add_argument(
+        "node_id",
+        nargs="?",
+        default=None,
+        help="Node id / thing name (mDNS transport; omit with --ble)",
+    )
     parser.add_argument(
         "--pop",
         default=None,
@@ -424,6 +470,22 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--verbose", action="store_true", help="Enable verbose local controller logs"
     )
+    parser.add_argument(
+        "--ble",
+        action="store_true",
+        help="Use the BLE transport instead of mDNS / TCP",
+    )
+    parser.add_argument(
+        "--ble-name",
+        default=None,
+        help="Advertised BLE device name; omit to select from a scan list",
+    )
+    parser.add_argument(
+        "--ble-adapter",
+        default=DEFAULT_BLE_ADAPTER,
+        help="BLE adapter to scan with, for example hci0. Linux / BlueZ only; "
+        "the default adapter is used when this is not set.",
+    )
     return parser
 
 
@@ -431,11 +493,23 @@ def main(argv: list[str]) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    if args.ble:
+        if args.node_id:
+            parser.error("node_id is not used with --ble; pass --ble-name instead")
+    else:
+        if not args.node_id:
+            parser.error("node_id is required without --ble")
+        if args.ble_name:
+            parser.error("--ble-name needs --ble")
+
     cli = LocalCtrlCli(
         node_id=args.node_id,
         pop=args.pop,
         auto_reconnect=args.auto_reconnect,
         verbose=args.verbose,
+        use_ble=args.ble,
+        ble_name=args.ble_name,
+        ble_adapter=args.ble_adapter,
     )
 
     try:
@@ -443,14 +517,17 @@ def main(argv: list[str]) -> int:
             print("Failed to discover supported services for node.")
             return 1
         print(f"Node state: {cli.node_state.get('state', 'unknown')}")
-        resolved = cli._resolved_local_ctrl_endpoint()
-        if resolved:
-            print(
-                f"Connected to node={args.node_id} "
-                f"(resolved mDNS endpoint={resolved[0]}:{resolved[1]})"
-            )
+        if cli.use_ble:
+            print(f"Connected to BLE device={cli.ble_name}")
         else:
-            print(f"Connected to node={args.node_id} (mDNS endpoint not cached)")
+            resolved = cli._resolved_local_ctrl_endpoint()
+            if resolved:
+                print(
+                    f"Connected to node={cli.node_id} "
+                    f"(resolved mDNS endpoint={resolved[0]}:{resolved[1]})"
+                )
+            else:
+                print(f"Connected to node={cli.node_id} (mDNS endpoint not cached)")
 
         return _run_repl(cli)
     finally:

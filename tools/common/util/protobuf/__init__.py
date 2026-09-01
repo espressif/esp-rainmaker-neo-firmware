@@ -152,7 +152,9 @@ class LocalCtrlCommandManager(CommandManager):
         local_ctrl_pb2.NoMemory: Status.InternalError,
     }
 
-    def cmd_get_data(self, data_type: str, offset: int, security_ctx=None):
+    def cmd_get_data(
+        self, data_type: str, offset: int, security_ctx=None, params_filter=None
+    ):
         """
         Create a CmdGetData message for the get_params / get_config endpoints.
 
@@ -160,6 +162,7 @@ class LocalCtrlCommandManager(CommandManager):
             data_type: "params" or "config"
             offset: Byte offset of the requested fragment (0 (re)generates)
             security_ctx: Optional security context for encryption
+            params_filter: Optional ParamsFilter JSON bytes, sent at offset 0 only
 
         Returns:
             Serialized message as latin-1 string (encrypted if security_ctx provided)
@@ -168,6 +171,8 @@ class LocalCtrlCommandManager(CommandManager):
         msg.msg = local_ctrl_pb2.TypeCmdGetData
         msg.cmdGetData.DataType = self._DATA_TYPES[data_type]
         msg.cmdGetData.Offset = offset
+        if params_filter and offset == 0:
+            msg.cmdGetData.ParamsFilter = params_filter
         serialized = msg.SerializeToString()
         return self._serialize_for_transport(serialized, security_ctx)
 

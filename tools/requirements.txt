@@ -13,6 +13,7 @@ esp_idf_nvs_partition_gen>=0.1.9
 jsonschema==4.26.0
 protobuf==6.33.5
 zeroconf==0.148.0
+bleak==3.0.2
 gitignorefile==1.1.2
 python-dotenv==1.2.1
 pexpect>=4.9.0

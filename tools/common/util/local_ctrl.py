@@ -12,9 +12,15 @@ from util.protobuf import (
     ChalRespGetNodeIDResponse,
     ChalRespResponse,
 )
+from util.esp_prov_env import import_esp_prov
+from util.local_ctrl_transport import (
+    BleTransport,
+    HttpTransport,
+    TransportError,
+    DEFAULT_BLE_ADAPTER,
+)
 from zeroconf import Zeroconf, ServiceBrowser, ServiceListener
 import json
-import os
 import socket
 import requests
 
@@ -36,6 +42,10 @@ TXT_CAP_CHAL_RESP = CHAL_RESP_ENDPOINT
 # SRP6a username for SEC2. Fixed to "wifiprov" for parity with the device
 # (which hardcodes the same value) and ESP-IDF unified provisioning.
 SEC2_USERNAME = "wifiprov"
+
+# Transport discriminators stored on each session and facet.
+PROTOCOL_TCP = "tcp"
+PROTOCOL_BLE = "ble"
 
 
 class LocalController:
@@ -75,6 +85,7 @@ class LocalController:
         if session_key not in self._local_ctrl_sessions:
             self._local_ctrl_sessions[session_key] = {
                 "http_session": requests.Session(),
+                "transport": None,
                 "security_ctx": None,
                 "ip_address": None,
                 "txt_records": {},
@@ -89,8 +100,12 @@ class LocalController:
         session_data["mdns_service_type"] = service_type
         session_data["mdns_protocol"] = protocol
         session_data["mdns_port"] = service_port
-        if "http_session" not in session_data:
+        if not session_data.get("http_session"):
             session_data["http_session"] = requests.Session()
+        base_url = f"http://{self._format_ip_for_url(ip_address)}:{service_port}"
+        session_data["transport"] = HttpTransport(
+            session_data["http_session"], base_url, log=self._log
+        )
         return session_key, session_data
 
     def discover_sessions(self, node_id, timeout=5, force_refresh=False):
@@ -139,6 +154,98 @@ class LocalController:
         self._node_service_state[node_id] = state
         self._log(
             f"Discovered node state for {node_id}: {state['state']} "
+            f"(local_ctrl={local_available}, ch_resp={chal_available})"
+        )
+        return state
+
+    def discover_ble_session(
+        self, devname=None, adapter=DEFAULT_BLE_ADAPTER, force_refresh=False
+    ):
+        """
+        Connect to a BLE node and derive its available capabilities.
+
+        The device is addressed by its advertised name, which also keys the
+        session. Capabilities come from the version endpoint, since BLE carries
+        no mDNS TXT record.
+
+        Args:
+            devname (str | None): Advertised BLE name. None lets the user pick.
+            adapter (str): BLE adapter name (BlueZ only)
+            force_refresh (bool): Reconnect even when a session is cached
+
+        Returns:
+            dict: Node state, in the same shape discover_sessions returns
+
+        Raises:
+            TransportError: The device is unreachable or exposes no known endpoints
+        """
+        if devname and not force_refresh and devname in self._node_service_state:
+            return self._node_service_state[devname]
+
+        # A connected node may stop advertising, so drop the old connection before the scan.
+        for key in list(self._local_ctrl_sessions):
+            if key.endswith(f":{PROTOCOL_BLE}") and (
+                devname is None or key == f"{devname}:{PROTOCOL_BLE}"
+            ):
+                self._close_session(key)
+
+        transport = BleTransport(devname=devname, adapter=adapter, log=self._log)
+        transport.connect()
+        node_id = transport.devname
+
+        version_info = transport.read_version_info()
+        if version_info is None:
+            transport.close()
+            raise TransportError(
+                f"Could not read the version endpoint '{transport.version_endpoint}'"
+            )
+
+        caps = version_info["cap"]
+        local_available = TXT_CAP_LOCAL_CTRL in caps
+        chal_available = TXT_CAP_CHAL_RESP in caps
+        if not caps:
+            # Older firmware may not report capabilities; fall back to the
+            # endpoint names read from the GATT descriptors.
+            endpoints = transport.endpoints
+            local_available = "get_params" in endpoints or "get_config" in endpoints
+            chal_available = CHAL_RESP_ENDPOINT in endpoints
+
+        session_key = f"{node_id}:{PROTOCOL_BLE}"
+        self._local_ctrl_sessions[session_key] = {
+            "http_session": None,
+            "transport": transport,
+            "security_ctx": None,
+            "ip_address": None,
+            "txt_records": {},
+            "mdns_service_type": LOCAL_CTRL_SERVICE_NAME,
+            "mdns_protocol": PROTOCOL_BLE,
+            "mdns_port": None,
+            "ble_devname": node_id,
+            "ble_endpoints": sorted(transport.endpoints),
+            "sec_ver": version_info["sec_ver"],
+            "sec_patch_ver": version_info["sec_patch_ver"],
+        }
+
+        def _facet(feature_available):
+            return {
+                "available": feature_available,
+                "service_type": LOCAL_CTRL_SERVICE_NAME,
+                "protocol": PROTOCOL_BLE,
+                "session_key": session_key if feature_available else None,
+                "ip": None,
+                "port": None,
+                "txt_records": {},
+            }
+
+        state = {
+            "node_id": node_id,
+            "state": self._get_node_state_label(local_available, chal_available),
+            CAPABILITY_LOCAL_CTRL: _facet(local_available),
+            CAPABILITY_CHAL_RESP: _facet(chal_available),
+        }
+        self._node_service_state[node_id] = state
+        self._log(
+            f"Discovered BLE node state for {node_id}: {state['state']} "
             f"(local_ctrl={local_available}, ch_resp={chal_available})"
         )
         return state
@@ -318,12 +425,7 @@ class LocalController:
                         if session_key
                         else None
                     )
-                    if (
-                        session_data
-                        and session_data.get("http_session")
-                        and session_data.get("ip_address")
-                        and session_data.get("mdns_port") is not None
-                    ):
+                    if session_data and session_data.get("transport") is not None:
                         return session_key, session_data
                 else:
                     self._log(
@@ -337,9 +439,7 @@ class LocalController:
                 if (
                     session_data.get("mdns_service_type") == LOCAL_CTRL_SERVICE_NAME
                     and session_data.get("mdns_protocol") == protocol
-                    and session_data.get("http_session")
-                    and session_data.get("ip_address")
-                    and session_data.get("mdns_port") is not None
+                    and session_data.get("transport") is not None
                 ):
                     return session_key, session_data
 
@@ -366,63 +466,6 @@ class LocalController:
             )
         return session_key, session_data
 
-    def _create_local_ctrl_connection(self, node_id):
-        """
-        Create HTTP connection to a node's local control server.
-
-        Args:
-            node_id (str): Node ID (thing name)
-        Returns:
-            str: Base URL for the local control server
-        """
-        session_key, session_data = self._get_or_resolve_service_session(
-            node_id, LOCAL_CTRL_SERVICE_NAME, "tcp"
-        )
-        if not session_data:
-            return None
-        ip_address = session_data.get("ip_address")
-        service_port = session_data.get("mdns_port")
-        formatted_ip = self._format_ip_for_url(ip_address)
-        base_url = f"http://{formatted_ip}:{service_port}"
-        self._log(f"Created local control connection to {base_url}")
-        return base_url
-
-    def _get_local_ctrl_session(self, node_id):
-        """
-        Get or create a reusable HTTP session for local control connections.
-        Resolves IP address via mDNS on first access.
-
-        Args:
-            node_id (str): Node ID (thing name)
-        Returns:
-            requests.Session: Reusable HTTP session
-        """
-        session_key, session_data = self._get_or_resolve_service_session(
-            node_id, LOCAL_CTRL_SERVICE_NAME, "tcp"
-        )
-        if not session_data:
-            return None
-        self._log(
-            f"Using reusable HTTP session for {session_key} (IP: {session_data.get('ip_address')})"
-        )
-        return session_data["http_session"]
-
-    def _get_local_ctrl_security_ctx(self, node_id, port=8080):
-        """
-        Get the security context for a local control session.
-
-        Args:
-            node_id (str): Node ID (thing name)
-            port (int): Port number (default 8080 for local control)
-
-        Returns:
-            Security context or None if not established
-        """
-        session_key = f"{node_id}:{port}"
-        if session_key in self._local_ctrl_sessions:
-            return self._local_ctrl_sessions[session_key]["security_ctx"]
-        return None
-
     def _format_ip_for_url(self, ip_address):
         """
         Format an IP address for use in URLs.
@@ -438,15 +481,6 @@ class LocalController:
             return f"[{ip_address}]"
         else:  # IPv4
             return ip_address
-
-    def _globalize_session_cookies(self, session):
-        """
-        Apply all the session cookies to the entire session.
-        """
-        for cookie in session.cookies:
-            if cookie.name == "session":
-                self._log(f"Setting session cookie for all requests: {cookie.value}")
-                cookie.path = "/"
 
     def establish_session(
         self,
@@ -487,188 +521,132 @@ class LocalController:
             )
             if not session_data:
                 return False
-            ip_address = session_data.get("ip_address")
-            service_port = session_data.get("mdns_port")
-            formatted_ip = self._format_ip_for_url(ip_address)
-            base_url = f"http://{formatted_ip}:{service_port}"
-            session = session_data.get("http_session")
-            if session is None:
+            transport = session_data.get("transport")
+            if transport is None:
                 return False
 
-            sec_patch_ver = 0
-            if sec_version is None:
-                self._log(f"Checking version endpoint for {node_id}...")
-                version_url = f"{base_url}/rmaker_local_ctrl/version"
-                try:
-                    version_response = session.post(
-                        version_url, timeout=10, data=b"none"
-                    )
-                    if version_response.status_code != 200:
-                        self._log(
-                            f"Failed to get version: {version_response.status_code}"
-                        )
-                        return False
-
-                    version_data = version_response.json()
-                    local_ctrl_info = version_data.get("rmaker_local_ctrl", {})
-                    sec_ver = local_ctrl_info.get("sec_ver", 0)
-                    sec_patch_ver = local_ctrl_info.get("sec_patch_ver", 0)
-                    self._log(
-                        f"Detected security version: {sec_ver}, patch: {sec_patch_ver}"
-                    )
-                except Exception as e:
-                    self._log(f"Error checking version endpoint: {e}")
-                    return False
-            else:
-                sec_ver = sec_version
-                self._log(
-                    f"Using security version from caller (not version endpoint): {sec_ver}"
-                )
-
-            print(f"Session ID: {session.cookies.get_dict().get('session')}")
-
-            # Establish secure session for SEC1 / SEC2. Both require a PoP retrieved from the
-            # device shadow; SEC2 additionally requires the SRP6a username.
-            if sec_ver in (1, 2):
-                pop = None
-                if pop_retrieval_fn is not None:
-                    pop = pop_retrieval_fn()
-
-                username = None
-                if sec_ver == 2:
-                    if username_retrieval_fn is None:
-                        self._log(
-                            "SEC2 requires username_retrieval_fn but none was provided"
-                        )
-                        return False
-                    username = username_retrieval_fn()
-                    if not username:
-                        self._log("SEC2 username retrieval returned empty value")
-                        return False
-
-                self._log(
-                    f"Performing SEC{sec_ver} handshake for {node_id} "
-                    f"(PoP {'provided' if pop else 'not provided'}"
-                    + (f", username='{username}'" if sec_ver == 2 else "")
-                    + ")"
-                )
-
-                import sys
-                from pathlib import Path
-
-                from util.github_sync import (
-                    get_github_archive_repo_root,
-                    materialize_github_folder,
-                )
-                from util.github_deps import (
-                    ESP_IDF_REF,
-                    ESP_IDF_REPO_URL,
-                    IDF_EXTRA_COMPONENTS_REF,
-                    IDF_EXTRA_COMPONENTS_REPO_URL,
-                    NETWORK_PROVISIONING_REL,
-                )
-
-                # idf-extra-components esp_prov/proto loads protocomm *_pb2 via os.environ["IDF_PATH"].
-                prev_idf_path = os.environ.get("IDF_PATH")
-                paths_added: list[str] = []
-                try:
-                    idf_root = get_github_archive_repo_root(
-                        ESP_IDF_REPO_URL, ESP_IDF_REF
-                    )
-                    os.environ["IDF_PATH"] = str(idf_root)
-
-                    np_root = materialize_github_folder(
-                        IDF_EXTRA_COMPONENTS_REPO_URL,
-                        IDF_EXTRA_COMPONENTS_REF,
-                        NETWORK_PROVISIONING_REL,
-                    )
-                    esp_prov_dir = (Path(np_root) / "tool" / "esp_prov").resolve()
-                    esp_prov_s = str(esp_prov_dir)
-                    paths_added.append(esp_prov_s)
-                    if esp_prov_s not in sys.path:
-                        sys.path.insert(0, esp_prov_s)
-
-                    import security
-
-                except Exception as e:
-                    for p in reversed(paths_added):
-                        if p in sys.path:
-                            sys.path.remove(p)
-                    if prev_idf_path is not None:
-                        os.environ["IDF_PATH"] = prev_idf_path
-                    else:
-                        os.environ.pop("IDF_PATH", None)
-                    if isinstance(e, ImportError):
-                        raise RuntimeError(
-                            f"Failed to import ESP-IDF security modules from GitHub (esp_prov / protocomm): {e}"
-                        ) from e
-                    raise
-
-                try:
-                    if sec_ver == 1:
-                        # Security1 expects a string PoP. Empty PoP allowed when device doesn't require it.
-                        sec = security.Security1(pop or "", False)
-                    else:
-                        # Security2 expects (sec_patch_ver, username, password, verbose). PoP is reused as the SRP password.
-                        sec = security.Security2(
-                            sec_patch_ver, username, pop or "", False
-                        )
-
-                    # Perform the session establishment loop (same as esp_local_ctrl.py)
-                    response_data = None
-                    while True:
-                        request = sec.security_session(response_data)
-                        if request is None:
-                            break
-
-                        # Convert the latin-1 string to bytes (same as ESP transport does)
-                        request_bytes = (
-                            request.encode("latin-1")
-                            if isinstance(request, str)
-                            else request
-                        )
-
-                        init_url = f"{base_url}/rmaker_local_ctrl/session"
-                        response = session.post(
-                            init_url, data=request_bytes, timeout=10
-                        )
-                        if response.status_code != 200:
-                            self._log(f"Session request failed: {response.status_code}")
-                            return False
-
-                        # Convert response bytes to latin-1 string for Security1/2
-                        response_data = response.content.decode("latin-1")
-
-                    # Store the security context for this session
-                    self._local_ctrl_sessions[session_key]["security_ctx"] = sec
-                    self._log(
-                        f"SEC{sec_ver} handshake completed successfully for {node_id}"
-                    )
-                    self._globalize_session_cookies(session)
-                    return True
-
-                finally:
-                    for p in reversed(paths_added):
-                        if p in sys.path:
-                            sys.path.remove(p)
-                    if prev_idf_path is not None:
-                        os.environ["IDF_PATH"] = prev_idf_path
-                    else:
-                        os.environ.pop("IDF_PATH", None)
-            elif sec_ver == 0:
-                # For SEC0 (unsecured), just mark session as established
-                self._log(f"Using unsecured session (SEC0) for {node_id}")
-                self._globalize_session_cookies(session)
-                return True
-            else:
-                self._log(f"Unsupported security version: {sec_ver}")
-                return False
+            return self._run_security_handshake(
+                node_id=node_id,
+                session_key=session_key,
+                transport=transport,
+                pop_retrieval_fn=pop_retrieval_fn,
+                username_retrieval_fn=username_retrieval_fn,
+                sec_version=sec_version,
+            )
 
         except Exception as e:
             self._log(f"Session establishment failed: {str(e)}")
             return False
 
-    def _get_data_via_endpoint(self, node_id, port, endpoint, data_type, security_ctx):
+    def _run_security_handshake(
+        self,
+        node_id,
+        session_key,
+        transport,
+        pop_retrieval_fn=None,
+        username_retrieval_fn=None,
+        sec_version=None,
+        sec_patch_version=None,
+    ):
+        """
+        Run the protocomm session-security handshake over the given transport.
+
+        Args:
+            sec_version (int | None): Security version. If None, read the transport's
+                version endpoint.
+            sec_patch_version (int | None): Patch version to pair with sec_version.
+
+        Returns:
+            bool: True if the session was established
+        """
+        sec_patch_ver = sec_patch_version or 0
+        if sec_version is None:
+            self._log(f"Checking version endpoint for {node_id}...")
+            version_info = transport.read_version_info()
+            if version_info is None:
+                self._log("Failed to read the version endpoint")
+                return False
+            sec_ver = version_info["sec_ver"]
+            sec_patch_ver = version_info["sec_patch_ver"]
+            self._log(f"Detected security version: {sec_ver}, patch: {sec_patch_ver}")
+        else:
+            sec_ver = sec_version
+            self._log(
+                f"Using security version from caller (not version endpoint): {sec_ver}"
+            )
+
+        if sec_ver == 0:
+            self._log(f"Using unsecured session (SEC0) for {node_id}")
+            self._finish_session(session_key, transport, None)
+            return True
+
+        if sec_ver not in (1, 2):
+            self._log(f"Unsupported security version: {sec_ver}")
+            return False
+
+        # SEC1 and SEC2 both need a PoP; SEC2 additionally needs the SRP6a username.
+        pop = pop_retrieval_fn() if pop_retrieval_fn is not None else None
+
+        username = None
+        if sec_ver == 2:
+            if username_retrieval_fn is None:
+                self._log("SEC2 requires username_retrieval_fn but none was provided")
+                return False
+            username = username_retrieval_fn()
+            if not username:
+                self._log("SEC2 username retrieval returned empty value")
+                return False
+
+        self._log(
+            f"Performing SEC{sec_ver} handshake for {node_id} "
+            f"(PoP {'provided' if pop else 'not provided'}"
+            + (f", username='{username}'" if sec_ver == 2 else "")
+            + ")"
+        )
+
+        security, _transport_mod = import_esp_prov()
+        if sec_ver == 1:
+            # Security1 accepts an empty PoP when the device does not require one.
+            sec = security.Security1(pop or "", False)
+        else:
+            # PoP is reused as the SRP6a password.
+            sec = security.Security2(sec_patch_ver, username, pop or "", False)
+
+        response_data = None
+        while True:
+            request = sec.security_session(response_data)
+            if request is None:
+                break
+            request_bytes = (
+                request.encode("latin-1") if isinstance(request, str) else request
+            )
+            response = transport.request(transport.session_endpoint, request_bytes)
+            if response is None:
+                self._log("Session request failed")
+                return False
+            response_data = response.decode("latin-1")
+
+        self._finish_session(session_key, transport, sec)
+        self._log(f"SEC{sec_ver} handshake completed successfully for {node_id}")
+        return True
+
+    def _finish_session(self, session_key, transport, security_ctx):
+        """Store the security context and apply any transport-specific session state."""
+        if session_key in self._local_ctrl_sessions:
+            self._local_ctrl_sessions[session_key]["security_ctx"] = security_ctx
+        globalize = getattr(transport, "globalize_session_cookies", None)
+        if globalize is not None:
+            globalize()
+
+    def _get_data_via_endpoint(
+        self,
+        node_id,
+        session_key,
+        endpoint,
+        data_type,
+        security_ctx,
+        params_filter=None,
+    ):
         """
         Fetch params/config through the endpoint protocol's client-pull
         fragmentation loop. Returns the assembled bytes or None on failure.
@@ -676,9 +654,11 @@ class LocalController:
         assembled = bytearray()
         offset = 0
         while True:
-            cmd = self._local_ctrl_manager.cmd_get_data(data_type, offset, security_ctx)
+            cmd = self._local_ctrl_manager.cmd_get_data(
+                data_type, offset, security_ctx, params_filter
+            )
             response_data = self._send_endpoint_request(
-                node_id, port, cmd, endpoint, LOCAL_CTRL_SERVICE_NAME
+                node_id, session_key, cmd, endpoint
             )
             if response_data is None:
                 return None
@@ -706,174 +686,123 @@ class LocalController:
     def _send_endpoint_request(
         self,
         node_id,
-        port,
+        session_key,
         protobuf_message,
         endpoint,
         capability=CAPABILITY_LOCAL_CTRL,
     ):
         """
-        Send a protobuf message to the given endpoint using a reusable session.
+        Send a protobuf message to the given endpoint over the session's transport.
 
         Args:
             node_id (str): Node ID (thing name)
-            port (int): Port number
-            protobuf_message (str): Serialized protobuf message as latin-1 string
-            endpoint (str): HTTP endpoint path without leading slash
+            session_key (str): Key into the session table
+            protobuf_message (str | bytes): Serialized message as a latin-1 string
+            endpoint (str): Endpoint name
 
         Returns:
-            bytes: Response protobuf message or None if failed
+            bytes: Response message or None if failed
         """
         try:
-            session_key = f"{node_id}:{port}"
             session_data = self._local_ctrl_sessions.get(session_key)
-            if (
-                not session_data
-                or session_data.get("mdns_service_type") != LOCAL_CTRL_SERVICE_NAME
-            ):
-                session_key, session_data = self._get_or_resolve_service_session(
-                    node_id=node_id,
-                    capability=capability,
-                    protocol="tcp",
-                )
-            if not session_data:
-                self._log(
-                    f"No mDNS session metadata available for node={node_id}, capability={capability}"
-                )
-                return None
-            ip_address = session_data.get("ip_address")
-            service_port = session_data.get("mdns_port")
-            session = session_data.get("http_session")
-            if session is None or not ip_address or service_port is None:
-                self._log(
-                    f"Incomplete mDNS session metadata for {session_key}: "
-                    f"ip={ip_address}, port={service_port}, session={'yes' if session else 'no'}"
-                )
+            if not session_data or session_data.get("transport") is None:
+                self._log(f"No session available for node={node_id}, key={session_key}")
                 return None
 
-            self._log(
-                f"Using HTTP session key={session_key}, capability={capability}, "
-                f"session_id={id(session)}, ip={ip_address}, port={service_port}"
-            )
-
-            # Convert latin-1 string back to bytes for HTTP transport
             message_bytes = (
                 protobuf_message.encode("latin-1")
                 if isinstance(protobuf_message, str)
                 else protobuf_message
             )
-
-            formatted_ip = self._format_ip_for_url(ip_address)
-            url = f"http://{formatted_ip}:{service_port}/{endpoint}"
-            headers = {
-                "Content-Type": "application/octet-stream",
-                "Content-Length": str(len(message_bytes)),
-            }
-
-            self._log(f"Sending request to {url}")
             self._log_bytes("Request data", message_bytes)
 
+            transport = session_data["transport"]
             try:
-                response = session.post(
-                    url, data=message_bytes, headers=headers, timeout=10
-                )
-            except requests.RequestException as req_err:
+                response = transport.request(endpoint, message_bytes)
+            except TransportError as err:
+                if session_data.get("mdns_protocol") != PROTOCOL_TCP:
+                    self._log(f"Transport error for {node_id} ({capability}): {err}")
+                    return None
+                # Only mDNS sessions can be re-resolved and retried in place.
                 self._log(
-                    f"Request failed for {node_id} ({capability}): {req_err}; refreshing session"
+                    f"Request failed for {node_id} ({capability}): {err}; refreshing session"
                 )
-                try:
-                    session.close()
-                except Exception:
-                    pass
-                session_key, session_data = self._get_or_resolve_service_session(
+                transport.close()
+                _key, session_data = self._get_or_resolve_service_session(
                     node_id=node_id,
                     capability=capability,
-                    protocol="tcp",
+                    protocol=PROTOCOL_TCP,
                     force_refresh=True,
                 )
-                if not session_data:
+                if not session_data or session_data.get("transport") is None:
                     return None
-                session = session_data.get("http_session")
-                ip_address = session_data.get("ip_address")
-                service_port = session_data.get("mdns_port")
-                if session is None or not ip_address or service_port is None:
+                try:
+                    response = session_data["transport"].request(
+                        endpoint, message_bytes
+                    )
+                except TransportError as retry_err:
+                    self._log(f"Retry failed for {node_id}: {retry_err}")
                     return None
-                formatted_ip = self._format_ip_for_url(ip_address)
-                url = f"http://{formatted_ip}:{service_port}/{endpoint}"
-                response = session.post(
-                    url, data=message_bytes, headers=headers, timeout=10
-                )
 
-            self._log(f"Response status: {response.status_code}")
-            self._log_bytes("Response data", response.content)
-
-            if response.status_code == 200:
-                return response.content
-            else:
-                self._log(
-                    f"Local control request failed with status {response.status_code}: {response.text}"
-                )
-                return None
+            if response is not None:
+                self._log_bytes("Response data", response)
+            return response
 
         except Exception as e:
             self._log(f"Error sending local control request: {str(e)}")
             return None
 
-    def _discover_chal_resp_service(self, node_id, timeout=5):
-        """
-        Discover the node's local endpoints service and check its `cap` TXT
-        record for the ch_resp capability (single `_esp_rmaker_ctrl`
-        advertisement; security details come from the version endpoint).
-        """
-        try:
-            service = self.resolve_mdns_service(
-                node_id, LOCAL_CTRL_SERVICE_NAME, "tcp", timeout=timeout
-            )
-            if not service or not service.get("ip") or service.get("port") is None:
-                return None
-            txt = service.get("txt_records", {})
-            caps = [c.strip() for c in txt.get("cap", "").split(",") if c.strip()]
-            if CHAL_RESP_ENDPOINT not in caps:
-                self._log(f"Node {node_id} does not advertise the ch_resp capability")
-                return None
-            self._upsert_session_from_service(
-                node_id, LOCAL_CTRL_SERVICE_NAME, "tcp", service
-            )
-            return {
-                "ip": service.get("ip"),
-                "txt_records": txt,
-                "port": service.get("port"),
-            }
-        except Exception as e:
-            self._log(
-                f"Error discovering challenge-response capability for {node_id}: {e}"
-            )
-            return None
+    def _protocol_for(self, node_id, capability):
+        """Return the transport protocol cached for a node's capability."""
+        state = self.get_cached_node_state(node_id) or {}
+        return state.get(capability, {}).get("protocol", PROTOCOL_TCP)
 
-    def _ensure_chal_resp_session(
+    def _session_for_capability(self, node_id, capability):
+        """
+        Resolve the session serving a capability, without establishing security.
+
+        Returns:
+            tuple[str | None, dict | None]: (session_key, session_data)
+        """
+        return self._get_or_resolve_service_session(
+            node_id=node_id,
+            capability=capability,
+            protocol=self._protocol_for(node_id, capability),
+        )
+
+    def _ensure_capability_session(
         self,
         node_id,
-        port,
+        capability,
         pop_retrieval_fn=None,
         username_retrieval_fn=None,
     ):
         """
-        Ensure a session/security context exists for the node's local endpoints
-        service (security version is read from the version endpoint).
-        """
-        session_key = f"{node_id}:{port}"
-        if (
-            session_key in self._local_ctrl_sessions
-            and self._local_ctrl_sessions[session_key].get("security_ctx") is not None
-        ):
-            return True
+        Resolve a session offering the capability and establish its security
+        context if it does not have one yet.
 
-        return self.establish_session(
-            node_id=node_id,
-            pop_retrieval_fn=pop_retrieval_fn,
-            capability=CAPABILITY_LOCAL_CTRL,
-            protocol="tcp",
-            username_retrieval_fn=username_retrieval_fn,
-        )
+        Returns:
+            tuple[str | None, Any]: (session_key, security_ctx)
+        """
+        session_key, session_data = self._session_for_capability(node_id, capability)
+        if not session_data:
+            self._log(f"Node {node_id} does not offer the {capability} capability")
+            return None, None
+
+        if session_data.get("security_ctx") is None:
+            if not self.establish_session(
+                node_id=node_id,
+                pop_retrieval_fn=pop_retrieval_fn,
+                capability=capability,
+                protocol=self._protocol_for(node_id, capability),
+                username_retrieval_fn=username_retrieval_fn,
+            ):
+                return None, None
+            session_data = self._local_ctrl_sessions.get(session_key)
+            if not session_data:
+                return None, None
+
+        return session_key, session_data.get("security_ctx")
 
     def challenge_response(
         self,
@@ -884,29 +813,24 @@ class LocalController:
         username_retrieval_fn=None,
     ):
         """
-        Send a challenge-response command to /ch_resp endpoint.
+        Send a challenge-response command to the ch_resp endpoint.
         """
         try:
-            service = self._discover_chal_resp_service(node_id)
-            if not service:
+            session_key, security_ctx = self._ensure_capability_session(
+                node_id,
+                CAPABILITY_CHAL_RESP,
+                pop_retrieval_fn,
+                username_retrieval_fn,
+            )
+            if session_key is None:
                 self._log(f"Challenge-response service not found for node {node_id}")
                 return None
 
-            service_port = service["port"]
-            if not self._ensure_chal_resp_session(
-                node_id,
-                service_port,
-                pop_retrieval_fn,
-                username_retrieval_fn,
-            ):
-                return None
-
-            security_ctx = self._get_local_ctrl_security_ctx(node_id, service_port)
             req = self._chal_resp_manager.challenge_response(
                 challenge_payload, security_ctx
             )
             response_data = self._send_endpoint_request(
-                node_id, service_port, req, CHAL_RESP_ENDPOINT, LOCAL_CTRL_SERVICE_NAME
+                node_id, session_key, req, CHAL_RESP_ENDPOINT, CAPABILITY_CHAL_RESP
             )
             if not response_data:
                 return None
@@ -928,24 +852,23 @@ class LocalController:
         username_retrieval_fn=None,
     ):
         """
-        Fetch node ID from challenge-response endpoint.
+        Fetch node ID from the challenge-response endpoint.
+
+        @note The device does not implement this command; it is kept for
+        protocol completeness.
         """
         try:
-            service = self._discover_chal_resp_service(node_id)
-            if not service:
-                return None
-            service_port = service["port"]
-            if not self._ensure_chal_resp_session(
+            session_key, security_ctx = self._ensure_capability_session(
                 node_id,
-                service_port,
+                CAPABILITY_CHAL_RESP,
                 pop_retrieval_fn,
                 username_retrieval_fn,
-            ):
+            )
+            if session_key is None:
                 return None
-            security_ctx = self._get_local_ctrl_security_ctx(node_id, service_port)
             req = self._chal_resp_manager.get_node_id(security_ctx)
             response_data = self._send_endpoint_request(
-                node_id, service_port, req, CHAL_RESP_ENDPOINT, LOCAL_CTRL_SERVICE_NAME
+                node_id, session_key, req, CHAL_RESP_ENDPOINT, CAPABILITY_CHAL_RESP
             )
             if not response_data:
                 return None
@@ -967,24 +890,20 @@ class LocalController:
         username_retrieval_fn=None,
     ):
         """
-        Disable challenge-response via /ch_resp endpoint.
+        Disable challenge-response via the ch_resp endpoint.
         """
         try:
-            service = self._discover_chal_resp_service(node_id)
-            if not service:
-                return None
-            service_port = service["port"]
-            if not self._ensure_chal_resp_session(
+            session_key, security_ctx = self._ensure_capability_session(
                 node_id,
-                service_port,
+                CAPABILITY_CHAL_RESP,
                 pop_retrieval_fn,
                 username_retrieval_fn,
-            ):
+            )
+            if session_key is None:
                 return None
-            security_ctx = self._get_local_ctrl_security_ctx(node_id, service_port)
             req = self._chal_resp_manager.disable(security_ctx)
             response_data = self._send_endpoint_request(
-                node_id, service_port, req, CHAL_RESP_ENDPOINT, LOCAL_CTRL_SERVICE_NAME
+                node_id, session_key, req, CHAL_RESP_ENDPOINT, CAPABILITY_CHAL_RESP
             )
             if not response_data:
                 return None
@@ -998,6 +917,41 @@ class LocalController:
             self._log(f"Error disabling challenge-response for {node_id}: {e}")
             return None
 
+    def _get_node_data(self, node_id, endpoint, data_type, params_filter=None):
+        """
+        Read params or config via local control.
+
+        Returns:
+            GetResponse: Response holding the data, or None on failure
+        """
+        try:
+            session_key, session_data = self._session_for_capability(
+                node_id, CAPABILITY_LOCAL_CTRL
+            )
+            if not session_data:
+                self._log(
+                    f"No active session for {node_id}. Use 'local_ctrl connect' first."
+                )
+                return None
+
+            data = self._get_data_via_endpoint(
+                node_id,
+                session_key,
+                endpoint,
+                data_type,
+                session_data.get("security_ctx"),
+                params_filter,
+            )
+            if data is not None:
+                self._log(f"Successfully got node {data_type} for {node_id}")
+                return GetResponse(status=Status.Success, name=data_type, value=data)
+            self._log(f"Failed to get node {data_type} for {node_id}")
+
+        except Exception as e:
+            self._log(f"Error getting node {data_type}: {str(e)}")
+
+        return None
+
     def get_node_config(self, node_id):
         """
         Get node configuration via local control.
@@ -1007,64 +961,20 @@ class LocalController:
         Returns:
             GetResponse: Response containing node config or None if failed or no session
         """
-        try:
-            session_key, session_data = self._get_or_resolve_service_session(
-                node_id, LOCAL_CTRL_SERVICE_NAME, "tcp"
-            )
-            if not session_data:
-                self._log(
-                    f"No active session for {node_id}. Use 'local_ctrl connect' first."
-                )
-                return None
-            service_port = session_data.get("mdns_port")
+        return self._get_node_data(node_id, "get_config", "config")
 
-            security_ctx = self._local_ctrl_sessions[session_key].get("security_ctx")
-            data = self._get_data_via_endpoint(
-                node_id, service_port, "get_config", "config", security_ctx
-            )
-            if data is not None:
-                self._log(f"Successfully got node config for {node_id}")
-                return GetResponse(status=Status.Success, name="config", value=data)
-            self._log(f"Failed to get node config for {node_id}")
-
-        except Exception as e:
-            self._log(f"Error getting node config: {str(e)}")
-
-        return None
-
-    def get_node_params(self, node_id):
+    def get_node_params(self, node_id, params_filter=None):
         """
         Get node parameters via local control.
 
         Args:
             node_id (str): Node ID (thing name)
+            params_filter (bytes | None): Optional ParamsFilter JSON, for example
+                b'{"params":{"light":["power"]}}'
         Returns:
             GetResponse: Response containing node params or None if failed or no session
         """
-        try:
-            session_key, session_data = self._get_or_resolve_service_session(
-                node_id, LOCAL_CTRL_SERVICE_NAME, "tcp"
-            )
-            if not session_data:
-                self._log(
-                    f"No active session for {node_id}. Use 'local_ctrl connect' first."
-                )
-                return None
-            service_port = session_data.get("mdns_port")
-
-            security_ctx = self._local_ctrl_sessions[session_key].get("security_ctx")
-            data = self._get_data_via_endpoint(
-                node_id, service_port, "get_params", "params", security_ctx
-            )
-            if data is not None:
-                self._log(f"Successfully got node params for {node_id}")
-                return GetResponse(status=Status.Success, name="params", value=data)
-            self._log(f"Failed to get node params for {node_id}")
-
-        except Exception as e:
-            self._log(f"Error getting node params: {str(e)}")
-
-        return None
+        return self._get_node_data(node_id, "get_params", "params", params_filter)
 
     def set_node_params(self, node_id, params_data):
         """
@@ -1077,22 +987,21 @@ class LocalController:
             SetResponse: Response indicating success/failure or None if failed or no session
         """
         try:
-            session_key, session_data = self._get_or_resolve_service_session(
-                node_id, LOCAL_CTRL_SERVICE_NAME, "tcp"
+            session_key, session_data = self._session_for_capability(
+                node_id, CAPABILITY_LOCAL_CTRL
             )
             if not session_data:
                 self._log(
                     f"No active session for {node_id}. Use 'local_ctrl connect' first."
                 )
                 return None
-            service_port = session_data.get("mdns_port")
 
-            security_ctx = self._local_ctrl_sessions[session_key].get("security_ctx")
+            security_ctx = session_data.get("security_ctx")
             set_msg = self._local_ctrl_manager.cmd_set_params(
                 json.dumps(params_data).encode("utf-8"), security_ctx
             )
             response_data = self._send_endpoint_request(
-                node_id, service_port, set_msg, "set_params", LOCAL_CTRL_SERVICE_NAME
+                node_id, session_key, set_msg, "set_params", CAPABILITY_LOCAL_CTRL
             )
             if response_data:
                 response = self._local_ctrl_manager.parse_set_params_response(
@@ -1122,20 +1031,19 @@ class LocalController:
             bytes: Decrypted response payload, or None if the request failed or no session
         """
         try:
-            session_key, session_data = self._get_or_resolve_service_session(
-                node_id, LOCAL_CTRL_SERVICE_NAME, "tcp"
+            session_key, session_data = self._session_for_capability(
+                node_id, CAPABILITY_LOCAL_CTRL
             )
             if not session_data:
                 self._log(
                     f"No active session for {node_id}. Use 'local_ctrl connect' first."
                 )
                 return None
-            service_port = session_data.get("mdns_port")
 
-            security_ctx = self._local_ctrl_sessions[session_key].get("security_ctx")
+            security_ctx = session_data.get("security_ctx")
             request = security_ctx.encrypt_data(data) if security_ctx else data
             response_data = self._send_endpoint_request(
-                node_id, service_port, request, endpoint, LOCAL_CTRL_SERVICE_NAME
+                node_id, session_key, request, endpoint, CAPABILITY_LOCAL_CTRL
             )
             if response_data is None:
                 self._log(f"No response from endpoint {endpoint} on {node_id}")
@@ -1151,19 +1059,35 @@ class LocalController:
 
         return None
 
+    def _close_session(self, session_key):
+        """Close one session's transport and forget the session and its node state."""
+        session_data = self._local_ctrl_sessions.pop(session_key, None)
+        if session_data is None:
+            return
+        self._node_service_state.pop(session_key.rsplit(":", 1)[0], None)
+        transport = session_data.get("transport")
+        if transport is not None:
+            try:
+                transport.close()
+                self._log(f"Closed transport for {session_key}")
+            except Exception as e:
+                self._log(f"Error closing session for {session_key}: {e}")
+
     def close_sessions(self):
         """
-        Close all local control HTTP sessions.
+        Close all local control sessions.
 
         This should be called when done with local control operations
         to free up resources.
         """
-        # Close all HTTP sessions
+        # Close every transport
         for session_key, session_data in self._local_ctrl_sessions.items():
-            session = session_data["http_session"]
+            transport = session_data.get("transport")
+            if transport is None:
+                continue
             try:
-                session.close()
-                self._log(f"Closed HTTP session for {session_key}")
+                transport.close()
+                self._log(f"Closed transport for {session_key}")
             except Exception as e:
                 self._log(f"Error closing session for {session_key}: {e}")
         self._local_ctrl_sessions.clear()
