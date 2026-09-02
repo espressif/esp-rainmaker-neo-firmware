@@ -29,6 +29,7 @@
 /* Platform common includes. */
 #include "osal_mem_alloc.h"
 #include "osal_log.h"
+#include "osal_semaphore.h"
 
 /* RainMaker Neo includes. */
 #include "node_internal.h"
@@ -74,6 +75,10 @@ typedef struct {
  */
 static __local_ctrl_ep_data_t *__ep_data = NULL;
 
+/** Guards ::__ep_data: the handlers run on the transport task, the free on the caller's.
+ * Created once and kept, since a handler may be blocked on it while a service is torn down. */
+static osal_semaphore_handle_t __ep_lock = NULL;
+
 /* Private function definitions *******************************************************/
 
 /**
@@ -102,12 +107,19 @@ static esp_rmaker_error_t __send_error_response(const char *reason, uint8_t **ou
     return ESP_RMAKER_OK;
 }
 
+static void __ep_data_free_locked(void);
+
 /**
- * @brief (Re)generate the get-data cache for the given data type.
+ * @brief (Re)generate the get-data cache for the given data type. The caller holds ::__ep_lock.
  */
 static esp_rmaker_error_t __ep_data_init(__local_ctrl_ep_data_type_t data_type)
 {
-    esp_rmaker_local_ctrl_endpoints_free_data();
+    __ep_data_free_locked();
+
+    if (esp_rmaker_get_node() == NULL) {
+        OSAL_LOGE(TAG, "No node to serve; call esp_rmaker_node_init() first");
+        return ESP_RMAKER_INVALID_STATE;
+    }
 
     __ep_data = OSAL_CALLOC_EXTRAM(1, sizeof(__local_ctrl_ep_data_t));
     if (__ep_data == NULL) {
@@ -121,7 +133,7 @@ static esp_rmaker_error_t __ep_data_init(__local_ctrl_ep_data_type_t data_type)
                      data_model_node_get_node_params() : esp_rmaker_get_node_config();
     if (raw_data == NULL) {
         OSAL_LOGE(TAG, "Failed to get node %s", data_name);
-        esp_rmaker_local_ctrl_endpoints_free_data();
+        __ep_data_free_locked();
         return ESP_RMAKER_NO_MEM;
     }
 
@@ -157,6 +169,15 @@ static esp_rmaker_error_t __get_data_handler(const uint8_t *inbuf, ssize_t inlen
             OSAL_LOGE(TAG, "Failed to unpack message");
             return ESP_RMAKER_INVALID_ARG;
         }
+    }
+
+    /* Held through serialization: the response points into the cache. */
+    if (__ep_lock == NULL || osal_semaphore_take(__ep_lock, OSAL_MAX_DELAY) != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Get-data cache lock unavailable; call esp_rmaker_local_ctrl_endpoints_init() first");
+        if (msg != NULL) {
+            rmaker_local_ctrl__rmaker_local_ctrl_payload__free_unpacked(msg, NULL);
+        }
+        return ESP_RMAKER_INVALID_STATE;
     }
 
     /* Initialize response */
@@ -195,7 +216,9 @@ static esp_rmaker_error_t __get_data_handler(const uint8_t *inbuf, ssize_t inlen
         OSAL_LOGI(TAG, "Get %s handler: offset=%u", data_name, (unsigned) requested_offset);
         esp_rmaker_error_t err = __ep_data_init(data_type);
         if (err != ESP_RMAKER_OK) {
-            resp_get_data.status = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__NoMemory;
+            resp_get_data.status = (err == ESP_RMAKER_INVALID_STATE) ?
+                                   RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__Fail :
+                                   RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__NoMemory;
             goto send_response;
         }
     } else {
@@ -244,6 +267,7 @@ send_response:
     uint8_t *resp_buf = OSAL_MALLOC_EXTRAM(resp_len);
     if (resp_buf == NULL) {
         OSAL_LOGE(TAG, "Failed to allocate memory for response");
+        osal_semaphore_give(__ep_lock);
         return ESP_RMAKER_NO_MEM;
     }
     rmaker_local_ctrl__rmaker_local_ctrl_payload__pack(&response, resp_buf);
@@ -252,16 +276,18 @@ send_response:
 
     /* Free the cache AFTER serialization if this was the last fragment */
     if (is_last_fragment) {
-        esp_rmaker_local_ctrl_endpoints_free_data();
+        __ep_data_free_locked();
         OSAL_LOGI(TAG, "Get %s completed, data freed", data_name);
     }
 
+    osal_semaphore_give(__ep_lock);
     return ESP_RMAKER_OK;
 }
 
 /* Public function definitions *******************************************************/
 
-void esp_rmaker_local_ctrl_endpoints_free_data(void)
+/** Free the cache. The caller holds ::__ep_lock. */
+static void __ep_data_free_locked(void)
 {
     if (__ep_data != NULL) {
         if (__ep_data->data != NULL) {
@@ -270,6 +296,28 @@ void esp_rmaker_local_ctrl_endpoints_free_data(void)
         free(__ep_data);
         __ep_data = NULL;
     }
+}
+
+esp_rmaker_error_t esp_rmaker_local_ctrl_endpoints_init(void)
+{
+    if (__ep_lock == NULL) {
+        __ep_lock = osal_semaphore_create_mutex();
+        if (__ep_lock == NULL) {
+            OSAL_LOGE(TAG, "Failed to create the get-data cache lock");
+            return ESP_RMAKER_NO_MEM;
+        }
+    }
+    return ESP_RMAKER_OK;
+}
+
+void esp_rmaker_local_ctrl_endpoints_free_data(void)
+{
+    /* Without the lock no handler has ever run, so there is nothing cached. */
+    if (__ep_lock == NULL || osal_semaphore_take(__ep_lock, OSAL_MAX_DELAY) != OSAL_ERR_OK) {
+        return;
+    }
+    __ep_data_free_locked();
+    osal_semaphore_give(__ep_lock);
 }
 
 esp_rmaker_error_t esp_rmaker_local_ctrl_get_params_ep_handler(

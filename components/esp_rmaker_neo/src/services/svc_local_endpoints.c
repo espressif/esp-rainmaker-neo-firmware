@@ -978,7 +978,11 @@ static esp_rmaker_error_t __local_ctrl_start(void)
         return ESP_RMAKER_OK;
     }
 
-    esp_rmaker_error_t err = __core_start();
+    esp_rmaker_error_t err = esp_rmaker_local_ctrl_endpoints_init();
+    if (err != ESP_RMAKER_OK) {
+        return err;
+    }
+    err = __core_start();
     if (err != ESP_RMAKER_OK) {
         return err;
     }

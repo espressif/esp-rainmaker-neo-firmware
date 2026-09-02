@@ -46,6 +46,11 @@
 /* Challenge response includes */
 #include "chal_resp/impl.h"
 
+#if CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL
+/* Local control on the provisioning service */
+#include "local_ctrl/prov.h"
+#endif /* CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL */
+
 /* Time synchronization includes */
 #include "osal_timesync.h"
 
@@ -558,6 +563,16 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
     }
 #endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
 
+#if CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL
+    /* Registered after claim, so the existing provisioning endpoints keep their order */
+    OSAL_LOGD(TAG, "Initializing local control on the provisioning service...");
+    ret = esp_rmaker_prov_local_ctrl_init();
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to initialize local control on the provisioning service");
+        goto fail;
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL */
+
     /* Initialise checksum */
     OSAL_LOGD(TAG, "Initializing checksum...");
     ret = esp_rmaker_checksum_init();
@@ -853,6 +868,14 @@ static esp_rmaker_error_t esp_rmaker_deinit(void)
     esp_rmaker_claim_data_free(priv_data.claim_data);
     priv_data.claim_data = NULL;
 #endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
+
+#if CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL
+    step_err = esp_rmaker_prov_local_ctrl_deinit();
+    if (step_err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to de-initialize local control on the provisioning service");
+        err_out = ESP_RMAKER_FAIL;
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL */
 
     /* De-initialize challenge response */
     step_err = esp_rmaker_chal_resp_deinit();

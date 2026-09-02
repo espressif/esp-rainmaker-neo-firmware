@@ -121,6 +121,11 @@ if (CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG)
     list(APPEND RMNG_SRCS ${CMAKE_CURRENT_LIST_DIR}/src/network/cloud/server_config.c)
 endif ()
 
+# Local control on the provisioning service. Gated here, not in sources.cmake, for the same reason as the bridge.
+if (CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL)
+    list(APPEND RMNG_SRCS ${CMAKE_CURRENT_LIST_DIR}/src/local_ctrl/prov_local_ctrl.c)
+endif ()
+
 # ESP-IDF Platform ###
 if (ESP_PLATFORM)
 

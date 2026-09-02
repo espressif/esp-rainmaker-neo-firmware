@@ -372,6 +372,18 @@ menu "ESP RainMaker Neo Configuration"
                 the provisioning-time challenge-response endpoint is never registered and this
                 is the only route to user-node association.
 
+        config ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL
+            bool "Serve the local control endpoints on the provisioning service"
+            default n
+            help
+                Adds the get_params, set_params and get_config endpoints to the provisioning
+                service, next to ch_resp, and advertises the "local_ctrl" capability under
+                rmaker_extra. The endpoints speak the local control endpoint protocol.
+
+                The endpoints serve the node that esp_rmaker_node_init() registered. Until a
+                node exists they answer with status Fail, so initialise the node before the
+                provisioning service starts.
+
         choice ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY
             bool "Security version"
             default ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2

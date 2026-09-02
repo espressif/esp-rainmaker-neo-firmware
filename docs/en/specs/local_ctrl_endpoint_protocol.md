@@ -93,8 +93,10 @@ reset.
 ## BLE transport
 
 The endpoints are plain protocomm handlers, so the same messages run over
-protocomm's BLE GATT transport when a node serves them there. Only the
-addressing and the session/version endpoint names change:
+protocomm's BLE GATT transport when a node serves them there. A node does so with
+`CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL`, which adds the three endpoints to the
+provisioning service (see [provisioning](provisioning.md#local-control-endpoints)).
+Only the addressing and the session/version endpoint names change:
 
 | | HTTP | BLE |
 |---|---|---|

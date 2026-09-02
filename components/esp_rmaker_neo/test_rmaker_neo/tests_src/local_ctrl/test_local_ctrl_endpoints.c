@@ -54,6 +54,8 @@ static esp_rmaker_param_t *s_lc_param = NULL;
 /** Bring up a node with one writable param, so params/config JSON is non-trivial. */
 static void __lc_node_setup(void)
 {
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_local_ctrl_endpoints_init());
+
     /* The data model reports state changes through the event loop and the state
      * tracker, so both must exist before a node can be created. */
     osal_event_loop_create_default();
@@ -395,4 +397,22 @@ void test_local_ctrl_set_params_valid_json_succeeds(void)
     free(resp);
 
     __lc_node_teardown();
+}
+
+/** Before esp_rmaker_node_init() there is nothing to serve. That is a state error, and a
+ * client must be able to tell it from an allocation failure. */
+void test_local_ctrl_get_params_without_node_fails(void)
+{
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_local_ctrl_endpoints_init());
+    TEST_ASSERT_NULL(esp_rmaker_get_node());
+
+    esp_rmaker_error_t err = ESP_RMAKER_FAIL;
+    RmakerLocalCtrl__RMakerLocalCtrlPayload *resp = __lc_request(false, LC_TYPE_PARAMS, 0, &err);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, err);
+    TEST_ASSERT_NOT_NULL(resp);
+    TEST_ASSERT_NOT_NULL(resp->respgetdata);
+    TEST_ASSERT_EQUAL(LC_STATUS_FAIL, resp->respgetdata->status);
+    rmaker_local_ctrl__rmaker_local_ctrl_payload__free_unpacked(resp, NULL);
+
+    esp_rmaker_local_ctrl_endpoints_free_data();
 }

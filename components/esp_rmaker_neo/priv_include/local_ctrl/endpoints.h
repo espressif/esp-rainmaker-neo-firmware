@@ -33,6 +33,15 @@ extern "C" {
 #define RMAKER_LOCAL_CTRL_GET_CONFIG_ENDPOINT "get_config"
 
 /**
+ * @brief Create the lock that guards the get-data cache. Idempotent.
+ *
+ * @note Call before a transport can invoke the handlers. The handlers run on the transport
+ *       task and ::esp_rmaker_local_ctrl_endpoints_free_data on the caller's, so the cache
+ *       needs the lock; without it the get handlers answer `Fail`.
+ */
+esp_rmaker_error_t esp_rmaker_local_ctrl_endpoints_init(void);
+
+/**
  * @brief get_params endpoint handler (protobuf request/response, fragmented).
  */
 esp_rmaker_error_t esp_rmaker_local_ctrl_get_params_ep_handler(
@@ -59,7 +68,8 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_set_params_ep_handler(
 /**
  * @brief Free the cached (fragmented) get-data payload, if any.
  *
- * Call on service stop/teardown; safe to call when nothing is cached.
+ * Call on service stop/teardown; safe to call when nothing is cached, and safe against a
+ * handler running on another task.
  */
 void esp_rmaker_local_ctrl_endpoints_free_data(void);
 
