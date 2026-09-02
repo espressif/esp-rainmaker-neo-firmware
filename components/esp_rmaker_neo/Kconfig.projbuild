@@ -16,6 +16,7 @@ menu "ESP RainMaker Neo Configuration"
             default n
             select OSAL_USING_VIRTUAL_SCHEDULER
             select OSAL_MQTT_TEST_HOOKS
+            select OSAL_TIMESYNC_TEST_HOOKS
             select ESP_RMAKER_NEO_AWS_SIGN_PORT
             help
                 If set to true, then ESP RainMaker Neo testing is enabled.
@@ -135,6 +136,53 @@ menu "ESP RainMaker Neo Configuration"
                 If the queue is full, then the incoming data is dropped.
                 You should increase this value if you expect timeseries data to be generated at a higher rate
                 than the publish delay, or if you expect the network to be unreliable.
+
+    endmenu
+
+    menu "Time Service"
+
+        config ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM
+            bool "Add Timestamp param to the Time service"
+            default n
+            help
+                Add an int64 `Timestamp` parameter to the Time service. A write of an epoch
+                time (seconds since 1970-01-01) sets the local clock of the node, and the node
+                reports back the clock reading after the write.
+
+                Use this on nodes that cannot reach a time server, for example nodes under
+                local control only. When the clock owner already set the clock, the node
+                ignores the write and reports its own clock.
+
+        choice ESP_RMAKER_NEO_TIME_CLOCK_OWNER
+            prompt "Clock owner for Timestamp writes"
+            depends on ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM
+            default ESP_RMAKER_NEO_TIME_CLOCK_OWNER_SDK
+            help
+                The clock owner is the time source that a Timestamp write must not override.
+                A write is a coarse time, so the node ignores it after the owner sets the clock.
+
+            config ESP_RMAKER_NEO_TIME_CLOCK_OWNER_SDK
+                bool "SDK SNTP, or no time source"
+                help
+                    Select this when the SDK runs SNTP (`enable_time_sync` is true), or when the
+                    node has no time source. A write applies until the SDK SNTP client gets a time.
+
+                    Do not call `sntp_set_time_sync_notification_cb()` in the app. It replaces
+                    the SDK callback that finds the first sync.
+
+            config ESP_RMAKER_NEO_TIME_CLOCK_OWNER_EXTERNAL
+                bool "A time source outside the SDK"
+                help
+                    Select this when the app, not the SDK, gets the time. For example, the app
+                    runs its own SNTP client or reads a GPS or RTC chip, or the OS runs NTP.
+
+                    The SDK cannot see when that source syncs. So a write applies only while
+                    the clock is not valid, and the node ignores all writes after that.
+
+                    On POSIX and the ESP-IDF linux target, the SDK runs no SNTP. Pick this
+                    there when the host runs NTP.
+
+        endchoice
 
     endmenu
 

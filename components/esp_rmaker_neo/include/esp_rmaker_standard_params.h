@@ -13,6 +13,7 @@
 #define __ESP_RMAKER_STANDARD_PARAMS_H__
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "esp_rmaker_data_model.h"
 
 /**
@@ -224,6 +225,19 @@ esp_rmaker_param_t *esp_rmaker_speed_param_create(const char *param_id, int val)
  * @return NULL in case of failures.
  */
 esp_rmaker_param_t *esp_rmaker_temperature_param_create(const char *param_id, float val);
+
+/**
+ * @brief Create standard Timestamp param
+ *
+ * This will create the standard int64 timestamp parameter, in epoch seconds.
+ *
+ * @param[in] param_id Id of the parameter
+ * @param[in] val Default Value of the parameter
+ *
+ * @return Parameter handle on success.
+ * @return NULL in case of failures.
+ */
+esp_rmaker_param_t *esp_rmaker_timestamp_param_create(const char *param_id, int64_t val);
 
 #ifdef __cplusplus
 }

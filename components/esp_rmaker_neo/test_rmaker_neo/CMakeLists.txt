@@ -37,6 +37,7 @@ set(TEST_ESP_RMAKER_NEO_SRCS
     "tests_src/services/test_schedules.c"
     "tests_src/services/test_schedule_port.c"
     "tests_src/services/test_automation.c"
+    "tests_src/services/test_time_timestamp.c"
     # Test suite
     "test_all.c"
 )
@@ -44,6 +45,7 @@ set(TEST_ESP_RMAKER_NEO_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}" ${RMNG_DATA_MOD
 set(TEST_ESP_RMAKER_NEO_PRIV_INCLUDE_DIRS
     ${RMNG_PRIV_INCLUDE_DIRS} ${RMNG_DATA_MODEL_PRIV_INCLUDE_DIRS} ${RMNG_PRIV_STUB_HOST_CTRL_INCLUDE_DIR}
     ${RMNG_SRC_DIR} # Allow access to internal RainMaker Neo sources for testing
+    "${CMAKE_CURRENT_LIST_DIR}/../../osal/timesync/priv_include" # osal_timesync_test_hooks.h
 )
 set(TEST_ESP_RMAKER_NEO_PRIV_REQUIRES ${RMNG_NAME} ${RMNG_PRIV_REQUIRES})
 

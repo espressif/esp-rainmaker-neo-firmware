@@ -711,6 +711,23 @@ void test_notify_send_push_routes_by_update_id(void);
  */
 void test_notify_param_update_and_notify_publishes_push(void);
 
+/* Time service Timestamp ********************************************************/
+
+/**
+ * @brief Test that the Timestamp param starts at 0 and rejects invalid writes.
+ */
+void test_time_timestamp_param_rejects_invalid(void);
+
+/**
+ * @brief Test that a Timestamp write does not step a clock that SNTP owns.
+ */
+void test_time_timestamp_param_ignored_when_synced(void);
+
+/**
+ * @brief Test that time sync with no SNTP sync yet does not block a Timestamp write.
+ */
+void test_time_timestamp_param_applies_before_sntp_sync(void);
+
 /* Local config *******************************************************************/
 
 /**

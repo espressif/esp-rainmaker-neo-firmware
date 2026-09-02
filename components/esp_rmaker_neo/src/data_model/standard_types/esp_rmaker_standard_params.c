@@ -153,3 +153,10 @@ esp_rmaker_param_t *esp_rmaker_temperature_param_create(const char *param_id, fl
     }
     return param;
 }
+
+esp_rmaker_param_t *esp_rmaker_timestamp_param_create(const char *param_id, int64_t val)
+{
+    esp_rmaker_param_t *param = esp_rmaker_param_create(param_id, ESP_RMAKER_PARAM_TIMESTAMP,
+                                esp_rmaker_int64(val), PROP_FLAG_READ | PROP_FLAG_WRITE);
+    return param;
+}
