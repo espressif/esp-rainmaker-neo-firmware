@@ -43,6 +43,16 @@ osal_err_t __prov_event_loop_init(void)
     return OSAL_ERR_OK;
 }
 
+osal_err_t __prov_backend_app_info_set(const char *label, const char *version,
+                                       const char **capabilities, size_t total_capabilities)
+{
+    (void)version;
+    (void)capabilities;
+    /* No provisioning transport on POSIX; accept so bring-up proceeds. */
+    OSAL_LOGI(TAG, "Setting app info: %s with %zu capabilities", label, total_capabilities);
+    return OSAL_ERR_OK;
+}
+
 osal_err_t __prov_backend_endpoint_create(const prov_endpoint_t *endpoint)
 {
     /* No provisioning transport on POSIX; accept so bring-up proceeds. */

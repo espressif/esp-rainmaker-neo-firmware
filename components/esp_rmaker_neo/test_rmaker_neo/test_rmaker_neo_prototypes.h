@@ -785,4 +785,46 @@ void test_node_config_pending_clear_all_inflight_safe(void);
 
 int test_rmaker_neo_all_tests_unity(void);
 
+/* Provisioning registry ******************************************************/
+
+/**
+ * @brief Test that capabilities under one label merge into a single app info entry.
+ */
+void test_prov_capabilities_merge_under_one_label(void);
+
+/**
+ * @brief Test that each label collects only its own capabilities.
+ */
+void test_prov_labels_stay_separate(void);
+
+/**
+ * @brief Test that the registry rejects an incomplete endpoint.
+ */
+void test_prov_add_rejects_incomplete_endpoints(void);
+
+/**
+ * @brief Test that the registry rejects an incomplete capability.
+ */
+void test_prov_add_rejects_incomplete_capabilities(void);
+
+/**
+ * @brief Test that adding the same endpoint again overrides its entry.
+ */
+void test_prov_add_same_endpoint_overrides(void);
+
+/**
+ * @brief Test that removing an endpoint keeps the order of the others.
+ */
+void test_prov_del_preserves_order(void);
+
+/**
+ * @brief Test that the registry reports a full registry.
+ */
+void test_prov_add_reports_a_full_registry(void);
+
+/**
+ * @brief Test that an endpoint can be added again after the registry empties.
+ */
+void test_prov_readd_after_drain(void);
+
 #endif /* __TEST_RMAKER_NEO_PROTOTYPES_H__ */

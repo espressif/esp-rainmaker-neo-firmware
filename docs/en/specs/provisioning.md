@@ -21,6 +21,8 @@ During network provisioning, the node exposes a `ch_resp` protocomm endpoint for
 
 - **Security**: Uses device private key to sign challenges
 
+- **Advertised as**: app-info label `rmaker_extra`, version `1.0`, capability `ch_resp`
+
 - **Availability**: The same `ch_resp` endpoint handler is reachable through three mutually exclusive transports, selected at build time:
 
   - the **provisioning** protocomm endpoint, during network provisioning;
