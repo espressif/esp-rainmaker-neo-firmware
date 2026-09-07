@@ -13,7 +13,7 @@ Timeseries data allows nodes to publish timestamped parameter values for analyti
 
 Each timeseries data point is published as its **own** JSON object, in one MQTT message. The **``k``** (path) value is `"<device_id>.<param_id>"`, e.g. `"Light.Power"`.
 
-The path separator is `.`; device and parameter ids must not contain `.`. The reporting key is `k` to keep the payload compact.
+The path separator is `.`; device and parameter ids must not contain `.` and must not exceed 15 characters. The reporting key is `k` to keep the payload compact.
 
 ```javascript
 {
