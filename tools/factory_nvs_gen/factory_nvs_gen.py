@@ -30,6 +30,13 @@ components_dir = Path(__file__).resolve().parents[2] / "components"
 # the first 4 bytes (Proof of Possession) and the last 3 (BLE device name) are used today.
 RANDOM_LEN = 64
 
+# Basic Information a Matter controller shows for the node: Manufacturer, Model and Hardware
+# Version. Written into the chip-factory namespace by the manufacturing tool, so a product overrides
+# them per run rather than editing this file.
+DEFAULT_VENDOR_NAME = "Espressif Systems"
+DEFAULT_PRODUCT_NAME = "RM Neo Demo"
+DEFAULT_HW_VER = 1
+
 
 def _get_out_dir() -> Path:
     return Path.cwd() / "out"
@@ -311,6 +318,9 @@ def get_matter_idf_credentials(
     *,
     vendor_id: int = 0xFFF2,
     product_id: int = 0x8001,
+    vendor_name: str = DEFAULT_VENDOR_NAME,
+    product_name: str = DEFAULT_PRODUCT_NAME,
+    hw_ver: int = DEFAULT_HW_VER,
     work_root: Optional[Path] = None,
 ) -> Tuple[Path, Dict[str, str]]:
     """
@@ -321,8 +331,12 @@ def get_matter_idf_credentials(
     DAC PEM paths are taken from the manufacturing tool output and written as RainMaker ``client_key`` /
     ``client_cert`` NVS entries; ``node_id`` is set to the DAC subject CN.
 
+    ``vendor_name`` / ``product_name`` / ``hw_ver`` land in the chip-factory namespace and are what a
+    Matter controller shows as Manufacturer, Model and Hardware Version.
+
     Returns ``(out_path, info)`` where ``info`` has keys ``qr_payload``, ``dac_key``, ``dac_cert``,
-    ``thing_name`` (all strings).
+    ``thing_name``, and the identity the partition was built with: ``vendor_id``, ``product_id``,
+    ``vendor_name``, ``product_name``, ``hw_ver`` (all strings).
     """
     keys = _parse_factory_constants()
     rmng_base = _validate_matter_rmng_input(dict(data), base_dir, keys)
@@ -344,13 +358,13 @@ def get_matter_idf_credentials(
         "-p",
         hex(product_id),
         "--vendor-name",
-        "RMNG",
+        vendor_name,
         "--product-name",
-        "matter-sim",
+        product_name,
         "--hw-ver",
-        "1",
+        str(hw_ver),
         "--hw-ver-str",
-        "1",
+        str(hw_ver),
         "--pai",
         "-k",
         str(pai_key),
@@ -407,6 +421,11 @@ def get_matter_idf_credentials(
         "dac_key": dac_key_pem,
         "dac_cert": dac_cert_pem,
         "thing_name": thing_name,
+        "vendor_id": hex(vendor_id),
+        "product_id": hex(product_id),
+        "vendor_name": vendor_name,
+        "product_name": product_name,
+        "hw_ver": str(hw_ver),
     }
     return out_path, meta
 
@@ -703,6 +722,9 @@ def run_matter(
     json_input_path: Path,
     vendor_id: int = 0xFFF2,
     product_id: int = 0x8001,
+    vendor_name: str = DEFAULT_VENDOR_NAME,
+    product_name: str = DEFAULT_PRODUCT_NAME,
+    hw_ver: int = DEFAULT_HW_VER,
 ) -> Tuple[Optional[Path], Path]:
     """
     Matter factory flow: ``esp-matter-mfg-tool`` + merged RainMaker NVS. Writes QR payload to
@@ -730,6 +752,9 @@ def run_matter(
         out_bin,
         vendor_id=vendor_id,
         product_id=product_id,
+        vendor_name=vendor_name,
+        product_name=product_name,
+        hw_ver=hw_ver,
         work_root=work_root,
     )
     shutil.rmtree(work_root, ignore_errors=True)
@@ -747,6 +772,21 @@ def run_matter(
     )
     qr_path = out_root / "qr_link.txt"
     qr_path.write_text(qr_link, encoding="utf-8")
+
+    # What the node will report as Basic Information, which the factory binary itself does not
+    # show: keep it next to the artifacts so a batch can be traced back to what it was built with.
+    device_info = {
+        "thing_name": meta["thing_name"],
+        "vendor_id": meta["vendor_id"],
+        "product_id": meta["product_id"],
+        "vendor_name": meta["vendor_name"],
+        "product_name": meta["product_name"],
+        "hw_ver": meta["hw_ver"],
+        "qr_payload": qr_payload,
+    }
+    (out_root / "matter_device_info.json").write_text(
+        json.dumps(device_info, indent=2) + "\n", encoding="utf-8"
+    )
     out_root = out_root.rename(_get_out_dir() / (run_label + "_" + meta["thing_name"]))
     out_bin = out_root / "esp-idf" / f"{part_label}.bin"
     return out_bin, qr_link
@@ -783,6 +823,24 @@ def main(argv: List[str]) -> int:
         default=0x8001,
         help="Matter product id for mfg tool (default 0x8001)",
     )
+    parser.add_argument(
+        "--vendor-name",
+        type=str,
+        default=DEFAULT_VENDOR_NAME,
+        help=f"Basic Information VendorName, shown as Manufacturer (default {DEFAULT_VENDOR_NAME!r})",
+    )
+    parser.add_argument(
+        "--product-name",
+        type=str,
+        default=DEFAULT_PRODUCT_NAME,
+        help=f"Basic Information ProductName, shown as Model (default {DEFAULT_PRODUCT_NAME!r})",
+    )
+    parser.add_argument(
+        "--hw-ver",
+        type=int,
+        default=DEFAULT_HW_VER,
+        help=f"Hardware version, used for both the number and its string (default {DEFAULT_HW_VER})",
+    )
     parser.add_argument("part_label", type=str, help="Partition label")
     parser.add_argument("ns", type=str, help="Namespace")
     parser.add_argument("json_input", type=str, help="Path to JSON input file")
@@ -801,6 +859,9 @@ def main(argv: List[str]) -> int:
                 json_input_path,
                 vendor_id=args.vendor_id,
                 product_id=args.product_id,
+                vendor_name=args.vendor_name,
+                product_name=args.product_name,
+                hw_ver=args.hw_ver,
             )
             print("Generated:")
             print(f"  ESP-IDF: {idf_bin}")

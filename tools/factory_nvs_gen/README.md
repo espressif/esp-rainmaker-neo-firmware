@@ -15,7 +15,9 @@ python factory_nvs_gen.py <factory_partition_label> <factory_namespace> <json_in
 **Matter + RainMaker (single ESP-IDF factory partition):**
 
 ```
-python factory_nvs_gen.py --matter [--vendor-id <hex>] [--product-id <hex>] <factory_partition_label> <factory_namespace> <json_input_file>
+python factory_nvs_gen.py --matter [--vendor-id <hex>] [--product-id <hex>]
+       [--vendor-name <name>] [--product-name <name>] [--hw-ver <int>]
+       <factory_partition_label> <factory_namespace> <json_input_file>
 ```
 
 - `factory_partition_label`: Partition label to use
@@ -39,15 +41,39 @@ Use this when the device needs both **chip factory data** (DAC, Matter commissio
 
 **How it works**
 
-1. **`esp-matter-mfg-tool`** is run once (fixed manufacturing strings such as product name match the matter-sim style example in code). It emits chip-factory NVS rows (`partition.csv` under the per-device output) and DAC material.
+1. **`esp-matter-mfg-tool`** is run once, with the manufacturing strings from `--vendor-name` / `--product-name` / `--hw-ver` (see **Basic Information** below). It emits chip-factory NVS rows (`partition.csv` under the per-device output) and DAC material.
 2. **RainMaker rows** are built from your JSON (see the **Input for `--matter`** subsection under [Input](#input)): at minimum `mqtt_host`, plus auto-generated `random`. The DAC private key and certificate from the manufacturing step are written into the RainMaker namespace as **`client_key`** / **`client_cert`**, and **`node_id`** is set to the **DAC certificate subject common name** (so the AWS Thing name aligns with the device identity).
 3. The tool **concatenates** the Matter chip-factory CSV rows with the RainMaker namespace rows and runs **`esp-idf-nvs-partition-gen`** to produce **one** ESP-IDF factory binary.
 4. **POSIX** factory output is **not** generated in this mode.
-5. Under `out/`, the run directory is renamed to `<json_basename>_<thing_name>/` (DAC CN). Next to `esp-idf/` you also get **`dac_key.pem`**, **`dac_cert.pem`**, and **`qr_link.txt`** (browser URL for the commissioning QR payload).
+5. Under `out/`, the run directory is renamed to `<json_basename>_<thing_name>/` (DAC CN). Next to `esp-idf/` you also get **`dac_key.pem`**, **`dac_cert.pem`**, **`qr_link.txt`** (browser URL for the commissioning QR payload), and **`matter_device_info.json`** — the identity the partition was built with (vendor/product id and name, hardware version, QR payload), which the binary itself does not show.
 
 **Vendor / product IDs**
 
 - `--vendor-id` and `--product-id` are passed through to the manufacturing tool (defaults `0xFFF2` / `0x8001`, same as the script). They must match PAI/CD files present under the Matter SDK test credentials tree.
+
+**Basic Information (what a controller displays)**
+
+These land in the `chip-factory` namespace and are served by the ESP32 device instance info
+provider (`CONFIG_ENABLE_ESP32_DEVICE_INSTANCE_INFO_PROVIDER`), which takes precedence over
+esp-matter's `CONFIG_DEVICE_*` Kconfig strings:
+
+| Argument | Basic Information attribute | Shown as | Default |
+|----------|-----------------------------|----------|---------|
+| `--vendor-name` | `VendorName` (0x0001) | Manufacturer | `Espressif Systems` |
+| `--product-name` | `ProductName` (0x0003) | Model, in Apple Home and most controllers | `RM Neo Demo` |
+| `--hw-ver` | `HardwareVersion` (0x0007) and `HardwareVersionString` (0x0008) | Hardware Version | `1` |
+
+They are baked into the factory partition, so changing them means regenerating it, reflashing the
+factory partition, and re-commissioning — controllers cache Basic Information from commissioning
+and keep showing the old values otherwise. Read the live values with:
+
+```
+chip-tool basicinformation read vendor-name <node-id> 0
+chip-tool basicinformation read product-name <node-id> 0
+```
+
+The firmware version a controller shows is separate: it comes from the app's `PROJECT_VER`, not
+from the factory partition.
 
 ## Input
 
@@ -97,7 +123,7 @@ out/
 
 If your input is `node.json`, outputs will be under `out/node/`.
 
-With **`--matter`**, the directory is **`out/<json_basename>_<thing_name>/`** (Thing name = DAC common name). There is **no** `posix/` tree. Extra artifacts at the top level of that directory: `dac_key.pem`, `dac_cert.pem`, `qr_link.txt`.
+With **`--matter`**, the directory is **`out/<json_basename>_<thing_name>/`** (Thing name = DAC common name). There is **no** `posix/` tree. Extra artifacts at the top level of that directory: `dac_key.pem`, `dac_cert.pem`, `qr_link.txt`, `matter_device_info.json`.
 
 ### ESP-IDF
 

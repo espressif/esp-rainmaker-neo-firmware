@@ -38,6 +38,8 @@ The JSON is read like `register_node` / stack tooling:
 
 ```text
 factory_autoreg.py [-h] [--matter] [--vendor-id VENDOR_ID] [--product-id PRODUCT_ID]
+                   [--vendor-name VENDOR_NAME] [--product-name PRODUCT_NAME]
+                   [--hw-ver HW_VER]
                    [--codesign-cert CODESIGN_CERT] [--config CONFIG] [-n N]
                    [--output-dir OUTPUT_DIR] [--key-type {ec,rsa}]
                    [--part-label PART_LABEL] [--namespace NAMESPACE]
@@ -53,6 +55,9 @@ factory_autoreg.py [-h] [--matter] [--vendor-id VENDOR_ID] [--product-id PRODUCT
 | `--matter` | Matter path: merged chip/RainMaker factory NVS (ESP-IDF `.bin` only); POSIX skipped |
 | `--vendor-id` | Matter vendor ID for mfg tool (default `0xFFF2`, hex ok) |
 | `--product-id` | Matter product ID (default `0x8001`) |
+| `--vendor-name` | Basic Information `VendorName`, shown as Manufacturer (default `Espressif Systems`) |
+| `--product-name` | Basic Information `ProductName`, shown as Model (default `RM Neo Demo`) |
+| `--hw-ver` | Hardware version, used for both the number and its string (default `1`) |
 | `--codesign-cert` | Optional codesign cert path for RainMaker factory namespace (Matter) |
 | `--config` | Path or client outputs URL to `rmng-outputs.json` |
 | `-n` / `--count` | Number of nodes in one batch |
@@ -133,10 +138,10 @@ Per-thing directory typically includes:
 | `client.key`, `client.crt` | Yes | — |
 | `dac_key.pem`, `dac_cert.pem` | — | Yes |
 | `qr_link.txt` | — | Yes (CHIP QR URL) |
-| `factory_nvs_input.json` | Yes | Yes |
+| `factory_nvs_input.json` | Yes | Yes (plus the Matter identity: vendor/product id and name, hardware version) |
 | `esp-idf/<part-label>.bin` | If NVS gen OK | Yes (merged factory) |
 | `posix/nvs_persistent/*.bin` | If NVS gen OK | No |
-| `registration.json` | Yes | Yes (`matter`, `qr_link` when applicable) |
+| `registration.json` | Yes | Yes (`matter`, `qr_link`, and the same Matter identity fields) |
 
 When `-n` / `--count` is greater than 1, `batch_summary.json` is written under:
 
