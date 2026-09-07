@@ -1,0 +1,144 @@
+# Matter jobs: the examples/matter/ builds and the mirror mapping generator's host
+# test suite. Separate from examples.yml because the builds need the esp-matter SDK:
+# they run on the official espressif/esp-matter image.
+
+build_examples_matter:
+  extends: .build_template
+  image: espressif/esp-matter:${ESP_MATTER_IMAGE_TAG}
+  variables:
+    MATTER_EXAMPLES_DIR: "examples/matter"
+    MATTER_TARGET: "esp32c3"
+    ESP_REPORTS_BASE: "$CI_PROJECT_DIR/matter_size_reports"
+    ESP_BUILD_TMP_BASE: "$CI_PROJECT_DIR/matter_build_tmp"
+    # Lower than build_examples' 100 KB; more space for Matter's larger apps.
+    ESP_MIN_APP_FREE_BYTES: "81920"
+    # Image tag; override per-instance as a CI/CD variable when a specific
+    # esp-matter/esp-idf combination is required.
+    ESP_MATTER_IMAGE_TAG: "release-v1.6_idf_v6.0.2"
+    # CPU cores granted to the build (taskset affinity width). Kept low and
+    # FIXED on purpose: on a shared runner nproc reports the HOST core count,
+    # so any host-derived heuristic over-commits and the RAM-heavy
+    # connectedhomeip compiles can OOM. ~2 GB RSS per heavy compile is a safe
+    # planning number.
+    MATTER_BUILD_JOBS: "4"
+    IDF_CCACHE_ENABLE: "1"
+    CCACHE_DIR: "$CI_PROJECT_DIR/.ccache"
+    CCACHE_MAXSIZE: "2G"
+    # Determinism so the cross-config reuse below lands: idf-build-apps gives each
+    # config a unique absolute build dir and a fresh checkout stamps new mtimes,
+    # both of which bust the hash for otherwise-identical compiles.
+    CCACHE_BASEDIR: "$CI_PROJECT_DIR"
+    CCACHE_NOHASHDIR: "1"
+    # pch_defines is left out on purpose: it lets a stale PCH outlive an sdkconfig change.
+    CCACHE_SLOPPINESS: "time_macros,include_file_mtime,include_file_ctime,file_stat_matches"
+    CCACHE_COMPILERCHECK: "content"
+    GIT_SUBMODULE_STRATEGY: none
+  cache:
+    key: "ccache-matter-${ESP_MATTER_IMAGE_TAG}"
+    paths:
+      - .ccache/
+    policy: pull-push
+  script:
+    - . "$IDF_PATH/export.sh"
+    - . "$ESP_MATTER_PATH/export.sh"
+    - pip install idf-build-apps
+    - ccache --zero-stats || true
+    - |
+      # Auto-discover the Matter examples: any path under examples/matter with a
+      # `main/` subdir.
+      APP_DIRS=()
+      while IFS= read -r maindir; do
+        APP_DIRS+=("${maindir%/main}")
+      done < <(find "$MATTER_EXAMPLES_DIR" -type d -name main)
+
+      if [ ${#APP_DIRS[@]} -eq 0 ]; then
+        echo "No Matter examples found under $MATTER_EXAMPLES_DIR"
+        exit 1
+      fi
+      echo "Building Matter examples: ${APP_DIRS[*]}"
+
+      # A variant an example re-adds under a shared name would build twice into the same
+      # "@n_@w" directory, the second silently winning. Fail loudly instead - the shared
+      # one already applies to every Matter example.
+      for shared in "$MATTER_EXAMPLES_DIR"/common/ci-sdkconfig/sdkconfig.ci.*; do
+        [ -f "$shared" ] || continue
+        for app in "${APP_DIRS[@]}"; do
+          if [ -f "$app/$(basename "$shared")" ]; then
+            echo "ERROR: $app defines $(basename "$shared"), which shadows the shared variant" >&2
+            echo "       in $MATTER_EXAMPLES_DIR/common/ci-sdkconfig/. Rename one of them." >&2
+            exit 1
+          fi
+        done
+      done
+    - |
+      mkdir -p "$ESP_REPORTS_BASE"
+      # One build per (app, config). idf-build-apps layers a variant on top of the app's
+      # sdkconfig.defaults, so a fragment only spells out what it changes.
+      taskset -c 0-$((MATTER_BUILD_JOBS - 1)) idf-build-apps build \
+        --config-rules \
+          "../common/ci-sdkconfig/sdkconfig.ci.onnetwork=onnetwork" \
+          "sdkconfig.ci.*=" "sdkconfig.defaults=default" \
+        --target "$MATTER_TARGET" \
+        --path "${APP_DIRS[@]}" \
+        --build-dir "${ESP_BUILD_TMP_BASE}/@n_@w"
+
+      for build_dir in "$ESP_BUILD_TMP_BASE"/*; do
+        collect_esp_build_artifacts "$build_dir" "$ESP_REPORTS_BASE" "$MATTER_TARGET"
+        # Record every violation, so one pipeline shows all the apps that need shrinking.
+        check_esp_app_free_space "$build_dir" "$MATTER_TARGET" \
+          "$ESP_REPORTS_BASE/app_free_space.csv" || FREE_SPACE_FAIL=1
+      done
+      ccache --show-stats || true
+      if [ "${FREE_SPACE_FAIL:-0}" != "0" ]; then
+        echo "ERROR: app partition headroom below ESP_MIN_APP_FREE_BYTES (see 'free-space:' lines above)" >&2
+        exit 1
+      fi
+  artifacts:
+    when: always
+    paths:
+      - ${ESP_REPORTS_BASE}/
+      # Build logs of every config, for a failed compile/link.
+      - ${ESP_BUILD_TMP_BASE}/*/log/
+    expire_in: 1 week
+
+# Host tests for the Matter mirror's C emitters, plus the guard that the copied mapping
+# (mapping/lib, mapping/vectors, scripts/mapping) still matches what mapping/SOURCE records.
+test_matter_mirror_mapping_gen:
+  extends: .test_template
+  image: python:3.11
+  needs: []
+  before_script: []
+  variables:
+    GIT_DEPTH: "1"
+    GIT_SUBMODULE_STRATEGY: none
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    MIRROR_DIR: "components/esp_rmaker_neo_matter_mirror"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - components/esp_rmaker_neo_matter_mirror/**/*
+          - .gitlab/matter.yml
+          - .gitlab-ci.yml
+      when: on_success
+    - if: $CI_MERGE_REQUEST_IID
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+  cache:
+    key: "pip-mirror-mapping-gen"
+    paths:
+      - .cache/pip
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install pytest
+    # Run from the component dir: the suite resolves mapping/ and priv_include/ relative
+    # to its own path, but junit-xml paths read better rooted at the project.
+    - cd "$MIRROR_DIR"
+    - scripts/sync_mapping.sh --check
+    - pytest -v scripts/test_gen_mapping_table.py --junitxml="$CI_PROJECT_DIR/mapping_gen_report.xml"
+  artifacts:
+    when: always
+    reports:
+      junit: mapping_gen_report.xml
+    expire_in: 1 week

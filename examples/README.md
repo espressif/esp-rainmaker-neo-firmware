@@ -15,6 +15,7 @@ useful for development and CI without a device.
 | [`temp_sensor`](temp_sensor/) | Read-only temperature sensor with time-series reporting |
 | [`multi_device`](multi_device/) | Light + fan + switch + temperature sensor in one node |
 | [`advanced/`](advanced/README.md) | SDK extension points rather than device types (custom OTA filetypes, custom jobs) |
+| [`matter/`](matter/README.md) | Nodes that support both RainMaker Neo and Matter at once |
 
 [`common/`](common/) holds the `app_*` helper components the examples share —
 entry point, network/provisioning bring-up, LED, button, hold-to-reset — plus
@@ -93,7 +94,8 @@ Alternatively,
 [**assisted claiming**](https://docs.neo.rainmaker.espressif.com/docs/firmware/device-credentials/claiming)
 lets an ESP-IDF node generate its own key and obtain a certificate at first
 setup via the phone app over BLE (on by default when BLE is enabled) — use one
-approach or the other, not both.
+approach or the other, not both. It is not available to the
+[`matter/`](matter/README.md) examples, which need the factory partition.
 
 ## Going Further
 
