@@ -51,7 +51,8 @@ repos:
     rev: v2.4.1
     hooks:
     -   id: codespell
-        args: ["-L", "Nome,pase,PASE,OT"]
+        # CurrentY is the Matter ColorControl attribute
+        args: ["-L", "Nome,pase,PASE,OT,CurrentY"]
 
 # Insert license headers
 # Examples are public-domain; everything else is Apache-2.0.
