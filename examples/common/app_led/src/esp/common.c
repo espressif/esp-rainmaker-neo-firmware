@@ -20,6 +20,7 @@
 
 /* Platform includes */
 #include "osal_semaphore.h"
+#include "osal_task.h"
 #include "osal_ticks.h"
 
 /* Variables ****************************************************************/
@@ -46,6 +47,48 @@ static app_led_state_t __led_state = {
  * whole state-change + hardware-update sequence.
  */
 static osal_semaphore_handle_t __led_lock = NULL;
+
+/**
+ * @brief Whether the tracked state is allowed to reach the LED.
+ *
+ * DARK keeps the LED unlit whatever __led_state says, so an application that only learns its
+ * real state part-way through the boot never flashes the defaults first. Everything else -
+ * state tracking, validation, the hardware round-trip - behaves the same in both.
+ */
+typedef enum {
+    APP_LED_STATE_DARK,
+    APP_LED_STATE_LIVE,
+} app_led_output_state_t;
+
+static app_led_output_state_t __led_output_state = APP_LED_STATE_LIVE;
+
+/* Effects ****************************************************************/
+
+/** Frame interval of the effect task; 50 ms is smooth enough for the breathe ramp. */
+#define LED_EFFECT_FRAME_MS 50
+#define LED_EFFECT_TASK_STACK 2560
+#define LED_EFFECT_TASK_PRIORITY 4
+
+/* Effect levels are brightness percentages */
+#define LED_EFFECT_LEVEL_ON 100
+
+/** Shortest cycle that renders: a frame for each half of the waveform. */
+#define LED_EFFECT_PERIOD_MIN_MS (2 * LED_EFFECT_FRAME_MS)
+
+/**
+ * @brief The effect currently playing, guarded by __led_lock.
+ *
+ * The effect owns the brightness, and the colour where it carries one, so that the pattern stays
+ * visible on a light the user turned off.
+ */
+static struct {
+    bool active;
+    app_led_effect_t effect;
+    uint32_t elapsed_ms;
+    uint8_t level; /* 0-100, the brightness this frame */
+    bool stop_at_cycle_end;
+    bool task_running;
+} __effect;
 
 /* Types ****************************************************************/
 
@@ -250,26 +293,32 @@ static osal_err_t __internal_update_hardware_led(void)
 {
     app_led_color_rgb_t color_rgb = {0};
 
-    if (__led_state.power) {
-        /* Decide RGB color based on the mode */
-        switch (__led_state.mode) {
+    /* An effect lights the LED even with power off, so that the pattern stays visible */
+    const bool lit = __led_output_state == APP_LED_STATE_LIVE &&
+                     (__effect.active || __led_state.power);
+
+    if (lit) {
+        /* The effect owns the brightness, and a colour of its own where it asks for one */
+        app_led_state_t render = __led_state;
+        if (__effect.active) {
+            render.brightness = __effect.level;
+            if (__effect.effect.color_override) {
+                render.mode = APP_LED_MODE_HSV;
+                render.color_hs = __effect.effect.color_hs;
+            }
+        }
+
+        switch (render.mode) {
         case APP_LED_MODE_HSV:
-            __internal_hsv_to_rgb(__led_state.color_hs, &color_rgb);
+            __internal_hsv_to_rgb(render.color_hs, &color_rgb);
             break;
         case APP_LED_MODE_CCT:
-            __internal_cct_to_rgb(__led_state.cct, &color_rgb);
+            __internal_cct_to_rgb(render.cct, &color_rgb);
             break;
         default:
             return OSAL_ERR_NOT_SUPPORTED;
         }
-
-        /* Scale brightness */
-        __internal_scale_rgb_brightness(&color_rgb, __led_state.brightness);
-    } else {
-        /* Turn off the LED */
-        color_rgb.red = 0;
-        color_rgb.green = 0;
-        color_rgb.blue = 0;
+        __internal_scale_rgb_brightness(&color_rgb, render.brightness);
     }
 
     return app_led_internal_set_color_rgb(color_rgb);
@@ -329,9 +378,72 @@ static osal_err_t __internal_set_field(led_field_t field, uint32_t value)
     return ret;
 }
 
+/** @brief Brightness of @p p_effect at @p phase_ms into a cycle, 0-100. */
+static uint8_t __internal_waveform_level(const app_led_effect_t *p_effect, uint32_t phase_ms)
+{
+    const uint8_t low = p_effect->level_low;
+
+    switch (p_effect->waveform) {
+    case APP_LED_WAVEFORM_RAMP: {
+        const uint32_t half_ms = p_effect->period_ms / 2;
+        const uint32_t rise_ms = (phase_ms < half_ms) ? phase_ms : (p_effect->period_ms - phase_ms);
+        return (uint8_t)(low + (LED_EFFECT_LEVEL_ON - low) * rise_ms / half_ms);
+    }
+    case APP_LED_WAVEFORM_PULSE:
+        return (phase_ms < p_effect->on_ms) ? LED_EFFECT_LEVEL_ON : low;
+    case APP_LED_WAVEFORM_STEADY:
+    default:
+        return LED_EFFECT_LEVEL_ON;
+    }
+}
+
+/**
+ * @brief Play the frames of the running effect until it ends, then restore the tracked state.
+ *
+ * Runs only while an effect is active: it is created by app_led_effect_start() and deletes
+ * itself once the effect is over, so an idle device carries no animation task.
+ */
+static void __internal_effect_task(void *arg)
+{
+    (void)arg;
+
+    while (true) {
+        if (__internal_lock() != OSAL_ERR_OK) {
+            break;
+        }
+
+        bool done = !__effect.active;
+        if (!done) {
+            const uint32_t period_ms = __effect.effect.period_ms;
+            const uint32_t phase_ms = __effect.elapsed_ms % period_ms;
+            __effect.level = __internal_waveform_level(&__effect.effect, phase_ms);
+            /* Zero cycles run until a stop request */
+            const uint32_t cycles_done = __effect.elapsed_ms / period_ms;
+            const bool cycle_end = phase_ms + LED_EFFECT_FRAME_MS >= period_ms;
+            done = (__effect.effect.cycles && cycles_done >= __effect.effect.cycles) ||
+                   (cycle_end && __effect.stop_at_cycle_end);
+        }
+
+        if (done) {
+            __effect.active = false;
+            __effect.task_running = false;
+        }
+        (void)__internal_update_hardware_led();
+        __effect.elapsed_ms += LED_EFFECT_FRAME_MS;
+        __internal_unlock();
+
+        if (done) {
+            break;
+        }
+        osal_task_delay(osal_ticks_from_ms(LED_EFFECT_FRAME_MS));
+    }
+
+    osal_task_delete(NULL);
+}
+
 /* Public function definitions ****************************************************/
 
-osal_err_t app_led_init(const app_led_state_t *p_state)
+static osal_err_t __internal_init(const app_led_state_t *p_state, app_led_output_state_t output_state)
 {
     /* Create the lock that serialises the setters against each other */
     if (__led_lock == NULL) {
@@ -348,8 +460,38 @@ osal_err_t app_led_init(const app_led_state_t *p_state)
         return ret;
     }
 
+    __led_output_state = output_state;
+
     /* Apply the initial state */
     return app_led_apply(p_state);
+}
+
+osal_err_t app_led_init(const app_led_state_t *p_state)
+{
+    return __internal_init(p_state, APP_LED_STATE_LIVE);
+}
+
+osal_err_t app_led_init_dark(const app_led_state_t *p_state)
+{
+    return __internal_init(p_state, APP_LED_STATE_DARK);
+}
+
+osal_err_t app_led_mark_live(void)
+{
+    osal_err_t ret = __internal_lock();
+    if (ret != OSAL_ERR_OK) {
+        return ret;
+    }
+
+    app_led_output_state_t previous = __led_output_state;
+    __led_output_state = APP_LED_STATE_LIVE;
+    ret = __internal_update_hardware_led();
+    if (ret != OSAL_ERR_OK) {
+        __led_output_state = previous;
+    }
+
+    __internal_unlock();
+    return ret;
 }
 
 osal_err_t app_led_apply(const app_led_state_t *p_state)
@@ -441,4 +583,88 @@ osal_err_t app_led_set_mode(app_led_mode_t mode)
         return OSAL_ERR_INVALID_ARG;
     }
     return __internal_set_field(LED_FIELD_MODE, mode);
+}
+
+osal_err_t app_led_effect_start(const app_led_effect_t *p_effect)
+{
+    /* Validate the pattern */
+    if (p_effect == NULL || p_effect->period_ms < LED_EFFECT_PERIOD_MIN_MS) {
+        return OSAL_ERR_INVALID_ARG;
+    }
+    if (p_effect->waveform >= APP_LED_WAVEFORM_MAX || p_effect->level_low > LED_EFFECT_LEVEL_ON) {
+        return OSAL_ERR_INVALID_ARG;
+    }
+    /* A pulse needs a high phase inside the cycle */
+    if (p_effect->waveform == APP_LED_WAVEFORM_PULSE &&
+            (p_effect->on_ms == 0 || p_effect->on_ms >= p_effect->period_ms)) {
+        return OSAL_ERR_INVALID_ARG;
+    }
+    if (p_effect->color_override &&
+            (p_effect->color_hs.hue > 360 || p_effect->color_hs.saturation > 100)) {
+        return OSAL_ERR_INVALID_ARG;
+    }
+
+    osal_err_t ret = __internal_lock();
+    if (ret != OSAL_ERR_OK) {
+        return ret;
+    }
+
+    __effect.active = true;
+    __effect.effect = *p_effect;
+    __effect.elapsed_ms = 0;
+    __effect.stop_at_cycle_end = false;
+    __effect.level = __internal_waveform_level(p_effect, 0);
+    ret = __internal_update_hardware_led();
+
+    /* The running task picks the new effect up on its next frame */
+    if (ret == OSAL_ERR_OK && !__effect.task_running) {
+        ret = osal_task_create(__internal_effect_task, "app_led_effect", LED_EFFECT_TASK_STACK,
+                               NULL, LED_EFFECT_TASK_PRIORITY, NULL);
+        __effect.task_running = (ret == OSAL_ERR_OK);
+    }
+    if (ret != OSAL_ERR_OK) {
+        __effect.active = false;
+        (void)__internal_update_hardware_led();
+    }
+
+    __internal_unlock();
+    return ret;
+}
+
+osal_err_t app_led_effect_stop(void)
+{
+    osal_err_t ret = __internal_lock();
+    if (ret != OSAL_ERR_OK) {
+        return ret;
+    }
+
+    __effect.active = false;
+    __effect.stop_at_cycle_end = false;
+    ret = __internal_update_hardware_led();
+
+    __internal_unlock();
+    return ret;
+}
+
+osal_err_t app_led_effect_stop_at_cycle_end(void)
+{
+    osal_err_t ret = __internal_lock();
+    if (ret != OSAL_ERR_OK) {
+        return ret;
+    }
+
+    __effect.stop_at_cycle_end = true;
+
+    __internal_unlock();
+    return OSAL_ERR_OK;
+}
+
+bool app_led_effect_active(void)
+{
+    if (__internal_lock() != OSAL_ERR_OK) {
+        return false;
+    }
+    bool active = __effect.active;
+    __internal_unlock();
+    return active;
 }
