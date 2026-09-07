@@ -1,0 +1,10 @@
+{
+  "profile_version": "1.0",
+  "name": "test",
+  "description": "The all profile plus the synthetic device types of test_vocabulary.json. The POSIX unit tests build against it.",
+  "device_types": [
+    "esp.device.lightbulb",
+    "esp.device.switch",
+    "esp.device.test-sensor"
+  ]
+}

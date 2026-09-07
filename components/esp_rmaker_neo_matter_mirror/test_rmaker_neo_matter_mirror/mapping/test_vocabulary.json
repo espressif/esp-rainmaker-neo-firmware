@@ -1,0 +1,78 @@
+{
+  "description": "POSIX-test-only library, merged into the shipped one by the host build. Holds synthetic entries for engine vocabulary no shipped device type exercises yet, so the profile keeps that vocabulary compiled in for the unit tests.",
+  "capabilities": [
+    {
+      "capability": "esp.param.test-scaled",
+      "matter_match": {
+        "cluster": "0x0402",
+        "attribute": "0x0000",
+        "value_type": "i16"
+      },
+      "transform": {
+        "type": "scale",
+        "factor": 100
+      },
+      "note": "Degrees Celsius <-> TemperatureMeasurement.MeasuredValue, which is centi-degrees: a float param whose fractional part survives only through the scale transform.",
+      "defaults": {
+        "id": "Test Scaled",
+        "data_type": "float",
+        "ui_type": "esp.ui.text",
+        "properties": [
+          "read"
+        ]
+      }
+    },
+    {
+      "capability": "esp.param.test-reported",
+      "matter_match": {
+        "cluster": "0x0402",
+        "attribute": "0x0001",
+        "value_type": "i16"
+      },
+      "transform": {
+        "type": "identity"
+      },
+      "report_as": {
+        "kind": "test_report"
+      },
+      "note": "Stands in for a cluster that owns its value behind a notify path instead of a writable attribute: not seeded at lowering, delivered through the port's report hook.",
+      "defaults": {
+        "id": "Test Reported",
+        "data_type": "int",
+        "properties": [
+          "read"
+        ]
+      }
+    }
+  ],
+  "device_types": [
+    {
+      "device_type": "esp.device.test-sensor",
+      "rules": [
+        {
+          "params": [
+            "esp.param.test-scaled"
+          ],
+          "optional_params": [
+            "esp.param.test-reported"
+          ],
+          "matter_device_type": "0x0302",
+          "matter_device_type_version": 2,
+          "mandatory_clusters": [
+            "0x0003"
+          ],
+          "additional_device_types": [
+            {
+              "id": "0x0510",
+              "version": 1,
+              "mandatory_clusters": [
+                "0x009C"
+              ],
+              "note": "Stands in for a device type whose clusters belong to it rather than to the endpoint's own device type."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "profile_version": "1.0",
+  "name": "light",
+  "description": "Lightbulbs only.",
+  "device_types": [
+    "esp.device.lightbulb"
+  ]
+}

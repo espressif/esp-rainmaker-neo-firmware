@@ -1,0 +1,2471 @@
+{
+ "mapping_version": "1.2",
+ "description": "Declarative bidirectional mapping between RainMaker Neo standard capabilities and Matter clusters/attributes. Consumed by the firmware Matter mirror (lowering) and, in future, by raising engines (apps/bridges). See docs/spec/common_data_model_draft.md section 4. A capability's matter_match is the Matter location it maps to, carrying its own value_type: how a value is wrapped on the Matter side is declared here, not inferred. A match with node_scoped lives on the root endpoint. Composites keep a single matter_match object: one cluster with N derived attributes.",
+ "capabilities": [
+  {
+   "capability": "esp.param.power",
+   "matter_match": {
+    "cluster": "0x0006",
+    "attribute": "0x0000",
+    "value_type": "bool"
+   },
+   "transform": {
+    "type": "identity"
+   },
+   "write_as": {
+    "note": "Desired state, so On/Off selected by value - Toggle (0x02) is not idempotent",
+    "commands": [
+     {
+      "when": 0,
+      "command": "0x00",
+      "name": "Off",
+      "args": []
+     },
+     {
+      "when": 1,
+      "command": "0x01",
+      "name": "On",
+      "args": []
+     }
+    ]
+   },
+   "startup": {
+    "attribute": "0x4003",
+    "policy": "toggle_previous",
+    "skip_on_software_update": true,
+    "note": "StartUpOnOff: 0/1 assert Off/On at boot, 2 toggles the previous state. Skipped after an OTA restart, matching CHIP's own policy (a software update is not a power cycle)."
+   },
+   "defaults": {
+    "id": "Power",
+    "data_type": "bool",
+    "ui_type": "esp.ui.toggle",
+    "properties": [
+     "read",
+     "write"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.brightness",
+   "matter_match": {
+    "cluster": "0x0008",
+    "attribute": "0x0000",
+    "value_type": "nullable_u8"
+   },
+   "transform": {
+    "type": "linear",
+    "in_min": 0,
+    "in_max": 100,
+    "out_min": 1,
+    "out_max": 254
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x04",
+      "name": "MoveToLevelWithOnOff",
+      "args": [
+       {
+        "field": 0,
+        "name": "Level",
+        "type": "u8",
+        "value": "$value"
+       },
+       {
+        "field": 1,
+        "name": "TransitionTime",
+        "type": "u16",
+        "value": 0
+       },
+       {
+        "field": 2,
+        "name": "OptionsMask",
+        "type": "u8",
+        "value": 0
+       },
+       {
+        "field": 3,
+        "name": "OptionsOverride",
+        "type": "u8",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "startup": {
+    "attribute": "0x4000",
+    "policy": "min_clamp",
+    "min": 1,
+    "note": "StartUpCurrentLevel: 0 means the minimum level per spec, and the mirror's LevelControl minimum is 1."
+   },
+   "deferred_persistence": true,
+   "defaults": {
+    "id": "Brightness",
+    "data_type": "int",
+    "ui_type": "esp.ui.slider",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "unit": "percent",
+    "bounds": {
+     "min": 0,
+     "max": 100,
+     "step": 1
+    },
+    "bounds_note": "raising fallback when the device exposes no bounds attribute; lowering ignores it"
+   }
+  },
+  {
+   "capability": "esp.param.dim",
+   "matter_match": {
+    "cluster": "0x0008",
+    "attribute": "0x0000",
+    "value_type": "nullable_u8"
+   },
+   "transform": {
+    "type": "linear",
+    "in_min": 0,
+    "in_max": 100,
+    "out_min": 1,
+    "out_max": 254
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x04",
+      "name": "MoveToLevelWithOnOff",
+      "args": [
+       {
+        "field": 0,
+        "name": "Level",
+        "type": "u8",
+        "value": "$value"
+       },
+       {
+        "field": 1,
+        "name": "TransitionTime",
+        "type": "u16",
+        "value": 0
+       },
+       {
+        "field": 2,
+        "name": "OptionsMask",
+        "type": "u8",
+        "value": 0
+       },
+       {
+        "field": 3,
+        "name": "OptionsOverride",
+        "type": "u8",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "startup": {
+    "attribute": "0x4000",
+    "policy": "min_clamp",
+    "min": 1,
+    "note": "StartUpCurrentLevel: 0 means the minimum level per spec, and the mirror's LevelControl minimum is 1."
+   },
+   "deferred_persistence": true,
+   "rule_gated": true,
+   "note": "The dim level of a switch or load control, as esp.param.brightness is of a light: the same LevelControl mapping under the param name the switch device types use. rule_gated, so it lowers only for the rules that name it and a light keeps brightness as its name for the attribute.",
+   "defaults": {
+    "id": "Dim",
+    "data_type": "int",
+    "ui_type": "esp.ui.slider",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "unit": "percent",
+    "bounds": {
+     "min": 0,
+     "max": 100,
+     "step": 1
+    },
+    "bounds_note": "raising fallback when the device exposes no bounds attribute; lowering ignores it"
+   }
+  },
+  {
+   "capability": "esp.param.cct",
+   "matter_match": {
+    "cluster": "0x0300",
+    "feature_map": "0x00000010",
+    "attribute": "0x0007",
+    "value_type": "u16"
+   },
+   "transform": {
+    "type": "kelvin_mireds"
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x0A",
+      "name": "MoveToColorTemperature",
+      "args": [
+       {
+        "field": 0,
+        "name": "ColorTemperatureMireds",
+        "type": "u16",
+        "value": "$value"
+       },
+       {
+        "field": 1,
+        "name": "TransitionTime",
+        "type": "u16",
+        "value": 0
+       },
+       {
+        "field": 2,
+        "name": "OptionsMask",
+        "type": "u8",
+        "value": 0
+       },
+       {
+        "field": 3,
+        "name": "OptionsOverride",
+        "type": "u8",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "bounds_from": {
+    "min": "attr:0x400C",
+    "max": "attr:0x400B",
+    "value_type": "u16",
+    "note": "min/max are the param's bounds and each names the attribute it lands on. kelvin_mireds is decreasing, so the kelvin min lands on 0x400C ColorTempPhysicalMaxMireds and the kelvin max on 0x400B ColorTempPhysicalMinMireds"
+   },
+   "startup": {
+    "attribute": "0x4010",
+    "policy": "passthrough",
+    "note": "StartUpColorTemperatureMireds: the stored mireds value is asserted as-is at boot."
+   },
+   "deferred_persistence": true,
+   "defaults": {
+    "id": "CCT",
+    "data_type": "int",
+    "ui_type": "esp.ui.slider",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "unit": "kelvin",
+    "bounds": {
+     "min": 2700,
+     "max": 6500,
+     "step": 100
+    },
+    "bounds_note": "raising fallback when the device exposes no bounds attribute; lowering ignores it"
+   }
+  },
+  {
+   "capability": "esp.param.hue",
+   "matter_match": {
+    "cluster": "0x0300",
+    "feature_map": "0x00000001",
+    "attribute": "0x0000",
+    "value_type": "u8"
+   },
+   "transform": {
+    "type": "linear",
+    "in_min": 0,
+    "in_max": 360,
+    "out_min": 0,
+    "out_max": 254
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x00",
+      "name": "MoveToHue",
+      "args": [
+       {
+        "field": 0,
+        "name": "Hue",
+        "type": "u8",
+        "value": "$value"
+       },
+       {
+        "field": 1,
+        "name": "Direction",
+        "type": "u8",
+        "value": 0
+       },
+       {
+        "field": 2,
+        "name": "TransitionTime",
+        "type": "u16",
+        "value": 0
+       },
+       {
+        "field": 3,
+        "name": "OptionsMask",
+        "type": "u8",
+        "value": 0
+       },
+       {
+        "field": 4,
+        "name": "OptionsOverride",
+        "type": "u8",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "seed_as": {
+    "note": "CHIP keeps CurrentHue/CurrentSaturation in transition-state structs that only a Move/Step command initialises, while its HSV tick writes both attributes from both states: the first MoveToHue since boot would assert a saturation of 0 over the seeded one. StopMoveStep is the only command that re-reads both from the attribute store without writing either - every Move/Step alternative schedules the tick - so it is declared on both HS capabilities and sent once per (endpoint, cluster, command).",
+    "commands": [
+     {
+      "command": "0x47",
+      "name": "StopMoveStep",
+      "args": [
+       {
+        "field": 0,
+        "name": "OptionsMask",
+        "type": "u8",
+        "value": 1
+       },
+       {
+        "field": 1,
+        "name": "OptionsOverride",
+        "type": "u8",
+        "value": 1
+       }
+      ]
+     }
+    ]
+   },
+   "rule_gated": true,
+   "note": "rule_gated: lowers only for device rules that list it - keeps ColorControl off device types (e.g. 0x0101 Dimmable Light) whose Matter definition forbids it.",
+   "defaults": {
+    "id": "Hue",
+    "data_type": "int",
+    "ui_type": "esp.ui.hue-slider",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "unit": "degrees",
+    "bounds": {
+     "min": 0,
+     "max": 360,
+     "step": 1
+    },
+    "bounds_note": "raising fallback when the device exposes no bounds attribute; lowering ignores it"
+   }
+  },
+  {
+   "capability": "esp.param.saturation",
+   "matter_match": {
+    "cluster": "0x0300",
+    "feature_map": "0x00000001",
+    "attribute": "0x0001",
+    "value_type": "u8"
+   },
+   "transform": {
+    "type": "linear",
+    "in_min": 0,
+    "in_max": 100,
+    "out_min": 0,
+    "out_max": 254
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x03",
+      "name": "MoveToSaturation",
+      "args": [
+       {
+        "field": 0,
+        "name": "Saturation",
+        "type": "u8",
+        "value": "$value"
+       },
+       {
+        "field": 1,
+        "name": "TransitionTime",
+        "type": "u16",
+        "value": 0
+       },
+       {
+        "field": 2,
+        "name": "OptionsMask",
+        "type": "u8",
+        "value": 0
+       },
+       {
+        "field": 3,
+        "name": "OptionsOverride",
+        "type": "u8",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "seed_as": {
+    "note": "Same shadow as esp.param.hue's seed_as: StopMoveStep initialises the hue and saturation transition states together, so it is declared on both and the engine sends it once per (endpoint, cluster, command).",
+    "commands": [
+     {
+      "command": "0x47",
+      "name": "StopMoveStep",
+      "args": [
+       {
+        "field": 0,
+        "name": "OptionsMask",
+        "type": "u8",
+        "value": 1
+       },
+       {
+        "field": 1,
+        "name": "OptionsOverride",
+        "type": "u8",
+        "value": 1
+       }
+      ]
+     }
+    ]
+   },
+   "rule_gated": true,
+   "defaults": {
+    "id": "Saturation",
+    "data_type": "int",
+    "ui_type": "esp.ui.slider",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "unit": "percent",
+    "bounds": {
+     "min": 0,
+     "max": 100,
+     "step": 1
+    },
+    "bounds_note": "raising fallback when the device exposes no bounds attribute; lowering ignores it"
+   }
+  },
+  {
+   "capability": "esp.param.light-mode",
+   "matter_match": {
+    "cluster": "0x0300",
+    "attribute": "0x0008",
+    "value_type": "enum8"
+   },
+   "transform": {
+    "type": "enum_map",
+    "map": [
+     {
+      "rmng": 1,
+      "matter": 0
+     },
+     {
+      "rmng": 2,
+      "matter": 2
+     }
+    ],
+    "matter_aliases": [
+     {
+      "rmng": 1,
+      "matter": 1
+     }
+    ]
+   },
+   "shadow_attributes": [
+    {
+     "attribute": "0x4001",
+     "value_type": "enum8",
+     "note": "EnhancedColorMode tracks ColorMode: the mirror never writes enhanced-only modes, and values 0/2 are shared between the two"
+    }
+   ],
+   "rule_gated": true,
+   "note": "RainMaker Neo HSV(1) <-> ColorMode CurrentHueAndSaturation(0); CCT(2) <-> ColorTemperatureMireds(2); inbound CurrentXAndCurrentY(1) folds to HSV via matter_aliases. No write_as: ColorMode has no setter command (CHIP switches it on color commands), so outbound uses the attribute-write fallback.",
+   "defaults": {
+    "id": "Light Mode",
+    "data_type": "int",
+    "ui_type": "esp.ui.dropdown",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "bounds": {
+     "min": 1,
+     "max": 2,
+     "step": 1
+    },
+    "bounds_note": "the enum members RainMaker defines (HSV=1, CCT=2); a derived dropdown needs the range the native firmware advertises",
+    "valid_values": [
+     {
+      "value": 1,
+      "label": "HSV"
+     },
+     {
+      "value": 2,
+      "label": "CCT"
+     }
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.identify",
+   "matter_match": {
+    "cluster": "0x0003",
+    "attribute": "0x0000",
+    "value_type": "u16"
+   },
+   "transform": {
+    "type": "identity"
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x00",
+      "name": "Identify",
+      "args": [
+       {
+        "field": 0,
+        "name": "IdentifyTime",
+        "type": "u16",
+        "value": "$value"
+       }
+      ]
+     }
+    ]
+   },
+   "defaults": {
+    "id": "Identify",
+    "data_type": "int",
+    "properties": [
+     "write"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.name",
+   "matter_match": {
+    "cluster": "0x0028",
+    "attribute": "0x0005",
+    "value_type": "string",
+    "node_scoped": true
+   },
+   "transform": {
+    "type": "string",
+    "max_len": 32
+   },
+   "note": "Name <-> BasicInformation.NodeLabel (endpoint 0), bidirectional, truncated to 32 chars, bound only when the node has exactly one Matter-mapped device. A multi-device node has no node-level name: its per-device names stay cloud-side, matched to endpoints through the read-only FixedLabel entry each mirrored endpoint serves (rmng.device = device id, the correlation key). UserLabel is deliberately not a name sink: any controller on the fabric replaces the whole list, so an entry that changes or disappears cannot be read as user intent, and its 16-char cap would clip the name it wrote back.",
+   "defaults": {
+    "id": "Name",
+    "data_type": "string",
+    "properties": [
+     "read",
+     "write"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.power",
+   "id": "esp.param.power@fan",
+   "matter_match": {
+    "cluster": "0x0202",
+    "attribute": "0x0000",
+    "value_type": "enum8"
+   },
+   "transform": {
+    "type": "enum_map",
+    "map": [
+     {
+      "rmng": 0,
+      "matter": 0
+     },
+     {
+      "rmng": 1,
+      "matter": 4
+     }
+    ],
+    "matter_aliases": [
+     {
+      "rmng": 1,
+      "matter": 1
+     },
+     {
+      "rmng": 1,
+      "matter": 2
+     },
+     {
+      "rmng": 1,
+      "matter": 3
+     },
+     {
+      "rmng": 1,
+      "matter": 5
+     },
+     {
+      "rmng": 1,
+      "matter": 6
+     }
+    ]
+   },
+   "rule_gated": true,
+   "note": "Fan power through FanMode (a fan device has no OnOff cluster): Off<->0, On->4; every speed/auto mode reads back as on. FanMode is a writable attribute, so there is no write_as. rule_gated: only fan-family rules name this entry.",
+   "defaults": {
+    "id": "Power",
+    "data_type": "bool",
+    "ui_type": "esp.ui.toggle",
+    "properties": [
+     "read",
+     "write"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.speed",
+   "matter_match": {
+    "cluster": "0x0202",
+    "attribute": "0x0002",
+    "value_type": "nullable_u8",
+    "null_value": 255
+   },
+   "transform": {
+    "type": "linear",
+    "in_min": 0,
+    "in_max": 5,
+    "out_min": 0,
+    "out_max": 100
+   },
+   "note": "PercentSetting (writable attribute) as the RainMaker 0-5 speed; null while the device is in auto mode.",
+   "defaults": {
+    "id": "Speed",
+    "data_type": "int",
+    "ui_type": "esp.ui.slider",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "bounds": {
+     "min": 0,
+     "max": 5,
+     "step": 1
+    }
+   }
+  },
+  {
+   "capability": "esp.param.temperature",
+   "id": "esp.param.temperature@thermostat",
+   "matter_match": {
+    "cluster": "0x0201",
+    "attribute": "0x0000",
+    "value_type": "nullable_i16",
+    "null_value": -32768
+   },
+   "transform": {
+    "type": "scale",
+    "factor": 100
+   },
+   "rule_gated": true,
+   "note": "LocalTemperature in centi-degrees C; the plain temperature-sensor entry maps the TemperatureMeasurement cluster instead. rule_gated so only thermostat-family rules pull it.",
+   "defaults": {
+    "id": "Temperature",
+    "data_type": "float",
+    "properties": [
+     "read"
+    ],
+    "unit": "celsius"
+   }
+  },
+  {
+   "capability": "esp.param.ac-mode",
+   "matter_match": {
+    "cluster": "0x0201",
+    "attribute": "0x001C",
+    "value_type": "enum8"
+   },
+   "transform": {
+    "type": "string_enum_map",
+    "map": [
+     {
+      "rmng": "Off",
+      "matter": 0
+     },
+     {
+      "rmng": "Auto",
+      "matter": 1
+     },
+     {
+      "rmng": "Cool",
+      "matter": 3
+     },
+     {
+      "rmng": "Heat",
+      "matter": 4
+     },
+     {
+      "rmng": "Fan",
+      "matter": 7
+     },
+     {
+      "rmng": "Dry",
+      "matter": 8
+     }
+    ],
+    "matter_aliases": [
+     {
+      "rmng": "Heat",
+      "matter": 5
+     },
+     {
+      "rmng": "Auto",
+      "matter": 9
+     }
+    ],
+    "fallback": "Off"
+   },
+   "note": "SystemMode as the RainMaker AC mode vocabulary; EmergencyHeat folds to Heat, Sleep to Auto. Writable attribute.",
+   "defaults": {
+    "id": "AC Mode",
+    "data_type": "string",
+    "ui_type": "esp.ui.dropdown",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "valid_strs": [
+     "Off",
+     "Auto",
+     "Cool",
+     "Heat",
+     "Fan",
+     "Dry"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.setpoint-low-temperature",
+   "matter_match": {
+    "cluster": "0x0201",
+    "attribute": "0x0012",
+    "value_type": "i16",
+    "feature_map": "0x00000001"
+   },
+   "transform": {
+    "type": "scale",
+    "factor": 100
+   },
+   "bounds_from": {
+    "min": "attr:0x0003",
+    "max": "attr:0x0004",
+    "value_type": "i16",
+    "note": "AbsMin/MaxHeatSetpointLimit, centi-degrees"
+   },
+   "note": "OccupiedHeatingSetpoint (HEAT feature), centi-degrees C.",
+   "defaults": {
+    "id": "Setpoint Low",
+    "data_type": "float",
+    "ui_type": "esp.ui.slider",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "unit": "celsius",
+    "bounds": {
+     "min": 7,
+     "max": 30,
+     "step": 1
+    }
+   }
+  },
+  {
+   "capability": "esp.param.setpoint-high-temperature",
+   "matter_match": {
+    "cluster": "0x0201",
+    "attribute": "0x0011",
+    "value_type": "i16",
+    "feature_map": "0x00000002"
+   },
+   "transform": {
+    "type": "scale",
+    "factor": 100
+   },
+   "bounds_from": {
+    "min": "attr:0x0005",
+    "max": "attr:0x0006",
+    "value_type": "i16",
+    "note": "AbsMin/MaxCoolSetpointLimit, centi-degrees"
+   },
+   "note": "OccupiedCoolingSetpoint (COOL feature), centi-degrees C.",
+   "defaults": {
+    "id": "Setpoint High",
+    "data_type": "float",
+    "ui_type": "esp.ui.slider",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "unit": "celsius",
+    "bounds": {
+     "min": 16,
+     "max": 32,
+     "step": 1
+    }
+   }
+  },
+  {
+   "capability": "esp.param.blinds-position",
+   "matter_match": {
+    "cluster": "0x0102",
+    "attribute": "0x000E",
+    "value_type": "nullable_u16",
+    "null_value": 65535
+   },
+   "transform": {
+    "type": "linear",
+    "in_min": 0,
+    "in_max": 100,
+    "out_min": 0,
+    "out_max": 10000
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x05",
+      "name": "GoToLiftPercentage",
+      "args": [
+       {
+        "field": 0,
+        "name": "LiftPercent100thsValue",
+        "type": "u16",
+        "value": "$value"
+       }
+      ]
+     }
+    ]
+   },
+   "note": "CurrentPositionLiftPercent100ths; Matter's percent100ths convention is 0 = fully open, 10000 = fully closed, and the RainMaker position keeps that orientation.",
+   "defaults": {
+    "id": "Position",
+    "data_type": "int",
+    "ui_type": "esp.ui.slider",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "unit": "percent",
+    "bounds": {
+     "min": 0,
+     "max": 100,
+     "step": 1
+    }
+   }
+  },
+  {
+   "capability": "esp.param.lockstate",
+   "matter_match": {
+    "cluster": "0x0101",
+    "attribute": "0x0000",
+    "value_type": "nullable_enum8",
+    "null_value": 255
+   },
+   "transform": {
+    "type": "enum_map",
+    "map": [
+     {
+      "rmng": 0,
+      "matter": 2
+     },
+     {
+      "rmng": 1,
+      "matter": 1
+     }
+    ],
+    "matter_aliases": [
+     {
+      "rmng": 0,
+      "matter": 0
+     },
+     {
+      "rmng": 0,
+      "matter": 3
+     }
+    ]
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x00",
+      "name": "LockDoor",
+      "when": 1,
+      "args": []
+     },
+     {
+      "command": "0x01",
+      "name": "UnlockDoor",
+      "when": 2,
+      "args": []
+     }
+    ]
+   },
+   "note": "LockState: rmng 0 = unlocked (also NotFullyLocked/Unlatched), 1 = locked. LockDoor/UnlockDoor are timed-interaction commands; the invoke shim handles the timed request.",
+   "defaults": {
+    "id": "Lock State",
+    "data_type": "int",
+    "ui_type": "esp.ui.toggle",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "bounds": {
+     "min": 0,
+     "max": 1,
+     "step": 1
+    }
+   }
+  },
+  {
+   "capability": "esp.param.temperature",
+   "matter_match": {
+    "cluster": "0x0402",
+    "attribute": "0x0000",
+    "value_type": "nullable_i16",
+    "null_value": -32768
+   },
+   "transform": {
+    "type": "scale",
+    "factor": 100
+   },
+   "note": "TemperatureMeasurement.MeasuredValue, centi-degrees C.",
+   "defaults": {
+    "id": "Temperature",
+    "data_type": "float",
+    "properties": [
+     "read"
+    ],
+    "unit": "celsius"
+   }
+  },
+  {
+   "capability": "esp.param.humidity",
+   "matter_match": {
+    "cluster": "0x0405",
+    "attribute": "0x0000",
+    "value_type": "nullable_u16",
+    "null_value": 65535
+   },
+   "transform": {
+    "type": "scale",
+    "factor": 100
+   },
+   "note": "RelativeHumidityMeasurement.MeasuredValue, centi-percent RH.",
+   "defaults": {
+    "id": "Humidity",
+    "data_type": "float",
+    "properties": [
+     "read"
+    ],
+    "unit": "percent"
+   }
+  },
+  {
+   "capability": "esp.param.illuminance",
+   "matter_match": {
+    "cluster": "0x0400",
+    "attribute": "0x0000",
+    "value_type": "nullable_u16",
+    "null_value": 65535
+   },
+   "transform": {
+    "type": "log10_scale",
+    "scale": 10000,
+    "offset": 1
+   },
+   "note": "IlluminanceMeasurement: lux = 10^((MeasuredValue - 1) / 10000), reported to 2 decimals; the spec's 0 (too low to measure) computes to ~1 lux through the same formula.",
+   "defaults": {
+    "id": "Illuminance",
+    "data_type": "float",
+    "properties": [
+     "read"
+    ],
+    "unit": "lux"
+   }
+  },
+  {
+   "capability": "esp.param.occupancy",
+   "matter_match": {
+    "cluster": "0x0406",
+    "attribute": "0x0000",
+    "value_type": "map8"
+   },
+   "transform": {
+    "type": "identity"
+   },
+   "note": "OccupancySensing.Occupancy bitmap; any set bit reports occupied (bool data_type renders non-zero as true).",
+   "defaults": {
+    "id": "Occupied",
+    "data_type": "bool",
+    "properties": [
+     "read"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.pressure",
+   "matter_match": {
+    "cluster": "0x0403",
+    "attribute": "0x0000",
+    "value_type": "nullable_i16",
+    "null_value": -32768
+   },
+   "transform": {
+    "type": "scale",
+    "factor": 10
+   },
+   "note": "PressureMeasurement.MeasuredValue = 10 x pressure [kPa].",
+   "defaults": {
+    "id": "Pressure",
+    "data_type": "float",
+    "properties": [
+     "read"
+    ],
+    "unit": "kpa"
+   }
+  },
+  {
+   "capability": "esp.param.flow",
+   "matter_match": {
+    "cluster": "0x0404",
+    "attribute": "0x0000",
+    "value_type": "nullable_u16",
+    "null_value": 65535
+   },
+   "transform": {
+    "type": "scale",
+    "factor": 10
+   },
+   "note": "FlowMeasurement.MeasuredValue = 10 x flow [m3/h].",
+   "defaults": {
+    "id": "Flow",
+    "data_type": "float",
+    "properties": [
+     "read"
+    ],
+    "unit": "cubic_meters_per_hour"
+   }
+  },
+  {
+   "capability": "esp.param.contact",
+   "matter_match": {
+    "cluster": "0x0045",
+    "attribute": "0x0000",
+    "value_type": "bool"
+   },
+   "transform": {
+    "type": "identity"
+   },
+   "note": "BooleanState.StateValue: true = closed/contact made.",
+   "defaults": {
+    "id": "Contact",
+    "data_type": "bool",
+    "properties": [
+     "read"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.leak-detected",
+   "matter_match": {
+    "cluster": "0x0045",
+    "attribute": "0x0000",
+    "value_type": "bool"
+   },
+   "transform": {
+    "type": "identity"
+   },
+   "note": "BooleanState.StateValue: true = leak detected.",
+   "defaults": {
+    "id": "Leak Detected",
+    "data_type": "bool",
+    "properties": [
+     "read"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.freeze-detected",
+   "matter_match": {
+    "cluster": "0x0045",
+    "attribute": "0x0000",
+    "value_type": "bool"
+   },
+   "transform": {
+    "type": "identity"
+   },
+   "note": "BooleanState.StateValue: true = freeze detected.",
+   "defaults": {
+    "id": "Freeze Detected",
+    "data_type": "bool",
+    "properties": [
+     "read"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.rain-detected",
+   "matter_match": {
+    "cluster": "0x0045",
+    "attribute": "0x0000",
+    "value_type": "bool"
+   },
+   "transform": {
+    "type": "identity"
+   },
+   "note": "BooleanState.StateValue: true = rain detected.",
+   "defaults": {
+    "id": "Rain Detected",
+    "data_type": "bool",
+    "properties": [
+     "read"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.smoke-state",
+   "matter_match": {
+    "cluster": "0x005C",
+    "attribute": "0x0001",
+    "value_type": "enum8",
+    "feature_map": "0x00000001"
+   },
+   "transform": {
+    "type": "string_enum_map",
+    "map": [
+     {
+      "rmng": "Normal",
+      "matter": 0
+     },
+     {
+      "rmng": "Warning",
+      "matter": 1
+     },
+     {
+      "rmng": "Critical",
+      "matter": 2
+     }
+    ],
+    "fallback": "Normal"
+   },
+   "note": "SmokeCoAlarm.SmokeState (SMOKE feature).",
+   "defaults": {
+    "id": "Smoke",
+    "data_type": "string",
+    "properties": [
+     "read"
+    ],
+    "valid_strs": [
+     "Normal",
+     "Warning",
+     "Critical"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.co-state",
+   "matter_match": {
+    "cluster": "0x005C",
+    "attribute": "0x0002",
+    "value_type": "enum8",
+    "feature_map": "0x00000002"
+   },
+   "transform": {
+    "type": "string_enum_map",
+    "map": [
+     {
+      "rmng": "Normal",
+      "matter": 0
+     },
+     {
+      "rmng": "Warning",
+      "matter": 1
+     },
+     {
+      "rmng": "Critical",
+      "matter": 2
+     }
+    ],
+    "fallback": "Normal"
+   },
+   "note": "SmokeCoAlarm.COState (CO feature).",
+   "defaults": {
+    "id": "CO",
+    "data_type": "string",
+    "properties": [
+     "read"
+    ],
+    "valid_strs": [
+     "Normal",
+     "Warning",
+     "Critical"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.air-quality",
+   "matter_match": {
+    "cluster": "0x005B",
+    "attribute": "0x0000",
+    "value_type": "enum8"
+   },
+   "transform": {
+    "type": "string_enum_map",
+    "map": [
+     {
+      "rmng": "Unknown",
+      "matter": 0
+     },
+     {
+      "rmng": "Good",
+      "matter": 1
+     },
+     {
+      "rmng": "Fair",
+      "matter": 2
+     },
+     {
+      "rmng": "Moderate",
+      "matter": 3
+     },
+     {
+      "rmng": "Poor",
+      "matter": 4
+     },
+     {
+      "rmng": "Very Poor",
+      "matter": 5
+     },
+     {
+      "rmng": "Extremely Poor",
+      "matter": 6
+     }
+    ],
+    "fallback": "Unknown"
+   },
+   "note": "AirQuality.AirQuality enum.",
+   "defaults": {
+    "id": "Air Quality",
+    "data_type": "string",
+    "properties": [
+     "read"
+    ],
+    "valid_strs": [
+     "Unknown",
+     "Good",
+     "Fair",
+     "Moderate",
+     "Poor",
+     "Very Poor",
+     "Extremely Poor"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.valve-open",
+   "matter_match": {
+    "cluster": "0x0081",
+    "attribute": "0x0004",
+    "value_type": "nullable_enum8",
+    "null_value": 255
+   },
+   "transform": {
+    "type": "enum_map",
+    "map": [
+     {
+      "rmng": 0,
+      "matter": 0
+     },
+     {
+      "rmng": 1,
+      "matter": 1
+     }
+    ],
+    "matter_aliases": [
+     {
+      "rmng": 1,
+      "matter": 2
+     }
+    ]
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x00",
+      "name": "Open",
+      "when": 1,
+      "args": []
+     },
+     {
+      "command": "0x01",
+      "name": "Close",
+      "when": 0,
+      "args": []
+     }
+    ]
+   },
+   "note": "ValveConfigurationAndControl.CurrentState; transitioning reads as open.",
+   "defaults": {
+    "id": "Open",
+    "data_type": "bool",
+    "ui_type": "esp.ui.toggle",
+    "properties": [
+     "read",
+     "write"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.rvc-run-mode",
+   "matter_match": {
+    "cluster": "0x0054",
+    "attribute": "0x0001",
+    "value_type": "u8"
+   },
+   "transform": {
+    "type": "device_enum"
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x00",
+      "name": "ChangeToMode",
+      "args": [
+       {
+        "field": 0,
+        "name": "NewMode",
+        "type": "u8",
+        "value": "$value"
+       }
+      ]
+     }
+    ]
+   },
+   "options_from": {
+    "attribute": "0x0000",
+    "label_field": 0,
+    "value_field": 1,
+    "note": "RvcRunMode.SupportedModes: {Label, Mode, ModeTags} structs"
+   },
+   "mode_tags": {
+    "Idle": [
+     "0x4000"
+    ],
+    "Cleaning": [
+     "0x4001"
+    ],
+    "Mapping": [
+     "0x4002"
+    ]
+   },
+   "required_tags": [
+    [
+     "0x4000"
+    ],
+    [
+     "0x4001"
+    ]
+   ],
+   "note": "CurrentMode; writes go through ChangeToMode (CurrentMode is read-only). Raising: labels and mode values come from SupportedModes. Lowering: SupportedModes comes from the param's valid_strs (Mode = index), a label with no mode_tags entry is dropped, and the param is not served when no label is left or the served tags miss a required_tags group.",
+   "defaults": {
+    "id": "Run Mode",
+    "data_type": "string",
+    "ui_type": "esp.ui.dropdown",
+    "properties": [
+     "read",
+     "write"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.rvc-clean-mode",
+   "matter_match": {
+    "cluster": "0x0055",
+    "attribute": "0x0001",
+    "value_type": "u8"
+   },
+   "transform": {
+    "type": "device_enum"
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x00",
+      "name": "ChangeToMode",
+      "args": [
+       {
+        "field": 0,
+        "name": "NewMode",
+        "type": "u8",
+        "value": "$value"
+       }
+      ]
+     }
+    ]
+   },
+   "options_from": {
+    "attribute": "0x0000",
+    "label_field": 0,
+    "value_field": 1
+   },
+   "mode_tags": {
+    "Deep Clean": [
+     "0x4000"
+    ],
+    "Vacuum": [
+     "0x4001"
+    ],
+    "Mop": [
+     "0x4002"
+    ],
+    "Vacuum Then Mop": [
+     "0x4003"
+    ]
+   },
+   "required_tags": [
+    [
+     "0x4001",
+     "0x4002"
+    ]
+   ],
+   "note": "RvcCleanMode, same shape as RvcRunMode.",
+   "defaults": {
+    "id": "Clean Mode",
+    "data_type": "string",
+    "ui_type": "esp.ui.dropdown",
+    "properties": [
+     "read",
+     "write"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.rvc-state",
+   "matter_match": {
+    "cluster": "0x0061",
+    "attribute": "0x0004",
+    "value_type": "enum8"
+   },
+   "transform": {
+    "type": "string_enum_map",
+    "map": [
+     {
+      "rmng": "Stopped",
+      "matter": 0
+     },
+     {
+      "rmng": "Running",
+      "matter": 1
+     },
+     {
+      "rmng": "Paused",
+      "matter": 2
+     },
+     {
+      "rmng": "Error",
+      "matter": 3
+     },
+     {
+      "rmng": "Seeking Charger",
+      "matter": 64
+     },
+     {
+      "rmng": "Charging",
+      "matter": 65
+     },
+     {
+      "rmng": "Docked",
+      "matter": 66
+     }
+    ],
+    "fallback": "Stopped"
+   },
+   "note": "RvcOperationalState.OperationalState: base states plus the RVC-specific ones.",
+   "defaults": {
+    "id": "State",
+    "data_type": "string",
+    "properties": [
+     "read"
+    ],
+    "valid_strs": [
+     "Stopped",
+     "Running",
+     "Paused",
+     "Error",
+     "Seeking Charger",
+     "Charging",
+     "Docked"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.washer-mode",
+   "matter_match": {
+    "cluster": "0x0051",
+    "attribute": "0x0001",
+    "value_type": "u8"
+   },
+   "transform": {
+    "type": "device_enum"
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x00",
+      "name": "ChangeToMode",
+      "args": [
+       {
+        "field": 0,
+        "name": "NewMode",
+        "type": "u8",
+        "value": "$value"
+       }
+      ]
+     }
+    ]
+   },
+   "options_from": {
+    "attribute": "0x0000",
+    "label_field": 0,
+    "value_field": 1
+   },
+   "mode_tags": {
+    "Normal": [
+     "0x4000"
+    ],
+    "Delicate": [
+     "0x4001"
+    ],
+    "Heavy": [
+     "0x4002"
+    ],
+    "Whites": [
+     "0x4003"
+    ]
+   },
+   "required_tags": [
+    [
+     "0x4000"
+    ]
+   ],
+   "note": "LaundryWasherMode. Raising: labels and mode values come from SupportedModes. Lowering: SupportedModes comes from the param's valid_strs (Mode = index), a label with no mode_tags entry is dropped, and the param is not served when no label is left or the served tags miss a required_tags group.",
+   "defaults": {
+    "id": "Mode",
+    "data_type": "string",
+    "ui_type": "esp.ui.dropdown",
+    "properties": [
+     "read",
+     "write"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.operational-state",
+   "matter_match": {
+    "cluster": "0x0060",
+    "attribute": "0x0004",
+    "value_type": "enum8"
+   },
+   "transform": {
+    "type": "string_enum_map",
+    "map": [
+     {
+      "rmng": "Stopped",
+      "matter": 0
+     },
+     {
+      "rmng": "Running",
+      "matter": 1
+     },
+     {
+      "rmng": "Paused",
+      "matter": 2
+     },
+     {
+      "rmng": "Error",
+      "matter": 3
+     }
+    ],
+    "fallback": "Stopped"
+   },
+   "note": "OperationalState.OperationalState base states (washer, dryer).",
+   "defaults": {
+    "id": "State",
+    "data_type": "string",
+    "properties": [
+     "read"
+    ],
+    "valid_strs": [
+     "Stopped",
+     "Running",
+     "Paused",
+     "Error"
+    ]
+   }
+  },
+  {
+   "capability": "esp.param.dryness-level",
+   "matter_match": {
+    "cluster": "0x004A",
+    "attribute": "0x0001",
+    "value_type": "nullable_enum8",
+    "null_value": 255
+   },
+   "transform": {
+    "type": "string_enum_map",
+    "map": [
+     {
+      "rmng": "Low",
+      "matter": 0
+     },
+     {
+      "rmng": "Medium",
+      "matter": 1
+     },
+     {
+      "rmng": "High",
+      "matter": 2
+     },
+     {
+      "rmng": "Max",
+      "matter": 3
+     }
+    ],
+    "fallback": "Low"
+   },
+   "note": "LaundryDryerControls.SelectedDrynessLevel, a writable attribute.",
+   "defaults": {
+    "id": "Dryness",
+    "data_type": "string",
+    "ui_type": "esp.ui.dropdown",
+    "properties": [
+     "read",
+     "write"
+    ],
+    "valid_strs": [
+     "Low",
+     "Medium",
+     "High",
+     "Max"
+    ]
+   }
+  }
+ ],
+ "composites": [
+  {
+   "id": "xy_from_hs",
+   "params": [
+    "esp.param.hue",
+    "esp.param.saturation"
+   ],
+   "matter_match": {
+    "cluster": "0x0300",
+    "feature_map": "0x00000008",
+    "attributes": [
+     "0x0003",
+     "0x0004"
+    ],
+    "value_types": [
+     "u16",
+     "u16"
+    ]
+   },
+   "conversion": {
+    "type": "hsv_xy"
+   },
+   "write_as": {
+    "commands": [
+     {
+      "command": "0x07",
+      "name": "MoveToColor",
+      "args": [
+       {
+        "field": 0,
+        "name": "ColorX",
+        "type": "u16",
+        "value": "$value[0]"
+       },
+       {
+        "field": 1,
+        "name": "ColorY",
+        "type": "u16",
+        "value": "$value[1]"
+       },
+       {
+        "field": 2,
+        "name": "TransitionTime",
+        "type": "u16",
+        "value": 0
+       },
+       {
+        "field": 3,
+        "name": "OptionsMask",
+        "type": "u8",
+        "value": 0
+       },
+       {
+        "field": 4,
+        "name": "OptionsOverride",
+        "type": "u8",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "write_as_note": "Controller-side command form: CurrentX/CurrentY are read-only, so a raising consumer drives color with MoveToColor; $value[i] is the i-th attribute value the conversion produced. Precedence: a param a scalar capability already reaches on the endpoint (hue/saturation when the light advertises HS, feature 0x01) uses that capability's own write_as (MoveToHue/MoveToSaturation); this composite binds, and this block applies, only to the params the scalar path could not reach (an XY-only light). The device (lowering) writes its own attributes and does not use this.",
+   "deferred_persistence": true,
+   "note": "CurrentX/CurrentY derived from hue+saturation (sRGB gamut, D65, gamma included; chromaticity only - brightness is LevelControl's). Lowered when all member params are bound on the endpoint; Extended Color Light (0x010D) mandates XY, which is why HS lights need this synthesis - Matter has no HS-only light device type. Inbound XY writes (MoveToColor lands as CurrentX/CurrentY updates) inject hue+saturation atomically (one write_params call). Outbound differs by side: the device (lowering) writes its own CurrentX/CurrentY attributes, so reports do not disturb ColorMode; a controller (raising) cannot write them (read-only) and uses write_as (MoveToColor)."
+  }
+ ],
+ "device_types": [
+  {
+   "device_type": "esp.device.lightbulb",
+   "defaults": {
+    "id": "Light",
+    "primary": "esp.param.power"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.power",
+      "esp.param.brightness",
+      "esp.param.hue",
+      "esp.param.saturation",
+      "esp.param.cct"
+     ],
+     "optional_params": [
+      "esp.param.light-mode"
+     ],
+     "matter_device_type": "0x010D",
+     "matter_device_type_version": 4,
+     "mandatory_clusters": [
+      "0x0003",
+      "0x0004",
+      "0x0040"
+     ],
+     "note": "Extended Color Light: XY (mandatory) synthesized via the xy_from_hs composite, CT mandatory, HS optional-but-present. A hue/sat light WITHOUT cct falls through to 0x0101 (dimmable, color cloud-only): 0x010D mandates CT and 0x010C forbids HS, so Matter offers no valid target; CT synthesis from HS is a possible follow-up."
+    },
+    {
+     "params": [
+      "esp.param.power",
+      "esp.param.brightness",
+      "esp.param.cct"
+     ],
+     "matter_device_type": "0x010C",
+     "matter_device_type_version": 4,
+     "mandatory_clusters": [
+      "0x0003",
+      "0x0004",
+      "0x0040"
+     ]
+    },
+    {
+     "params": [
+      "esp.param.power",
+      "esp.param.brightness"
+     ],
+     "matter_device_type": "0x0101",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003",
+      "0x0004",
+      "0x0040"
+     ]
+    },
+    {
+     "params": [
+      "esp.param.power"
+     ],
+     "matter_device_type": "0x0100",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003",
+      "0x0004",
+      "0x0040"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.switch",
+   "defaults": {
+    "id": "Switch",
+    "primary": "esp.param.power"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.power",
+      "esp.param.dim"
+     ],
+     "matter_device_type": "0x0110",
+     "matter_device_type_version": 2,
+     "mandatory_clusters": [
+      "0x0003",
+      "0x0004",
+      "0x0040"
+     ],
+     "additional_device_types": [
+      {
+       "id": "0x010B",
+       "version": 5,
+       "mandatory_clusters": [],
+       "note": "Dimmable Plug-In Unit, the type 0x0110 is classified a superset of: declared alongside it so a controller that does not know the mounted types still renders the endpoint. Adds no clusters of its own - its mandatory set is already the matched rule's."
+      }
+     ],
+     "note": "Mounted Dimmable Load Control: a dimmer switch driving a load. The mounted control types are the server-side switch family; Matter's On/Off Switch (0x0103) and its dimmer/colour variants are client device types that originate commands over bindings, which an owned param cannot describe."
+    },
+    {
+     "params": [
+      "esp.param.power"
+     ],
+     "matter_device_type": "0x010F",
+     "matter_device_type_version": 2,
+     "mandatory_clusters": [
+      "0x0003",
+      "0x0004",
+      "0x0040"
+     ],
+     "additional_device_types": [
+      {
+       "id": "0x010A",
+       "version": 4,
+       "mandatory_clusters": [],
+       "note": "On/Off Plug-in Unit, the type 0x010F is classified a superset of - see the 0x0110 rule."
+      }
+     ],
+     "note": "Mounted On/Off Control. Both mounted types mandate the OnOff Lighting feature and, when dimmable, LevelControl OnOff+Lighting - the same feature sets the light rules already build."
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.plug",
+   "defaults": {
+    "id": "Plug",
+    "primary": "esp.param.power"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.power",
+      "esp.param.dim"
+     ],
+     "matter_device_type": "0x010B",
+     "matter_device_type_version": 5,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "Dimmable Plug-In Unit; reuses the switch family's rule-gated dim entry."
+    },
+    {
+     "params": [
+      "esp.param.power"
+     ],
+     "matter_device_type": "0x010A",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "On/Off Plug-In Unit."
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.fan",
+   "defaults": {
+    "id": "Fan",
+    "primary": "esp.param.power"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.power@fan",
+      "esp.param.speed"
+     ],
+     "matter_device_type": "0x002B",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "Fan: power through FanMode, speed through PercentSetting; no OnOff cluster on the pure fan device type."
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.thermostat",
+   "defaults": {
+    "id": "Thermostat",
+    "primary": "esp.param.ac-mode"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.ac-mode"
+     ],
+     "optional_params": [
+      "esp.param.temperature@thermostat",
+      "esp.param.setpoint-low-temperature",
+      "esp.param.setpoint-high-temperature"
+     ],
+     "matter_device_type": "0x0301",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "Setpoints are feature-gated (HEAT/COOL); a heat-only thermostat raises no cooling setpoint."
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.air-conditioner",
+   "defaults": {
+    "id": "AC",
+    "primary": "esp.param.power"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.power",
+      "esp.param.ac-mode"
+     ],
+     "optional_params": [
+      "esp.param.temperature@thermostat",
+      "esp.param.setpoint-low-temperature",
+      "esp.param.setpoint-high-temperature",
+      "esp.param.speed"
+     ],
+     "matter_device_type": "0x0072",
+     "matter_device_type_version": 2,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "Room air conditioner: OnOff + Thermostat mandatory, FanControl optional (the speed entry matches when the cluster is present)."
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.blinds-external",
+   "defaults": {
+    "id": "Blinds",
+    "primary": "esp.param.blinds-position"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.blinds-position"
+     ],
+     "matter_device_type": "0x0202",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "Window Covering, lift percentage."
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.lock",
+   "defaults": {
+    "id": "Lock",
+    "primary": "esp.param.lockstate"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.lockstate"
+     ],
+     "matter_device_type": "0x000A",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.temperature-sensor",
+   "defaults": {
+    "id": "Temperature",
+    "primary": "esp.param.temperature"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.temperature"
+     ],
+     "matter_device_type": "0x0302",
+     "matter_device_type_version": 2,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    },
+    {
+     "params": [
+      "esp.param.temperature"
+     ],
+     "matter_device_type": "0x012E",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "pre-Matter (legacy Zigbee-derived) device type id",
+     "raising_only": true
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.humidity-sensor",
+   "defaults": {
+    "id": "Humidity",
+    "primary": "esp.param.humidity"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.humidity"
+     ],
+     "matter_device_type": "0x0307",
+     "matter_device_type_version": 2,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    },
+    {
+     "params": [
+      "esp.param.humidity"
+     ],
+     "matter_device_type": "0x0133",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "pre-Matter (legacy Zigbee-derived) device type id",
+     "raising_only": true
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.occupancy-sensor",
+   "defaults": {
+    "id": "Occupancy",
+    "primary": "esp.param.occupancy"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.occupancy"
+     ],
+     "matter_device_type": "0x0107",
+     "matter_device_type_version": 4,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    },
+    {
+     "params": [
+      "esp.param.occupancy"
+     ],
+     "matter_device_type": "0x006B",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "pre-Matter (legacy Zigbee-derived) device type id",
+     "raising_only": true
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.light-sensor",
+   "defaults": {
+    "id": "Light Sensor",
+    "primary": "esp.param.illuminance"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.illuminance"
+     ],
+     "matter_device_type": "0x0106",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    },
+    {
+     "params": [
+      "esp.param.illuminance"
+     ],
+     "matter_device_type": "0x006A",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "pre-Matter (legacy Zigbee-derived) device type id",
+     "raising_only": true
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.contact-sensor",
+   "defaults": {
+    "id": "Contact",
+    "primary": "esp.param.contact"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.contact"
+     ],
+     "matter_device_type": "0x0015",
+     "matter_device_type_version": 2,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.pressure-sensor",
+   "defaults": {
+    "id": "Pressure",
+    "primary": "esp.param.pressure"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.pressure"
+     ],
+     "matter_device_type": "0x0305",
+     "matter_device_type_version": 2,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.flow-sensor",
+   "defaults": {
+    "id": "Flow",
+    "primary": "esp.param.flow"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.flow"
+     ],
+     "matter_device_type": "0x0306",
+     "matter_device_type_version": 2,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.rain-sensor",
+   "defaults": {
+    "id": "Rain",
+    "primary": "esp.param.rain-detected"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.rain-detected"
+     ],
+     "matter_device_type": "0x0044",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.water-leak-detector",
+   "defaults": {
+    "id": "Leak",
+    "primary": "esp.param.leak-detected"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.leak-detected"
+     ],
+     "matter_device_type": "0x0043",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.water-freeze-detector",
+   "defaults": {
+    "id": "Freeze",
+    "primary": "esp.param.freeze-detected"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.freeze-detected"
+     ],
+     "matter_device_type": "0x0041",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.smoke-co-alarm",
+   "defaults": {
+    "id": "Alarm",
+    "primary": "esp.param.smoke-state"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.smoke-state"
+     ],
+     "optional_params": [
+      "esp.param.co-state"
+     ],
+     "matter_device_type": "0x0076",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "Smoke feature leads; a combined alarm also raises the CO state."
+    },
+    {
+     "params": [
+      "esp.param.co-state"
+     ],
+     "matter_device_type": "0x0076",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "CO-only alarm (no SMOKE feature)."
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.air-quality-sensor",
+   "defaults": {
+    "id": "Air Quality",
+    "primary": "esp.param.air-quality"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.air-quality"
+     ],
+     "matter_device_type": "0x002C",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.pump",
+   "defaults": {
+    "id": "Pump",
+    "primary": "esp.param.power"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.power"
+     ],
+     "matter_device_type": "0x0304",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003",
+      "0x0200"
+     ],
+     "additional_device_types": [
+      {
+       "id": "0x0303",
+       "version": 1,
+       "note": "pre-1.0 pump device type id, seen on early bridges"
+      }
+     ],
+     "note": "Pump drives through its OnOff cluster; PumpConfigurationAndControl stays unmapped (diagnostics per spec section 4.5)."
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.water-valve",
+   "defaults": {
+    "id": "Valve",
+    "primary": "esp.param.valve-open"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.valve-open"
+     ],
+     "matter_device_type": "0x0042",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.robot-vacuum",
+   "defaults": {
+    "id": "RVC",
+    "primary": "esp.param.rvc-run-mode"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.rvc-run-mode"
+     ],
+     "optional_params": [
+      "esp.param.rvc-clean-mode",
+      "esp.param.rvc-state"
+     ],
+     "matter_device_type": "0x0074",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "additional_device_types": [
+      {
+       "id": "0x0011",
+       "version": 1,
+       "note": "legacy robotic vacuum device type id"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.washer",
+   "defaults": {
+    "id": "Washer",
+    "primary": "esp.param.washer-mode"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.washer-mode"
+     ],
+     "optional_params": [
+      "esp.param.operational-state",
+      "esp.param.power"
+     ],
+     "matter_device_type": "0x0073",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.dryer",
+   "defaults": {
+    "id": "Dryer",
+    "primary": "esp.param.dryness-level"
+   },
+   "rules": [
+    {
+     "params": [
+      "esp.param.dryness-level"
+     ],
+     "optional_params": [
+      "esp.param.operational-state",
+      "esp.param.power"
+     ],
+     "matter_device_type": "0x007C",
+     "matter_device_type_version": 1,
+     "mandatory_clusters": [
+      "0x0003"
+     ]
+    }
+   ]
+  },
+  {
+   "device_type": "esp.device.generic-switch",
+   "defaults": {
+    "id": "Button"
+   },
+   "rules": [
+    {
+     "events": [
+      "esp.event.press",
+      "esp.event.long-press",
+      "esp.event.multi-press"
+     ],
+     "matter_device_type": "0x000F",
+     "matter_device_type_version": 3,
+     "mandatory_clusters": [
+      "0x0003"
+     ],
+     "note": "Event-only device: the Switch cluster has no state params to raise; the derived device carries events[] (representation-level for now)."
+    }
+   ],
+   "note": "Generic Switch / smart button."
+  }
+ ],
+ "events": [
+  {
+   "event": "esp.event.press",
+   "matter_match": {
+    "cluster": "0x003B",
+    "event": "0x01"
+   },
+   "defaults": {
+    "id": "Press",
+    "severity": "info"
+   },
+   "note": "Switch.InitialPress"
+  },
+  {
+   "event": "esp.event.long-press",
+   "matter_match": {
+    "cluster": "0x003B",
+    "event": "0x02"
+   },
+   "defaults": {
+    "id": "LongPress",
+    "severity": "info"
+   },
+   "note": "Switch.LongPress (MSL feature)"
+  },
+  {
+   "event": "esp.event.multi-press",
+   "matter_match": {
+    "cluster": "0x003B",
+    "event": "0x06"
+   },
+   "defaults": {
+    "id": "MultiPress",
+    "severity": "info"
+   },
+   "note": "Switch.MultiPressComplete (MSM feature)"
+  }
+ ]
+}

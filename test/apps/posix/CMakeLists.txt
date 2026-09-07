@@ -5,6 +5,7 @@ project(test-app-posix C ASM)
 enable_testing()
 set(TEST_ESP_RMAKER_NEO ON)
 set(TEST_ESP_RMAKER_NEO_OTA ON)
+set(TEST_ESP_RMAKER_NEO_MATTER_MIRROR ON)
 set(CMAKE_BUILD_TYPE Debug)
 
 # Opt-in AddressSanitizer for the POSIX unit-test build. Catches use-after-free, buffer overflows, etc. across all
@@ -33,6 +34,8 @@ set(COMPONENTS_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../components)
 # Add esp_rmaker_neo first so it pulls in esp_rmaker_neo_common and osal.
 add_subdirectory(${COMPONENTS_DIR}/esp_rmaker_neo components/esp_rmaker_neo)
 add_subdirectory(${COMPONENTS_DIR}/esp_rmaker_neo_ota components/esp_rmaker_neo_ota)
+# Matter mirror engine (fake-port unit tests; no esp-matter on POSIX).
+add_subdirectory(${COMPONENTS_DIR}/esp_rmaker_neo_matter_mirror components/esp_rmaker_neo_matter_mirror)
 
 # Optional: osal MQTT tests are not pulled in by osal itself (they need a live broker).
 add_subdirectory(${COMPONENTS_DIR}/osal/mqtt/test_osal_mqtt components/osal/mqtt/test_osal_mqtt)
