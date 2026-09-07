@@ -1386,9 +1386,9 @@ esp_rmaker_error_t esp_rmaker_pre_prov_deinit(void)
         return ESP_RMAKER_INVALID_STATE;
     }
 
-    /* Teardown runs to completion even when a step fails: leaving challenge-response or the
-     * factory partition initialised, and is_init_pre_prov set, would strand pre-provisioning
-     * resources for the rest of the boot. The first error is remembered and returned. */
+    /* Teardown runs to completion even when a step fails: leaving challenge-response
+     * initialised, and is_init_pre_prov set, would strand pre-provisioning resources for the
+     * rest of the boot. The first error is remembered and returned. */
     esp_rmaker_error_t first_err = ESP_RMAKER_OK;
 
 #if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
@@ -1414,14 +1414,6 @@ esp_rmaker_error_t esp_rmaker_pre_prov_deinit(void)
         }
     }
 
-    /* De-initialize factory partition */
-    esp_rmaker_error_t factory_part_err = esp_rmaker_factory_part_deinit();
-    if (factory_part_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to de-initialize factory partition");
-        if (first_err == ESP_RMAKER_OK) {
-            first_err = factory_part_err;
-        }
-    }
 
     priv_data.trackers.is_init_pre_prov = false;
     return first_err;
