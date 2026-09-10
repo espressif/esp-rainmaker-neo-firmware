@@ -35,7 +35,7 @@
  * dismiss. Do not reuse it anywhere, and do not treat it as a template for real credentials
  * -- real ones come from the factory NVS partition (see esp_rmaker_credentials.h). */
 #define TEST_OVERRIDE_DUMMY_CERT TEST_CERT_CN
-#define TEST_OVERRIDE_CLIENT_KEY "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgKek1auJXbiXKOynT\n5Kao9Gp5yjKv8NQhakCoB6YEowahRANCAAR5xBe+W7t+cKHuRxvTQKsHh1wpKnOJ\nAsGJgjBOL88XuqukJJt4h0Y5O/3VL26y0XMEO1hHOvTRoKceD3foDpO8\n-----END PRIVATE KEY-----\n"
+#define TEST_OVERRIDE_CLIENT_KEY "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgKek1auJXbiXKOynT\n5Kao9Gp5yjKv8NQhakCoB6YEowahRANCAAR5xBe+W7t+cKHuRxvTQKsHh1wpKnOJ\nAsGJgjBOL88XuqukJJt4h0Y5O/3VL26y0XMEO1hHOvTRoKceD3foDpO8\n-----END PRIVATE KEY-----\n" // gitleaks:allow
 
 /* Private functions **************************************************/
 

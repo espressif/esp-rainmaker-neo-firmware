@@ -10,6 +10,7 @@ contributor agreement. Before submitting, install the pre-commit hooks below
 
 Code maintenance is achieved with [pre-commit](https://pre-commit.com) hooks [here](.pre-commit-config.yaml):
 
+- Using [gitleaks](https://github.com/gitleaks/gitleaks) to detect hardcoded secrets
 - Using [astyle](https://astyle.sourceforge.net) for code formatting
 - Using [cmake-format](https://github.com/cheshirekow/cmake-format-precommit) for CMake formatting
 - Using [ruff](https://github.com/astral-sh/ruff-pre-commit) for Python linting + formatting

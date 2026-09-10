@@ -1,4 +1,22 @@
 repos:
+# Secret scanning. --redact prints a finding with the secret replaced by REDACTED.
+# The stock entry reads the staged diff, which is empty under --all-files, so scan
+# a checkout of the git index instead: the files a commit holds, ignored files excluded.
+#
+# Runs first and stops the run: a later hook that rewrites the file would put the
+# secret in the --show-diff-on-failure output unredacted.
+-   repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+    -   id: gitleaks
+        entry: >-
+          sh -c 't=$(mktemp -d); git checkout-index -a --prefix="$t/" &&
+          (cd "$t" && gitleaks dir --redact --no-banner --verbose .); r=$?;
+          rm -rf "$t"; exit $r'
+        pass_filenames: false
+        always_run: true
+        fail_fast: true
+
 # C/C++ formatting
 -   repo: https://github.com/igrr/astyle_py.git
     rev: v1.1.0
