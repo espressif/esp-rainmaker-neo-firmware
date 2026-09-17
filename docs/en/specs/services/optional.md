@@ -233,3 +233,22 @@ Security 0 is not supported.
 - The PoP is generated once and persisted, unless the application sets its own with
   `esp_rmaker_local_ctrl_set_pop()` before enabling the service — which is how a device
   reuses the PoP printed on it (see the guides on factory provisioning).
+
+### Custom Endpoints
+
+An application can add its own endpoints to the Local Control protocomm instance with
+`esp_rmaker_local_ctrl_add_endpoint()`, and remove them with `esp_rmaker_local_ctrl_remove_endpoint()`.
+
+- Add the endpoints from the `RMAKER_EVENT_LOCAL_CTRL_STARTED` handler. When the service is not
+  running, add returns `ESP_RMAKER_INVALID_STATE`.
+- The node holds up to 4 custom endpoints. Protocomm rejects a duplicate name, which includes the
+  standard endpoint names.
+- Disabling the service removes all custom endpoints, also when challenge-response keeps the HTTP
+  server running.
+- A custom endpoint uses the same session security as `get_params`. With security 1 and
+  `CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP=n`, any client on the LAN can call it.
+- The handler runs on the HTTP server task, with a stack of `CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_STACK_SIZE` bytes.
+- Remove does not wait for a handler that runs at that time. Keep `priv_data` valid until the
+  service stops.
+- Add and remove have no lock. Do not call them at the same time as each other, or as the service
+  enable or disable.
