@@ -133,6 +133,11 @@ unit_tests_posix:
         ln -sfn "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR" "$ORIG_BUILD_DIR"
       fi
     - |
+      # D-Bus system bus + Avahi: required for mDNS in the local endpoints tests
+      mkdir -p /run/dbus
+      dbus-daemon --system --fork
+      avahi-daemon --no-chroot --daemonize
+    - |
       # Start MQTT broker for testing
       "$MQTT_RUN_CMD" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.conf" "$MOSQUITTO_LOG" "$MOSQUITTO_PID"
     - |
