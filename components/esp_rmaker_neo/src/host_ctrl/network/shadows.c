@@ -243,37 +243,46 @@ static void __mqtt_on_accepted_cb(const char *topic, size_t topic_len, void *pay
     OSAL_LOGD(TAG, "Payload: %.*s", (int) payload_len, (const char *) payload);
     /* Get the reported document */
     jparse_ctx_t jctx;
-    json_parse_start(&jctx, (const char *) payload, payload_len);
-    if (json_obj_get_object(&jctx, "state") != 0) {
-        OSAL_LOGE(TAG, "Failed to get state object from reported document");
+    if (json_parse_start(&jctx, (const char *) payload, payload_len) != 0) {
+        OSAL_LOGE(TAG, "Failed to parse reported document");
         return;
     }
 
-    /* Read the 'reported' object directly into a string */
+    char *reported_str = NULL;
     int reported_len = 0;
+    if (json_obj_get_object(&jctx, "state") != 0) {
+        OSAL_LOGE(TAG, "Failed to get state object from reported document");
+        goto parse_end;
+    }
+
+    /* Read the 'reported' object directly into a string */
     if (json_obj_get_object_strlen(&jctx, "reported", &reported_len) != 0) {
         OSAL_LOGE(TAG, "Failed to get reported object string length from reported document");
-        return;
+        goto parse_end;
     }
 
     /* Add 1 for the null terminator */
     reported_len++;
 
     /* Allocate a buffer for the reported document */
-    char *reported_str = (char *) OSAL_CALLOC_EXTRAM(reported_len, sizeof(char));
+    reported_str = (char *) OSAL_CALLOC_EXTRAM(reported_len, sizeof(char));
     if (reported_str == NULL) {
         OSAL_LOGE(TAG, "Failed to allocate buffer for reported document");
-        return;
+        goto parse_end;
     }
 
     /* Read the 'reported' object directly into the buffer */
     if (json_obj_get_object_str(&jctx, "reported", reported_str, reported_len) != 0) {
         OSAL_LOGE(TAG, "Failed to get reported object string from reported document");
         free(reported_str);
-        return;
+        reported_str = NULL;
     }
 
+parse_end:
     json_parse_end(&jctx);
+    if (reported_str == NULL) {
+        return;
+    }
 
     OSAL_LOGD(TAG, "Received reported document: %s", reported_str);
 
