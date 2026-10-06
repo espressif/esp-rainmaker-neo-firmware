@@ -127,7 +127,9 @@ esp_rmaker_error_t esp_rmaker_ota_nvs_set_status_if_pending_verification(bool is
     do {
         /* Check if there is a pending verification job */
         char *job_id = esp_rmaker_nvs_get_string_with_handle(nvs_handle, RMAKER_NVS_OTA_KEY_LAST_JOB_ID);
-        if (job_id == NULL || job_id[0] == '\0') {
+        bool has_job = (job_id != NULL) && (job_id[0] != '\0');
+        free(job_id);
+        if (!has_job) {
             break;
         }
         int next_expected_version = esp_rmaker_nvs_get_int_default_with_handle(nvs_handle, RMAKER_NVS_OTA_KEY_LAST_VERSION, -1);
