@@ -67,8 +67,8 @@ static char *empty_payload = "{}";
  * @brief The reported document cache for the indexed and named shadows.
  */
 static struct {
-    char *indexed; /* Reported document cache for the indexed shadow. */
-    char *named; /* Reported document cache for the named shadow. */
+    _Atomic(char *) indexed; /* Reported document cache for the indexed shadow. */
+    _Atomic(char *) named; /* Reported document cache for the named shadow. */
 } __shadows_reported_documents_t = {
     .indexed = NULL,
     .named = NULL,
@@ -289,7 +289,7 @@ parse_end:
 
     /* Determine the type of shadow and set the reported document and event group bit */
     __shadows_type_t type = (__shadows_type_t)(uintptr_t) priv_data;
-    char **p_reported_document = NULL;
+    _Atomic(char *) *p_reported_document = NULL;
     osal_event_group_bits_t event_group_bit = 0;
     switch (type) {
     case __SHADOWS_TYPE_INDEXED:
@@ -306,11 +306,8 @@ parse_end:
         return;
     }
 
-    /* Set the reported document */
-    if (*p_reported_document != NULL) {
-        free(*p_reported_document);
-    }
-    *p_reported_document = reported_str;
+    /* Set the reported document; the atomic exchange stops a concurrent getter from returning freed memory */
+    free(atomic_exchange(p_reported_document, reported_str));
 
     /* Set the bit */
     esp_rmaker_network_set_bits(event_group_bit);
@@ -438,7 +435,7 @@ static char *__shadows_get_reported_document(__shadows_type_t type, uint32_t tim
 {
     /* Get variables based on shadow type */
     osal_event_group_bits_t subscribed_bit, reported_bit;
-    char **p_reported_document = NULL;
+    _Atomic(char *) *p_reported_document = NULL;
     switch (type) {
     case __SHADOWS_TYPE_INDEXED:
         subscribed_bit = RMAKER_NETWORK_EVENT_GROUP_BIT_INDEXED_SHADOW_SUBSCRIBED;
@@ -480,9 +477,7 @@ static char *__shadows_get_reported_document(__shadows_type_t type, uint32_t tim
     esp_rmaker_network_clear_bits(reported_bit);
 
     /* Return the reported document and set it to NULL */
-    char *to_report = *p_reported_document;
-    *p_reported_document = NULL;
-    return to_report;
+    return atomic_exchange(p_reported_document, NULL);
 }
 
 /* Public function definitions **************************************************/
@@ -511,14 +506,8 @@ esp_rmaker_error_t esp_rmaker_shadows_deinit(void)
     }
 
     /* Free the reported documents */
-    if (__shadows_reported_documents_t.indexed) {
-        free(__shadows_reported_documents_t.indexed);
-        __shadows_reported_documents_t.indexed = NULL;
-    }
-    if (__shadows_reported_documents_t.named) {
-        free(__shadows_reported_documents_t.named);
-        __shadows_reported_documents_t.named = NULL;
-    }
+    free(atomic_exchange(&__shadows_reported_documents_t.indexed, NULL));
+    free(atomic_exchange(&__shadows_reported_documents_t.named, NULL));
     return ESP_RMAKER_OK;
 }
 
