@@ -58,6 +58,13 @@ int test_rmaker_neo_ota_all_tests_unity(void)
     RUN_TEST(test_rollback_post_mqtt_diag_receives_config_priv);
     RUN_TEST(test_rollback_mqtt_already_connected_marks_valid);
     RUN_TEST(test_rollback_post_mqtt_diag_runs_once_if_already_connected);
+    RUN_TEST(test_rollback_diag_failure_stores_diag_reason);
+    RUN_TEST(test_rollback_post_mqtt_diag_failure_stores_post_mqtt_reason);
+    RUN_TEST(test_rollback_timeout_stores_timeout_reason);
+    RUN_TEST(test_rollback_mark_invalid_stores_marked_invalid_reason);
+    RUN_TEST(test_rollback_verify_setup_failure_stores_setup_reason);
+    RUN_TEST(test_rollback_boot_after_rollback_keeps_stored_reason);
+    RUN_TEST(test_rollback_crash_reports_no_reason);
 #endif /* ESP_PLATFORM */
 
     /* MQTT bitmap (mqtt_bitmap.c) */
@@ -79,6 +86,10 @@ int test_rmaker_neo_ota_all_tests_unity(void)
     RUN_TEST(test_fsm_uninitialized_any_event_returns_uninitialized);
     RUN_TEST(test_fsm_network_init_null_stays);
     RUN_TEST(test_fsm_network_init_wrong_event_stays);
+#ifndef ESP_PLATFORM
+    RUN_TEST(test_fsm_reboot_check_reason_after_rollback_follows_stored_reason);
+    RUN_TEST(test_fsm_reboot_check_reason_without_rollback_is_check_failed);
+#endif /* ESP_PLATFORM */
     RUN_TEST(test_fsm_reboot_check_null_stays);
     RUN_TEST(test_fsm_reboot_check_other_event_stays);
     RUN_TEST(test_fsm_reboot_check_recoverable_reject_stays);

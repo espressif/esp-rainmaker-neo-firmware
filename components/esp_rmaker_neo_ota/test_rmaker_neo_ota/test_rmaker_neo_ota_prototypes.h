@@ -46,6 +46,13 @@ void test_rollback_timer_failure_still_marks_valid_on_mqtt(void);
 void test_rollback_post_mqtt_diag_receives_config_priv(void);
 void test_rollback_mqtt_already_connected_marks_valid(void);
 void test_rollback_post_mqtt_diag_runs_once_if_already_connected(void);
+void test_rollback_diag_failure_stores_diag_reason(void);
+void test_rollback_post_mqtt_diag_failure_stores_post_mqtt_reason(void);
+void test_rollback_timeout_stores_timeout_reason(void);
+void test_rollback_mark_invalid_stores_marked_invalid_reason(void);
+void test_rollback_verify_setup_failure_stores_setup_reason(void);
+void test_rollback_boot_after_rollback_keeps_stored_reason(void);
+void test_rollback_crash_reports_no_reason(void);
 #endif /* ESP_PLATFORM */
 
 /* OTA status manager (ota_status.c) */
@@ -64,6 +71,8 @@ uint64_t rmaker_ota_jobs_test_get_backoff_delay_ms(void);
 void test_fsm_uninitialized_any_event_returns_uninitialized(void);
 void test_fsm_network_init_null_stays(void);
 void test_fsm_network_init_wrong_event_stays(void);
+void test_fsm_reboot_check_reason_after_rollback_follows_stored_reason(void);
+void test_fsm_reboot_check_reason_without_rollback_is_check_failed(void);
 void test_fsm_reboot_check_null_stays(void);
 void test_fsm_reboot_check_other_event_stays(void);
 void test_fsm_reboot_check_recoverable_reject_stays(void);

@@ -231,6 +231,9 @@ static const char *get_next_job_id_from_queue(void);
 static void flush_job_id_queue(void);
 #endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
+/* Forward declarations - Reboot check */
+static const char *reboot_check_fail_reason(esp_rmaker_ota_nvs_fail_reason_t fail_reason);
+
 /* Forward declarations - State handlers */
 static void on_event_ignored(const ota_job_event_data_t *event_data);
 static ota_job_state_t handle_state_uninitialized(const ota_job_event_data_t *event_data, bool *should_free_event);
@@ -1512,6 +1515,30 @@ static ota_job_state_t handle_state_network_init(const ota_job_event_data_t *eve
     return next_state;
 }
 
+/* Pick the failed reason from the rollback state and the reason that the new image stored */
+static const char *reboot_check_fail_reason(esp_rmaker_ota_nvs_fail_reason_t fail_reason)
+{
+    if (!esp_rmaker_ota_partition_rollback_detected()) {
+        return ESP_RMAKER_OTA_FAILED_REASON_REBOOT_CHECK_FAILED;
+    }
+    switch (fail_reason) {
+    case RMAKER_OTA_NVS_FAIL_REASON_DIAG_FAILED:
+        return ESP_RMAKER_OTA_FAILED_REASON_DIAG_FAILED;
+    case RMAKER_OTA_NVS_FAIL_REASON_POST_MQTT_DIAG_FAILED:
+        return ESP_RMAKER_OTA_FAILED_REASON_POST_MQTT_DIAG_FAILED;
+    case RMAKER_OTA_NVS_FAIL_REASON_VALIDATION_TIMEOUT:
+        return ESP_RMAKER_OTA_FAILED_REASON_VALIDATION_TIMEOUT;
+    case RMAKER_OTA_NVS_FAIL_REASON_MARKED_INVALID:
+        return ESP_RMAKER_OTA_FAILED_REASON_MARKED_INVALID;
+    case RMAKER_OTA_NVS_FAIL_REASON_VERIFY_SETUP_FAILED:
+        return ESP_RMAKER_OTA_FAILED_REASON_VERIFY_SETUP_FAILED;
+    case RMAKER_OTA_NVS_FAIL_REASON_NONE:
+    case RMAKER_OTA_NVS_FAIL_REASON_COUNT:
+        break;
+    }
+    return ESP_RMAKER_OTA_FAILED_REASON_ROLLBACK_AFTER_REBOOT;
+}
+
 static ota_job_state_t handle_state_reboot_check(const ota_job_event_data_t *event_data, bool *should_free_event)
 {
     ota_job_state_t next_state = OTA_JOB_STATE_REBOOT_CHECK;
@@ -1563,9 +1590,10 @@ static ota_job_state_t handle_state_reboot_check(const ota_job_event_data_t *eve
         esp_rmaker_ota_nvs_flags_t status_flags;
         err = esp_rmaker_ota_nvs_get_status(&status_flags);
         if (err != ESP_RMAKER_OK) {
-            OSAL_LOGE(TAG, "Failed to get status flags from NVS. Will report reboot check failed.");
+            OSAL_LOGE(TAG, "Failed to get status flags from NVS. Will report a failure.");
             status_flags.is_checked = true;
             status_flags.is_passed = false;
+            status_flags.fail_reason = RMAKER_OTA_NVS_FAIL_REASON_NONE;
         }
 
         /* Send an update, current state will receive accepted/rejected events */
@@ -1578,10 +1606,7 @@ static ota_job_state_t handle_state_reboot_check(const ota_job_event_data_t *eve
                 esp_rmaker_ota_status_details_fill_succeeded(status_details, NULL, osal_sysinfo_get_fw_version());
             } else {
                 status = Failed;
-                const char *reason = esp_rmaker_ota_partition_rollback_detected()
-                                     ? ESP_RMAKER_OTA_FAILED_REASON_ROLLBACK_AFTER_REBOOT
-                                     : ESP_RMAKER_OTA_FAILED_REASON_REBOOT_CHECK_FAILED;
-                esp_rmaker_ota_status_details_fill_failed(status_details, reason);
+                esp_rmaker_ota_status_details_fill_failed(status_details, reboot_check_fail_reason((esp_rmaker_ota_nvs_fail_reason_t)status_flags.fail_reason));
             }
             g_ota_state_ctx.current_job.current_status = status;
             err = ota_jobs_mqtt_publish_update_job_status(status, status_details);

@@ -27,6 +27,11 @@
 
 #define RMAKER_OTA_STATUS_FLAG_IS_CHECKED (1 << 0)
 #define RMAKER_OTA_STATUS_FLAG_IS_PASSED (1 << 1)
+#define RMAKER_OTA_STATUS_FAIL_REASON_SHIFT 2
+#define RMAKER_OTA_STATUS_FAIL_REASON_MASK (0x7 << RMAKER_OTA_STATUS_FAIL_REASON_SHIFT)
+
+_Static_assert(RMAKER_OTA_NVS_FAIL_REASON_COUNT - 1 <= (RMAKER_OTA_STATUS_FAIL_REASON_MASK >> RMAKER_OTA_STATUS_FAIL_REASON_SHIFT),
+               "esp_rmaker_ota_nvs_fail_reason_t does not fit in the status flags");
 
 /* Private function declarations ***************************************************/
 
@@ -53,6 +58,7 @@ static esp_rmaker_ota_nvs_flags_t __u16_to_flags(uint16_t value)
     esp_rmaker_ota_nvs_flags_t flags = {0};
     flags.is_checked = (value & RMAKER_OTA_STATUS_FLAG_IS_CHECKED) != 0;
     flags.is_passed = (value & RMAKER_OTA_STATUS_FLAG_IS_PASSED) != 0;
+    flags.fail_reason = (value & RMAKER_OTA_STATUS_FAIL_REASON_MASK) >> RMAKER_OTA_STATUS_FAIL_REASON_SHIFT;
     return flags;
 }
 
@@ -65,6 +71,7 @@ static uint16_t __flags_to_u16(esp_rmaker_ota_nvs_flags_t flags)
     if (flags.is_passed) {
         value |= RMAKER_OTA_STATUS_FLAG_IS_PASSED;
     }
+    value |= ((uint16_t)flags.fail_reason << RMAKER_OTA_STATUS_FAIL_REASON_SHIFT) & RMAKER_OTA_STATUS_FAIL_REASON_MASK;
     return value;
 }
 
@@ -113,7 +120,7 @@ esp_rmaker_ota_nvs_set_job_pending_verification_fail:
     return err;
 }
 
-esp_rmaker_error_t esp_rmaker_ota_nvs_set_status_if_pending_verification(bool is_passed, bool override_existing)
+esp_rmaker_error_t esp_rmaker_ota_nvs_set_status_if_pending_verification(bool is_passed, esp_rmaker_ota_nvs_fail_reason_t fail_reason, bool override_existing)
 {
     esp_rmaker_error_t err = ESP_RMAKER_OK;
 
@@ -151,6 +158,7 @@ esp_rmaker_error_t esp_rmaker_ota_nvs_set_status_if_pending_verification(bool is
         /* Set the checked and passed status */
         status_flags.is_checked = true;
         status_flags.is_passed = is_passed;
+        status_flags.fail_reason = is_passed ? RMAKER_OTA_NVS_FAIL_REASON_NONE : fail_reason;
         err = esp_rmaker_nvs_update_u16_with_handle(nvs_handle, RMAKER_NVS_OTA_KEY_STATUS_FLAGS, __flags_to_u16(status_flags));
         if (err != ESP_RMAKER_OK) {
             break;

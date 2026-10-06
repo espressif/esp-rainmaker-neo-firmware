@@ -30,10 +30,14 @@
 
 static bool g_timer_init_fail = false;
 static esp_rmaker_error_t __timer_init(const rmaker_ota_timeout_handler_config_t *config, rmaker_ota_timeout_handler_handle_t *p_handle);
+static bool g_event_register_fail = false;
+static osal_err_t __event_register(osal_event_base_t event_base, int32_t event_id, osal_event_handler_t event_handler, void *event_handler_arg);
 
 /* Include source to access the static reboot and diagnostics handlers (same TU) */
 #define rmaker_ota_timeout_handler_init __timer_init
+#define osal_event_handler_register __event_register
 #include "esp_rmaker_ota.c"
+#undef osal_event_handler_register
 #undef rmaker_ota_timeout_handler_init
 
 extern bool TEST_OTA_JOBS_DO_NOT_WRAP;
@@ -51,10 +55,29 @@ static esp_rmaker_error_t __timer_init(const rmaker_ota_timeout_handler_config_t
     return rmaker_ota_timeout_handler_init(config, p_handle);
 }
 
+static osal_err_t __event_register(osal_event_base_t event_base, int32_t event_id, osal_event_handler_t event_handler, void *event_handler_arg)
+{
+    if (g_event_register_fail) {
+        return OSAL_ERR_FAIL;
+    }
+    return osal_event_handler_register(event_base, event_id, event_handler, event_handler_arg);
+}
+
 static int g_diag_calls = 0;
 static esp_rmaker_ota_diag_state_t g_diag_last_state;
 static void *g_diag_last_priv = NULL;
 static int g_diag_priv_marker = 0;
+
+static esp_rmaker_ota_diag_status_t __diag_fail(esp_rmaker_ota_diag_priv_t *ota_diag_priv, void *priv)
+{
+    g_diag_calls++;
+    return OTA_DIAG_STATUS_FAIL;
+}
+
+static esp_rmaker_ota_diag_status_t __diag_fail_post_mqtt(esp_rmaker_ota_diag_priv_t *ota_diag_priv, void *priv)
+{
+    return ota_diag_priv->state == OTA_DIAG_STATE_POST_MQTT ? OTA_DIAG_STATUS_FAIL : OTA_DIAG_STATUS_SUCCESS;
+}
 
 static esp_rmaker_ota_diag_status_t __diag_success(esp_rmaker_ota_diag_priv_t *ota_diag_priv, void *priv)
 {
@@ -123,6 +146,7 @@ static void __end_pending_verify_boot(void)
     g_post_mqtt_diag = NULL;
     g_post_mqtt_diag_priv = NULL;
     g_timer_init_fail = false;
+    g_event_register_fail = false;
     osal_ota_event_loop_init(NULL);
     osal_storage_reset((char *)RMAKER_NVS_PART_NAME);
     __set_all_slots_valid();
@@ -131,6 +155,72 @@ static void __end_pending_verify_boot(void)
 static void __post_mqtt_connected(void)
 {
     esp_rmaker_ota_post_mqtt_diag_handler(NULL, RMAKER_COMMON_EVENT, RMAKER_MQTT_EVENT_CONNECTED, NULL);
+}
+
+static void __set_job_pending(void)
+{
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_ota_nvs_set_job_pending_verification("job-1", NULL, 2));
+}
+
+/* Run the step in a child process and check that it rolled back to the old slot */
+static void __rollback_in_child(void (*step)(void))
+{
+    uint8_t old_slot = __last_valid_slot();
+    fflush(stdout);
+    pid_t pid = fork();
+    TEST_ASSERT_NOT_EQUAL(-1, pid);
+    if (pid == 0) {
+        step();
+        _exit(0);
+    }
+
+    int status = 0;
+    TEST_ASSERT_EQUAL(pid, waitpid(pid, &status, 0));
+    TEST_ASSERT_TRUE(WIFEXITED(status));
+    TEST_ASSERT_EQUAL(POSIX_EXIT_REBOOT, WEXITSTATUS(status));
+    TEST_ASSERT_EQUAL(old_slot, __boot_slot());
+}
+
+/* Return the failed status that the next boot reads */
+static esp_rmaker_ota_nvs_flags_t __failed_status(void)
+{
+    esp_rmaker_ota_nvs_flags_t flags;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_ota_nvs_get_status(&flags));
+    TEST_ASSERT_TRUE(flags.is_checked);
+    TEST_ASSERT_FALSE(flags.is_passed);
+    return flags;
+}
+
+static void __step_diag_fail(void)
+{
+    esp_rmaker_ota_config_t config = { .ota_diag = __diag_fail };
+    esp_rmaker_ota_handle_reboot(&config);
+}
+
+static void __step_post_mqtt_diag_fail(void)
+{
+    esp_rmaker_ota_config_t config = { .ota_diag = __diag_fail_post_mqtt };
+    esp_rmaker_ota_handle_reboot(&config);
+    __post_mqtt_connected();
+}
+
+static void __step_timeout(void)
+{
+    esp_rmaker_ota_config_t config = { 0 };
+    esp_rmaker_ota_handle_reboot(&config);
+    esp_rmaker_ota_rollback_timeout_callback(NULL);
+}
+
+static void __step_mark_invalid(void)
+{
+    esp_rmaker_ota_mark_invalid();
+}
+
+static void __step_verify_setup_fail(void)
+{
+    g_event_register_fail = true;
+    esp_rmaker_ota_config_t config = { 0 };
+    esp_rmaker_ota_handle_reboot(&config);
 }
 
 void test_rollback_null_diag_waits_for_mqtt_before_valid(void)
@@ -150,23 +240,8 @@ void test_rollback_null_diag_waits_for_mqtt_before_valid(void)
 void test_rollback_null_diag_without_mqtt_rolls_back(void)
 {
     __begin_pending_verify_boot();
-    uint8_t old_slot = 0;
-    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_ota_posix_config_get_last_valid_partition(&old_slot));
-    fflush(stdout);
-    pid_t pid = fork();
-    TEST_ASSERT_NOT_EQUAL(-1, pid);
-    if (pid == 0) {
-        esp_rmaker_ota_config_t config = { 0 };
-        esp_rmaker_ota_handle_reboot(&config);
-        esp_rmaker_ota_rollback_timeout_callback(NULL);
-        _exit(0);
-    }
 
-    int status = 0;
-    TEST_ASSERT_EQUAL(pid, waitpid(pid, &status, 0));
-    TEST_ASSERT_TRUE(WIFEXITED(status));
-    TEST_ASSERT_EQUAL(POSIX_EXIT_REBOOT, WEXITSTATUS(status));
-    TEST_ASSERT_EQUAL(old_slot, __boot_slot());
+    __rollback_in_child(__step_timeout);
     TEST_ASSERT_TRUE(esp_rmaker_ota_partition_rollback_detected());
     __end_pending_verify_boot();
 }
@@ -174,22 +249,9 @@ void test_rollback_null_diag_without_mqtt_rolls_back(void)
 void test_rollback_nvs_failure_still_rolls_back(void)
 {
     __begin_pending_verify_boot();
-    uint8_t old_slot = 0;
-    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_ota_posix_config_get_last_valid_partition(&old_slot));
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_deinit((char *)RMAKER_NVS_PART_NAME));
-    fflush(stdout);
-    pid_t pid = fork();
-    TEST_ASSERT_NOT_EQUAL(-1, pid);
-    if (pid == 0) {
-        esp_rmaker_ota_mark_invalid();
-        _exit(0);
-    }
 
-    int status = 0;
-    TEST_ASSERT_EQUAL(pid, waitpid(pid, &status, 0));
-    TEST_ASSERT_TRUE(WIFEXITED(status));
-    TEST_ASSERT_EQUAL(POSIX_EXIT_REBOOT, WEXITSTATUS(status));
-    TEST_ASSERT_EQUAL(old_slot, __boot_slot());
+    __rollback_in_child(__step_mark_invalid);
     __end_pending_verify_boot();
 }
 
@@ -275,5 +337,94 @@ void test_rollback_post_mqtt_diag_runs_once_if_already_connected(void)
 
     __post_mqtt_connected();
     TEST_ASSERT_EQUAL(2, g_diag_calls);
+    __end_pending_verify_boot();
+}
+
+void test_rollback_diag_failure_stores_diag_reason(void)
+{
+    __begin_pending_verify_boot();
+    __set_job_pending();
+
+    __rollback_in_child(__step_diag_fail);
+    esp_rmaker_ota_nvs_flags_t flags = __failed_status();
+    TEST_ASSERT_EQUAL(RMAKER_OTA_NVS_FAIL_REASON_DIAG_FAILED, flags.fail_reason);
+    __end_pending_verify_boot();
+}
+
+void test_rollback_post_mqtt_diag_failure_stores_post_mqtt_reason(void)
+{
+    __begin_pending_verify_boot();
+    __set_job_pending();
+
+    __rollback_in_child(__step_post_mqtt_diag_fail);
+    esp_rmaker_ota_nvs_flags_t flags = __failed_status();
+    TEST_ASSERT_EQUAL(RMAKER_OTA_NVS_FAIL_REASON_POST_MQTT_DIAG_FAILED, flags.fail_reason);
+    __end_pending_verify_boot();
+}
+
+void test_rollback_timeout_stores_timeout_reason(void)
+{
+    __begin_pending_verify_boot();
+    __set_job_pending();
+
+    __rollback_in_child(__step_timeout);
+    esp_rmaker_ota_nvs_flags_t flags = __failed_status();
+    TEST_ASSERT_EQUAL(RMAKER_OTA_NVS_FAIL_REASON_VALIDATION_TIMEOUT, flags.fail_reason);
+    __end_pending_verify_boot();
+}
+
+void test_rollback_mark_invalid_stores_marked_invalid_reason(void)
+{
+    __begin_pending_verify_boot();
+    __set_job_pending();
+
+    __rollback_in_child(__step_mark_invalid);
+    esp_rmaker_ota_nvs_flags_t flags = __failed_status();
+    TEST_ASSERT_EQUAL(RMAKER_OTA_NVS_FAIL_REASON_MARKED_INVALID, flags.fail_reason);
+    __end_pending_verify_boot();
+}
+
+void test_rollback_verify_setup_failure_stores_setup_reason(void)
+{
+    __begin_pending_verify_boot();
+    __set_job_pending();
+
+    __rollback_in_child(__step_verify_setup_fail);
+    esp_rmaker_ota_nvs_flags_t flags = __failed_status();
+    TEST_ASSERT_EQUAL(RMAKER_OTA_NVS_FAIL_REASON_VERIFY_SETUP_FAILED, flags.fail_reason);
+    __end_pending_verify_boot();
+}
+
+void test_rollback_boot_after_rollback_keeps_stored_reason(void)
+{
+    __begin_pending_verify_boot();
+    __set_job_pending();
+    __rollback_in_child(__step_diag_fail);
+
+    esp_rmaker_ota_config_t config = { 0 };
+    esp_rmaker_ota_handle_reboot(&config);
+
+    esp_rmaker_ota_nvs_flags_t flags;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_ota_nvs_get_status(&flags));
+    TEST_ASSERT_FALSE(flags.is_passed);
+    TEST_ASSERT_EQUAL(RMAKER_OTA_NVS_FAIL_REASON_DIAG_FAILED, flags.fail_reason);
+    __end_pending_verify_boot();
+}
+
+void test_rollback_crash_reports_no_reason(void)
+{
+    __begin_pending_verify_boot();
+    __set_job_pending();
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_ota_posix_config_set_partition_state(__boot_slot(), OSAL_OTA_IMG_ABORTED));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_ota_posix_config_set_boot_partition(__last_valid_slot()));
+
+    esp_rmaker_ota_config_t config = { 0 };
+    esp_rmaker_ota_handle_reboot(&config);
+
+    esp_rmaker_ota_nvs_flags_t flags;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_ota_nvs_get_status(&flags));
+    TEST_ASSERT_TRUE(flags.is_checked);
+    TEST_ASSERT_FALSE(flags.is_passed);
+    TEST_ASSERT_EQUAL(RMAKER_OTA_NVS_FAIL_REASON_NONE, flags.fail_reason);
     __end_pending_verify_boot();
 }

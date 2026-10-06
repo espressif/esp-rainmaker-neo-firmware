@@ -109,7 +109,30 @@ The complete set of SDK-generated failure reasons:
     handler's integration check
 
 * - ``"Reboot check failed"``
-  - The post-reboot validation of the new image failed
+  - The new image ran but did not pass the post-reboot check, and no rollback occurred:
+    the image could not be marked valid, or the OTA status could not be read from NVS
+
+* - ``"New firmware failed diagnostics"``
+  - The new image failed the ``ota_diag`` callback at boot and rolled back
+
+* - ``"New firmware failed diagnostics after MQTT connected"``
+  - The new image failed the ``ota_diag`` callback after MQTT connected and rolled back
+
+* - ``"New firmware not marked valid in time"``
+  - The new image was not marked valid within ``CONFIG_ESP_RMAKER_NEO_OTA_ROLLBACK_WAIT_PERIOD``
+    and rolled back
+
+* - ``"New firmware marked invalid"``
+  - The application called ``esp_rmaker_ota_mark_invalid()`` on the new image
+
+* - ``"New firmware could not set up verification"``
+  - The SDK could not register for the MQTT connection that marks the new image valid,
+    so the new image rolled back
+
+* - ``"New firmware rolled back after reboot"``
+  - The bootloader rolled back the new image, and the new image stored no reason,
+    e.g. it crashed before it could mark itself valid. The firmware that the device
+    rolls back to also reports this reason if it cannot read the stored reason
 
 * - ``"Timed out waiting for final status"``
   - The filetype handler did not call ``esp_rmaker_ota_report_final_status()``

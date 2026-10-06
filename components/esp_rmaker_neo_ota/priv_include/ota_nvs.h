@@ -26,6 +26,26 @@
 /* Types ************************************************************************/
 
 /**
+ * @brief Why the new image marked itself invalid before the rollback
+ */
+typedef enum {
+    /** No reason stored, e.g. the new image crashed */
+    RMAKER_OTA_NVS_FAIL_REASON_NONE = 0,
+    /** Diagnostics failed at boot */
+    RMAKER_OTA_NVS_FAIL_REASON_DIAG_FAILED,
+    /** Diagnostics failed after MQTT connected */
+    RMAKER_OTA_NVS_FAIL_REASON_POST_MQTT_DIAG_FAILED,
+    /** The image was not marked valid before the rollback timeout */
+    RMAKER_OTA_NVS_FAIL_REASON_VALIDATION_TIMEOUT,
+    /** The application called esp_rmaker_ota_mark_invalid() */
+    RMAKER_OTA_NVS_FAIL_REASON_MARKED_INVALID,
+    /** The SDK could not set up the verification of the image */
+    RMAKER_OTA_NVS_FAIL_REASON_VERIFY_SETUP_FAILED,
+    /** Number of reasons; not a valid reason */
+    RMAKER_OTA_NVS_FAIL_REASON_COUNT,
+} esp_rmaker_ota_nvs_fail_reason_t;
+
+/**
  * @brief Flags for the OTA status in NVS
  */
 typedef struct {
@@ -33,8 +53,10 @@ typedef struct {
     bool is_checked : 1;
     /** Whether the OTA has passed diagnostics */
     bool is_passed : 1;
+    /** esp_rmaker_ota_nvs_fail_reason_t, valid only if is_passed is false */
+    uint8_t fail_reason : 3;
     /** Reserved for future use */
-    uint8_t reserved : 6;
+    uint8_t reserved : 3;
 } esp_rmaker_ota_nvs_flags_t;
 
 /* Standard includes */
@@ -119,10 +141,11 @@ esp_rmaker_error_t esp_rmaker_ota_nvs_set_job_pending_verification(const char *j
  * @brief Set the status in NVS, only if there is a pending verification job
  *
  * @param[in] is_passed Whether the OTA has passed diagnostics
+ * @param[in] fail_reason Why the OTA failed; ignored if is_passed is true
  * @param[in] override_existing True if the status should be overridden if it already exists
  * @return ESP_RMAKER_OK on success, otherwise error code.
  */
-esp_rmaker_error_t esp_rmaker_ota_nvs_set_status_if_pending_verification(bool is_passed, bool override_existing);
+esp_rmaker_error_t esp_rmaker_ota_nvs_set_status_if_pending_verification(bool is_passed, esp_rmaker_ota_nvs_fail_reason_t fail_reason, bool override_existing);
 
 /**
  * @brief Get the status flags from NVS

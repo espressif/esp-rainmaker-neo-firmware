@@ -27,6 +27,10 @@
 #include "retry/esp_rmaker_backoff.h"
 #endif
 #include "ota_jobs.h"
+#ifndef ESP_PLATFORM
+#include "osal_ota_posix_config.h"
+#include "osal_ota_posix_shared.h"
+#endif /* ESP_PLATFORM */
 
 bool TEST_OTA_JOBS_DO_NOT_WRAP = true;
 
@@ -155,6 +159,16 @@ static void reset_ctx_state(ota_job_state_t state)
     g_ota_state_ctx.image_download.ota_cb = mock_ota_cb;
 }
 
+#ifndef ESP_PLATFORM
+/* No asserts: tearDown calls it */
+static void __set_all_slots_valid(void)
+{
+    for (uint8_t i = 0; i < OSAL_OTA_POSIX_PART_COUNT; i++) {
+        osal_ota_posix_config_set_partition_state(i, OSAL_OTA_IMG_VALID);
+    }
+}
+#endif /* ESP_PLATFORM */
+
 void test_rmaker_neo_ota_jobs_setUp(void)
 {
 #if RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
@@ -168,6 +182,9 @@ void test_rmaker_neo_ota_jobs_setUp(void)
 
 void test_rmaker_neo_ota_jobs_tearDown(void)
 {
+#ifndef ESP_PLATFORM
+    __set_all_slots_valid();
+#endif /* ESP_PLATFORM */
 #if RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
     TEST_OTA_JOBS_DO_NOT_WRAP = true;
     g_test_work_queue_fail_countdown = 0;
@@ -223,6 +240,47 @@ void test_fsm_network_init_wrong_event_stays(void)
 /* ========================================================================== */
 /* State REBOOT_CHECK: REBOOT_CHECK_REQUESTED / UPDATE_ACCEPTED / FINAL_STATUS_REPORT advance; null/other -> stay */
 /* ========================================================================== */
+
+#ifndef ESP_PLATFORM
+static void __set_other_slot_rolled_back(void)
+{
+    uint8_t boot_idx = 0;
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_ota_posix_config_get_boot_partition(&boot_idx));
+    uint8_t other_idx = (uint8_t)((boot_idx + 1) % OSAL_OTA_POSIX_PART_COUNT);
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_ota_posix_config_set_partition_state(other_idx, OSAL_OTA_IMG_INVALID));
+}
+
+void test_fsm_reboot_check_reason_after_rollback_follows_stored_reason(void)
+{
+    __set_all_slots_valid();
+    __set_other_slot_rolled_back();
+
+    TEST_ASSERT_EQUAL_STRING(ESP_RMAKER_OTA_FAILED_REASON_ROLLBACK_AFTER_REBOOT,
+                             reboot_check_fail_reason(RMAKER_OTA_NVS_FAIL_REASON_NONE));
+    TEST_ASSERT_EQUAL_STRING(ESP_RMAKER_OTA_FAILED_REASON_DIAG_FAILED,
+                             reboot_check_fail_reason(RMAKER_OTA_NVS_FAIL_REASON_DIAG_FAILED));
+    TEST_ASSERT_EQUAL_STRING(ESP_RMAKER_OTA_FAILED_REASON_POST_MQTT_DIAG_FAILED,
+                             reboot_check_fail_reason(RMAKER_OTA_NVS_FAIL_REASON_POST_MQTT_DIAG_FAILED));
+    TEST_ASSERT_EQUAL_STRING(ESP_RMAKER_OTA_FAILED_REASON_VALIDATION_TIMEOUT,
+                             reboot_check_fail_reason(RMAKER_OTA_NVS_FAIL_REASON_VALIDATION_TIMEOUT));
+    TEST_ASSERT_EQUAL_STRING(ESP_RMAKER_OTA_FAILED_REASON_MARKED_INVALID,
+                             reboot_check_fail_reason(RMAKER_OTA_NVS_FAIL_REASON_MARKED_INVALID));
+    TEST_ASSERT_EQUAL_STRING(ESP_RMAKER_OTA_FAILED_REASON_VERIFY_SETUP_FAILED,
+                             reboot_check_fail_reason(RMAKER_OTA_NVS_FAIL_REASON_VERIFY_SETUP_FAILED));
+    TEST_ASSERT_EQUAL_STRING(ESP_RMAKER_OTA_FAILED_REASON_ROLLBACK_AFTER_REBOOT,
+                             reboot_check_fail_reason(RMAKER_OTA_NVS_FAIL_REASON_COUNT));
+}
+
+void test_fsm_reboot_check_reason_without_rollback_is_check_failed(void)
+{
+    __set_all_slots_valid();
+
+    TEST_ASSERT_EQUAL_STRING(ESP_RMAKER_OTA_FAILED_REASON_REBOOT_CHECK_FAILED,
+                             reboot_check_fail_reason(RMAKER_OTA_NVS_FAIL_REASON_NONE));
+    TEST_ASSERT_EQUAL_STRING(ESP_RMAKER_OTA_FAILED_REASON_REBOOT_CHECK_FAILED,
+                             reboot_check_fail_reason(RMAKER_OTA_NVS_FAIL_REASON_DIAG_FAILED));
+}
+#endif /* ESP_PLATFORM */
 
 void test_fsm_reboot_check_null_stays(void)
 {
