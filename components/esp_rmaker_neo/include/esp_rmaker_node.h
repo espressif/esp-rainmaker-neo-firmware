@@ -73,18 +73,9 @@ struct esp_rmaker_tag {
     char *value;
     /** Next tag */
     struct esp_rmaker_tag *next;
-    /** Flags */
-    uint8_t flags; /* esp_rmaker_signal_flags_t */
 };
 /** ESP RainMaker Neo tag */
 typedef struct esp_rmaker_tag esp_rmaker_tag_t;
-
-/** Signal flags */
-typedef enum {
-    RMAKER_SIGNAL_FLAG_VALUE_CHANGE = (1 << 0),
-    RMAKER_SIGNAL_FLAG_VALUE_NOTIFY = (1 << 1),
-    RMAKER_SIGNAL_FLAG_VALUE_ALL = RMAKER_SIGNAL_FLAG_VALUE_CHANGE | RMAKER_SIGNAL_FLAG_VALUE_NOTIFY,
-} esp_rmaker_signal_flags_t;
 
 /**  ESP RainMaker Neo Node Handle */
 typedef esp_rmaker_handle_t esp_rmaker_node_t;
