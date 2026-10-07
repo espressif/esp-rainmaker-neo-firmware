@@ -46,7 +46,6 @@
 /* Platform common includes */
 #include "osal_log.h"
 #include "osal_scheduler.h"
-#include "osal_semaphore.h"
 #include "osal_ticks.h"
 #include "osal_mem_alloc.h"
 #include "osal_time.h"
@@ -141,11 +140,6 @@ static atomic_uint __pending_state_unsub_count;
  * @brief Tag for logging.
  */
 static const char *TAG = "rmng_net_state_rpt";
-
-/**
- * @brief Mutex for state change management.
- */
-static osal_semaphore_handle_t state_mutex;
 
 /**
  * @brief Flag to indicate if the state report is for all parameters.
@@ -925,16 +919,10 @@ static void __state_report_task(void *unused)
     /* Walk every node (self + ready bridge children via the node
      * visitor). Each publish-node call runs under that node's lock (taken
      * inside the visitor), computes its own tag-changed status against the
-     * node's cached hash, and skips nodes with an empty pending list. The
-     * global state_mutex is NOT held across the drain - per-node state is
-     * serialized by the per-node lock. */
+     * node's cached hash, and skips nodes with an empty pending list. */
     __state_report_visitor_priv_t pub_ctx = { flags, p_notify_info, &failed_any_publish };
     esp_rmaker_node_for_each(__state_report_visitor, &pub_ctx);
 
-    /* Global scheduler/retry bookkeeping is shared across nodes - serialize
-     * it with the (now narrow) state_mutex. Never held while taking a node
-     * or bridge lock. */
-    esp_rmaker_state_lock();
     if (failed_any_publish) {
         OSAL_LOGE(TAG, "Failed to publish some data. Scheduling next retry...");
         /* Schedule the next retry with the same report all flag */
@@ -946,7 +934,6 @@ static void __state_report_task(void *unused)
     } else {
         esp_rmaker_backoff_reset(&__state_retry_contexts.state_report, STATE_REPORT_DELAY_MS);
     }
-    esp_rmaker_state_unlock();
 }
 
 static esp_rmaker_error_t __populate_full_state_for_node(const esp_rmaker_node_t *node)
@@ -1445,13 +1432,6 @@ esp_rmaker_error_t esp_rmaker_state_init(void)
         return err;
     }
 
-    /* Create the mutex */
-    state_mutex = osal_semaphore_create_mutex();
-    if (!state_mutex) {
-        OSAL_LOGE(TAG, "Failed to create mutex for state change management");
-        return ESP_RMAKER_FAIL;
-    }
-
     /* Initialize the retry contexts */
     __state_retry_contexts = (__state_retry_contexts_t) {
         .state_subscribe = {
@@ -1503,31 +1483,6 @@ esp_rmaker_error_t esp_rmaker_state_deinit(void)
      * under its own lock. */
     esp_rmaker_state_drop_all_nodes();
 
-    if (state_mutex) {
-        osal_semaphore_delete(state_mutex);
-        state_mutex = NULL;
-    }
-
-    return ESP_RMAKER_OK;
-}
-
-esp_rmaker_error_t esp_rmaker_state_lock(void)
-{
-    osal_err_t err = osal_semaphore_take(state_mutex, OSAL_MAX_DELAY);
-    if (err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to lock state change management: %d", err);
-        return ESP_RMAKER_FAIL;
-    }
-    return ESP_RMAKER_OK;
-}
-
-esp_rmaker_error_t esp_rmaker_state_unlock(void)
-{
-    osal_err_t err = osal_semaphore_give(state_mutex);
-    if (err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to unlock state change management: %d", err);
-        return ESP_RMAKER_FAIL;
-    }
     return ESP_RMAKER_OK;
 }
 
@@ -1648,9 +1603,7 @@ esp_rmaker_error_t esp_rmaker_state_stop_listening(uint32_t timeout_ms)
 
 esp_rmaker_error_t esp_rmaker_state_stop_reporting(void)
 {
-    esp_rmaker_state_lock();
     esp_rmaker_backoff_reset(&__state_retry_contexts.state_report, STATE_REPORT_DELAY_MS);
-    esp_rmaker_state_unlock();
     return ESP_RMAKER_OK;
 }
 

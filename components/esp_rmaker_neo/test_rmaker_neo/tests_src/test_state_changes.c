@@ -24,12 +24,10 @@
 #include "esp_rmaker_mqtt_impl.h"
 #include "data_model_internal.h"
 
-void test_state_changes_lock_unlock(void)
+void test_state_changes_init_deinit(void)
 {
     osal_event_loop_create_default();
     TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_state_init());
-    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_state_lock());
-    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_state_unlock());
     TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_state_deinit());
     osal_event_loop_delete_default();
 }

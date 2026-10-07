@@ -103,8 +103,7 @@ typedef struct {
  * Per-node staging list for pending param/value updates awaiting the
  * next scheduled state report. ``head == NULL`` <=> "no pending updates
  * for this node" -> the report task skips it on its next wake. Lock:
- * ::esp_rmaker_state_lock / ::esp_rmaker_state_unlock from
- * network/state_changes.h. The list is freed by
+ * the node lock (::esp_rmaker_node_lock). The list is freed by
  * ::esp_rmaker_state_drop_node on node delete.
  */
 typedef struct {
@@ -217,9 +216,8 @@ esp_rmaker_node_t *esp_rmaker_node_create(const char *name, const char *type);
  *
  * Serializes access to the node's embedded per-manager state. Non-recursive:
  * never call while already holding this node's lock. Holds to the lock
- * ordering ``bridge children pool > state_mutex (global) > node lock`` - do
- * not acquire the bridge pool lock or ``esp_rmaker_state_lock`` while holding
- * a node lock.
+ * ordering ``bridge children pool > node lock`` - do not acquire the bridge
+ * pool lock while holding a node lock.
  *
  * @return ESP_RMAKER_OK on success, ESP_RMAKER_INVALID_ARG if node is NULL,
  *         ESP_RMAKER_INVALID_STATE if the node has no lock, ESP_RMAKER_FAIL on

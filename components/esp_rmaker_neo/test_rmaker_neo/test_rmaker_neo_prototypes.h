@@ -681,9 +681,9 @@ void test_local_config_mqtt_params_missing(void);
 /* State changes ******************************************************************/
 
 /**
- * @brief Test init/lock/unlock/deinit basic flow.
+ * @brief Test the init/deinit basic flow.
  */
-void test_state_changes_lock_unlock(void);
+void test_state_changes_init_deinit(void);
 void test_state_changes_concurrent_mark_and_drain(void);
 void test_state_update_id_compare_orders_by_address(void);
 
