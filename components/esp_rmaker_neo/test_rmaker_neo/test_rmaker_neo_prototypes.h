@@ -563,6 +563,7 @@ void test_schedule_port_lookup_rejects_out_of_range_index(void);
 void test_schedule_port_stale_dispatch_does_not_fire_recycled_slot(void);
 void test_schedule_port_pool_recycles_slots(void);
 void test_schedule_port_pool_grows_then_reuses(void);
+void test_schedule_port_cancel_waits_for_running_callback(void);
 void test_schedules_parse_trigger_days_of_week(void);
 void test_schedules_parse_trigger_date(void);
 void test_schedules_parse_trigger_date_no_month_mask_recurs_monthly(void);

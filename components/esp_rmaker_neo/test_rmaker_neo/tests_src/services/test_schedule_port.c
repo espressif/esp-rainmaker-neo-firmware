@@ -22,9 +22,14 @@
 #include "unity.h"
 #include "test_rmaker_neo_prototypes.h"
 
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+
+#include "osal_semaphore.h"
+#include "osal_task.h"
+#include "osal_ticks.h"
 
 /* Include the port to access the static pool and trampoline. */
 #include "esp_schedule_port_osal.c"
@@ -189,4 +194,56 @@ void test_schedule_port_pool_grows_then_reuses(void)
     for (size_t i = 0; i < sizeof(held) / sizeof(held[0]); i++) {
         __pool_release(held[i]);
     }
+}
+
+static esp_schedule_timer_handle_t __race_handle;
+static osal_semaphore_handle_t __race_cancel_done;
+static atomic_bool __race_cancel_started;
+static bool __race_rearm_ok;
+
+static void __race_cancel_task(void *arg)
+{
+    (void)arg;
+    atomic_store(&__race_cancel_started, true);
+    __timer_cancel(&__race_handle);
+    osal_semaphore_give(__race_cancel_done);
+    osal_task_delete(NULL);
+}
+
+/* Lets a cancel on another task reach the port, then re-arms as a repeating schedule does. */
+static void __cb_rearm_during_cancel(void *priv_data)
+{
+    (void)priv_data;
+    osal_task_handle_t task = NULL;
+    if (osal_task_create(__race_cancel_task, "sched_cancel", 4096, NULL, 5, &task) != OSAL_ERR_OK) {
+        return;
+    }
+    while (!atomic_load(&__race_cancel_started)) {
+        osal_task_delay(osal_ticks_from_ms(1));
+    }
+    osal_task_delay(osal_ticks_from_ms(100));
+    __race_rearm_ok = __timer_start(&__race_handle, 60, __cb_rearm_during_cancel, NULL);
+}
+
+/** A cancel from another task must not take the timer's task away from a callback that runs. */
+void test_schedule_port_cancel_waits_for_running_callback(void)
+{
+    __port_test_setup();
+    __race_cancel_done = osal_semaphore_create_binary();
+    TEST_ASSERT_NOT_NULL(__race_cancel_done);
+    atomic_store(&__race_cancel_started, false);
+    __race_rearm_ok = false;
+    __race_handle = NULL;
+
+    TEST_ASSERT_TRUE(__timer_start(&__race_handle, 60, __cb_rearm_during_cancel, NULL));
+    const uint32_t id = __pool_id_of((__port_timer_t *)__race_handle);
+
+    /* Dispatch on this task, as the scheduler would. */
+    __timer_trampoline((void *)(uintptr_t)id);
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_semaphore_take(__race_cancel_done, osal_ticks_from_ms(2000)));
+    osal_semaphore_delete(__race_cancel_done);
+    TEST_ASSERT_TRUE_MESSAGE(__race_rearm_ok, "re-arm in the callback lost its task to a concurrent cancel");
+    TEST_ASSERT_NULL(__race_handle);
+    TEST_ASSERT_NULL(__pool_lookup(id));
 }
