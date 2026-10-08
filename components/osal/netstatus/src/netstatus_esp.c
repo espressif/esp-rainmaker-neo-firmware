@@ -192,9 +192,11 @@ int osal_netstatus_arm(void)
     OSAL_LOGI(TAG, "Armed network-connectivity trapdoor");
     return 0;
 
+#if WIFI_ENABLED || THREAD_ENABLED || ETH_ENABLED
 fail:
     disarm();
     return -1;
+#endif
 }
 
 int osal_netstatus_trap(void)
