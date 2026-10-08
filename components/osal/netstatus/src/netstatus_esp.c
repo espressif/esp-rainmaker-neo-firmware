@@ -10,7 +10,7 @@
  *
  * One-shot network wait: one connectivity bit per enabled network
  * type (Wi-Fi STA, Thread, Ethernet), each guarded by the underlying ESP-IDF option
- * (CONFIG_ESP_WIFI_ENABLED / CONFIG_OPENTHREAD_ENABLED / CONFIG_ETH_ENABLED) and served
+ * (CONFIG_OSAL_NETWORK_{WIFI,THREAD,ETH}_AVAILABLE) and served
  * by its own static, Kconfig-guarded event handler. arm() registers the relevant
  * handlers and latches any interface already connected; trap() blocks until any one
  * network is connected (whichever first), then disarms.
@@ -29,9 +29,9 @@
 #include <esp_bit_defs.h>
 
 #include "sdkconfig.h"
-#define WIFI_ENABLED (CONFIG_ESP_WIFI_ENABLED || CONFIG_ESP32_WIFI_ENABLED || CONFIG_ESP_WIFI_REMOTE_ENABLED)
-#define ETH_ENABLED (CONFIG_ETH_ENABLED)
-#define THREAD_ENABLED (CONFIG_OPENTHREAD_ENABLED)
+#define WIFI_ENABLED (CONFIG_OSAL_NETWORK_WIFI_AVAILABLE)
+#define ETH_ENABLED (CONFIG_OSAL_NETWORK_ETH_AVAILABLE)
+#define THREAD_ENABLED (CONFIG_OSAL_NETWORK_THREAD_AVAILABLE)
 
 #if WIFI_ENABLED || ETH_ENABLED
 #include <esp_netif.h>
