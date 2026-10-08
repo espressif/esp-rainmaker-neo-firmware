@@ -51,9 +51,11 @@ if (CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE)
     )
 endif ()
 
-# The sec2 cache tests need esp_srp from protocomm, which the ESP-IDF linux target does not have.
+# These tests need protocomm, which the ESP-IDF linux target does not have.
 if (NOT IDF_TARGET STREQUAL "linux")
-    list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/local_ctrl/test_local_ctrl_sec2_cache.c")
+    list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/local_ctrl/test_local_ctrl_sec2_cache.c"
+         "tests_src/local_ctrl/test_local_ctrl_custom_endpoints.c"
+    )
 endif ()
 
 # ESP-IDF platform ###
