@@ -4957,6 +4957,78 @@ def test_firmware_local_control(
     print("   - Verification across local state and named shadow ✅")
 
 
+@pytest.mark.firmware
+def test_firmware_local_control_custom_endpoint(
+    associated_user1_node_host_ctrl_local_ctrl_with_user1_connected,
+    local_ctrl_controller,
+):
+    """
+    Test an application endpoint added with esp_rmaker_local_ctrl_add_endpoint().
+
+    The host_ctrl echo_endpoint service adds an "echo" endpoint from its
+    RMAKER_EVENT_LOCAL_CTRL_STARTED handler. The test sends data to it over the
+    secured local control session and expects the same data back.
+    """
+
+    node_host_ctrl, user, group_id = (
+        associated_user1_node_host_ctrl_local_ctrl_with_user1_connected
+    )
+    thing_name = node_host_ctrl.node_thing_name
+    assert thing_name is not None, "Node did not receive thing name"
+
+    # echo_endpoint first, so that only the STARTED handler can add the endpoint
+    node_config = {
+        "devices": [
+            {
+                "id": "light",
+                "type": "esp.device.light",
+                "params": [
+                    {
+                        "id": "Power",
+                        "type": "esp.param.power",
+                        "data_type": "bool",
+                        "value": True,
+                        "properties": ["read", "write"],
+                    }
+                ],
+            }
+        ],
+        "services": ["echo_endpoint", "local_ctrl"],
+    }
+    assert node_host_ctrl.set_config(NodeConfig(node_config)), (
+        "Failed to set node config"
+    )
+    start_node_host_ctrl(node_host_ctrl)
+
+    _pop_retrieval_fn, _username_retrieval_fn = _make_local_ctrl_cred_fns(
+        user, thing_name, group_id
+    )
+
+    def establish_local_ctrl_session():
+        assert _establish_session_with_retries(
+            local_ctrl_controller,
+            thing_name,
+            _pop_retrieval_fn,
+            username_retrieval_fn=_username_retrieval_fn,
+        ), "Failed to establish local control session"
+
+    operate_with_named_shadow_connection(
+        establish_local_ctrl_session, user, thing_name, group_id
+    )
+
+    for size in (1, 64, 1024):
+        payload = random.randbytes(size)
+        response = local_ctrl_controller.send_to_endpoint(thing_name, "echo", payload)
+        assert response == payload, f"Echo endpoint returned wrong data for {size} B"
+
+    # The standard endpoints still work on the same session
+    params_response = local_ctrl_controller.get_node_params(thing_name)
+    assert params_response is not None, "Failed to get node params after echo"
+    assert params_response.status == Status.Success, (
+        f"Params get failed with status: {params_response.status}"
+    )
+
+
 def test_firmware_local_control_chal_resp(
     associated_user1_node_host_ctrl_lc_chal_resp_with_user1_connected,
     local_ctrl_controller,

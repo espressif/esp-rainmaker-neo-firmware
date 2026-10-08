@@ -83,6 +83,7 @@
 #define RMAKER_HOST_CTRL_SERVICE_CHAR_LATENCY          'l' // Latency service
 #define RMAKER_HOST_CTRL_SERVICE_CHAR_LOCAL_CTRL       'c' // Local control service
 #define RMAKER_HOST_CTRL_SERVICE_CHAR_ON_NETWORK_CHAL_RESP 'o' // On-network challenge response service
+#define RMAKER_HOST_CTRL_SERVICE_CHAR_ECHO_ENDPOINT    'e' // Echo endpoint on local control (tests)
 
 /* Local configuration keys ****************************************************************/
 

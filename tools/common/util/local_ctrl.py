@@ -1110,6 +1110,47 @@ class LocalController:
 
         return None
 
+    def send_to_endpoint(self, node_id, endpoint, data: bytes):
+        """
+        Send raw bytes to an application endpoint over the local control session.
+
+        Args:
+            node_id (str): Node ID (thing name)
+            endpoint (str): Endpoint name registered with esp_rmaker_local_ctrl_add_endpoint()
+            data (bytes): Request payload
+        Returns:
+            bytes: Decrypted response payload, or None if the request failed or no session
+        """
+        try:
+            session_key, session_data = self._get_or_resolve_service_session(
+                node_id, LOCAL_CTRL_SERVICE_NAME, "tcp"
+            )
+            if not session_data:
+                self._log(
+                    f"No active session for {node_id}. Use 'local_ctrl connect' first."
+                )
+                return None
+            service_port = session_data.get("mdns_port")
+
+            security_ctx = self._local_ctrl_sessions[session_key].get("security_ctx")
+            request = security_ctx.encrypt_data(data) if security_ctx else data
+            response_data = self._send_endpoint_request(
+                node_id, service_port, request, endpoint, LOCAL_CTRL_SERVICE_NAME
+            )
+            if response_data is None:
+                self._log(f"No response from endpoint {endpoint} on {node_id}")
+                return None
+            return (
+                security_ctx.decrypt_data(response_data)
+                if security_ctx
+                else response_data
+            )
+
+        except Exception as e:
+            self._log(f"Error sending to endpoint {endpoint}: {str(e)}")
+
+        return None
+
     def close_sessions(self):
         """
         Close all local control HTTP sessions.

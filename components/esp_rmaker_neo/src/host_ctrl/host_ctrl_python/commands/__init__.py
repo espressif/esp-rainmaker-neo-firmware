@@ -169,6 +169,9 @@ class CommunicationProtocol:
         self.service_on_network_chal_resp = self._constants.get(
             "RMAKER_HOST_CTRL_SERVICE_CHAR_ON_NETWORK_CHAL_RESP"
         )
+        self.service_echo_endpoint = self._constants.get(
+            "RMAKER_HOST_CTRL_SERVICE_CHAR_ECHO_ENDPOINT"
+        )
 
         # Local configuration keys
         self.local_config_key_sched_ver = self._constants.get(
@@ -377,6 +380,7 @@ class CommunicationProtocol:
             "latency": self.service_latency,
             "local_ctrl": self.service_local_ctrl,
             "on_network_chal_resp": self.service_on_network_chal_resp,
+            "echo_endpoint": self.service_echo_endpoint,
         }
 
         # Local configuration keys mapping
