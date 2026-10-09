@@ -2,6 +2,11 @@ include("${CMAKE_CURRENT_LIST_DIR}/../third_party_versions.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/fetch_helpers.cmake")
 include(FetchContent)
 
+# Archive timestamps are set to extraction time, so a re-fetch triggers a rebuild.
+if (POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif ()
+
 function (mbedtls_install_requirements MBEDTLS_SRC)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     # PEP 405: in a venv, sys.prefix differs from sys.base_prefix
@@ -61,23 +66,25 @@ function (mbedtls_make_available)
 
     set(_mbedtls_bin "${CMAKE_BINARY_DIR}/posix/lib/mbedtls")
     rmng_fetchcontent_acquire_lock("${_mbedtls_src}" _mbedtls_lock)
-    rmng_git_working_tree_current_commit("${_mbedtls_src}" _mbedtls_src_ready)
+    rmng_fetchcontent_source_ready("${_mbedtls_src}" "${RMNG_THIRD_PARTY_MBEDTLS_SHA256}" _mbedtls_src_ready)
     if (_mbedtls_src_ready)
         mbedtls_install_requirements("${_mbedtls_src}")
         add_subdirectory("${_mbedtls_src}" "${_mbedtls_bin}")
     else ()
-        find_package(Git REQUIRED)
+        rmng_fetchcontent_guard_checkout("${_mbedtls_src}" "${RMNG_THIRD_PARTY_MBEDTLS_COMMIT}")
         message(STATUS "rmng-sdk: Fetching Mbed TLS")
+        rmng_fetchcontent_reset(rmng_mbedtls_fc)
         find_package(Python3 REQUIRED COMPONENTS Interpreter)
         FetchContent_Declare(
             rmng_mbedtls_fc
-            GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
-            GIT_TAG ${RMNG_THIRD_PARTY_MBEDTLS_TAG}
-            GIT_SUBMODULES_RECURSE ON SOURCE_DIR "${_mbedtls_src}" BINARY_DIR "${_mbedtls_bin}"
+            URL ${RMNG_THIRD_PARTY_MBEDTLS_URL}
+            URL_HASH SHA256=${RMNG_THIRD_PARTY_MBEDTLS_SHA256}
+            SOURCE_DIR "${_mbedtls_src}" BINARY_DIR "${_mbedtls_bin}"
             PATCH_COMMAND ${Python3_EXECUTABLE} -m pip install -r "scripts/basic.requirements.txt"
         )
         mbedtls_install_requirements("${_mbedtls_src}")
         FetchContent_MakeAvailable(rmng_mbedtls_fc)
+        rmng_fetchcontent_stamp_write("${_mbedtls_src}" "${RMNG_THIRD_PARTY_MBEDTLS_SHA256}")
     endif ()
     rmng_fetchcontent_release_lock("${_mbedtls_lock}")
 endfunction ()

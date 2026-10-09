@@ -106,7 +106,11 @@ with section("parse"):
         "protocomm_posix_civetweb_make_available": {"pargs": 0},
         "REMOVE_DUPLICATE_PATHS": {"pargs": 1},
         "rmng_fetchcontent_acquire_lock": {"pargs": 2},
+        "rmng_fetchcontent_guard_checkout": {"pargs": "2+"},
         "rmng_fetchcontent_release_lock": {"pargs": 1},
+        "rmng_fetchcontent_reset": {"pargs": 1},
+        "rmng_fetchcontent_source_ready": {"pargs": 3},
+        "rmng_fetchcontent_stamp_write": {"pargs": 2},
         "rmng_git_working_tree_current_commit": {"pargs": 2},
         "rmng_idf_components_import": {
             "kwargs": {
