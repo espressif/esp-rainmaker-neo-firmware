@@ -17,6 +17,7 @@
 
 /* Standard includes */
 #include <stdint.h>
+#include <stdbool.h>
 
 /* Platform common error includes */
 #include "osal_err.h"
@@ -94,6 +95,14 @@ osal_err_t osal_scheduler_reset_timer(osal_scheduler_task_handle_t handle, uint6
  * @return OSAL_ERR_OK on success, otherwise error code.
  */
 osal_err_t osal_scheduler_stop_timer(osal_scheduler_task_handle_t handle);
+
+/**
+ * @brief Check if a scheduled task is waiting for its next run.
+ * @note A one-shot task is inactive once it fires, until the next reset_timer.
+ * @param[in] handle Scheduled task handle.
+ * @return true if the task runs later without another reset_timer call.
+ */
+bool osal_scheduler_is_active(osal_scheduler_task_handle_t handle);
 
 /**
  * @brief Cancel a scheduled task, and sets the handle to NULL. The task will not be executed.

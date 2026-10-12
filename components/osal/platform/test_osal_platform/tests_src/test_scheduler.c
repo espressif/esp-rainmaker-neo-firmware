@@ -127,3 +127,32 @@ void test_scheduler_periodic_virtual_time_advance(void)
 
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_scheduler_deinit());
 }
+
+void test_scheduler_is_active(void)
+{
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_scheduler_init());
+    osal_scheduler_task_handle_t h = NULL;
+    int start = fired;
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_scheduler_schedule_task(&h, 3600000, cb, NULL));
+    TEST_ASSERT_TRUE(osal_scheduler_is_active(h));
+
+    osal_time_control_advance_time(3600);
+    osal_task_delay( osal_ticks_from_ms(VIRTUAL_SCHEDULER_TOLERANCE_MS) );
+    TEST_ASSERT_EQUAL_INT(start + 1, fired);
+    TEST_ASSERT_FALSE(osal_scheduler_is_active(h));
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_scheduler_reset_timer(h, 3600000));
+    TEST_ASSERT_TRUE(osal_scheduler_is_active(h));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_scheduler_stop_timer(h));
+    TEST_ASSERT_FALSE(osal_scheduler_is_active(h));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_scheduler_cancel_task(&h));
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_scheduler_schedule_task_periodic(&h, 100, periodic_cb, NULL));
+    osal_task_delay( osal_ticks_from_ms(300) );
+    TEST_ASSERT_TRUE(osal_scheduler_is_active(h));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_scheduler_cancel_task(&h));
+
+    TEST_ASSERT_FALSE(osal_scheduler_is_active(NULL));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_scheduler_deinit());
+}

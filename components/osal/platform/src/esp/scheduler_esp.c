@@ -149,6 +149,14 @@ osal_err_t osal_scheduler_stop_timer(osal_scheduler_task_handle_t handle)
     return OSAL_ERR_OK;
 }
 
+bool osal_scheduler_is_active(osal_scheduler_task_handle_t handle)
+{
+    if (!is_initialized || !handle) {
+        return false;
+    }
+    return esp_timer_is_active((esp_timer_handle_t) handle);
+}
+
 osal_err_t osal_scheduler_cancel_task(osal_scheduler_task_handle_t *handle)
 {
     if (!is_initialized) {
