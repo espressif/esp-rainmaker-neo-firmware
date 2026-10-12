@@ -387,6 +387,16 @@ char *esp_rmaker_device_get_id(const esp_rmaker_device_t *device);
 void *esp_rmaker_device_get_priv_data(const esp_rmaker_device_t *device);
 
 /**
+ * @brief Get the node that holds the device: the self node or a bridged child node.
+ *
+ * @param[in] device Device handle.
+ *
+ * @return Node handle on success.
+ * @return NULL if @p device is NULL or not added to a node with esp_rmaker_node_add_device().
+ */
+const esp_rmaker_node_t *esp_rmaker_device_get_node(const esp_rmaker_device_t *device);
+
+/**
  * @brief Get device type from handle
  *
  * @param[in] device Device handle.
@@ -498,6 +508,68 @@ esp_rmaker_error_t esp_rmaker_param_add_bounds(const esp_rmaker_param_t *param,
  * @return error in case of failure.
  */
 esp_rmaker_error_t esp_rmaker_param_add_ui_type(const esp_rmaker_param_t *param, const char *ui_type);
+
+/**
+ * @brief Add a unit to a parameter
+ *
+ * Declares the unit a parameter's values are reported in, so that a client can label an axis
+ * and two devices reporting the same parameter type are comparable. Without it an
+ * `esp.param.temperature` reporting 22.5 could be Celsius or Fahrenheit, unknowable from the
+ * node configuration.
+ *
+ * @note The unit is a *machine token*, never a display symbol: ESP_RMAKER_UNIT_CELSIUS
+ * ("celsius"), not a degree sign. The client owns the symbol and its localisation, and a
+ * user's display preference (Fahrenheit, say) is a client concern that does not belong in
+ * the data model. Please refer the standard unit tokens in esp_rmaker_standard_types.h.
+ *
+ * @note The unit is construction-phase state: set it before esp_rmaker_start() and treat it
+ * as read-only afterwards. Calling this again replaces the previous unit.
+ *
+ * @param[in] param Parameter handle.
+ * @param[in] unit Canonical unit token. Copied internally.
+ *
+ * @return ESP_RMAKER_OK on success.
+ * @return error in case of failure.
+ */
+esp_rmaker_error_t esp_rmaker_param_add_unit(const esp_rmaker_param_t *param, const char *unit);
+
+/**
+ * @brief Declare the enumerated values a parameter may take, with display labels
+ *
+ * Gives a parameter whose values are categories somewhere to say so, which bounds cannot do:
+ * bounds describe a numeric domain, while valid values declare what specific values mean. A
+ * parameter whose values carry meaning beyond their magnitude should declare them here rather
+ * than leave a client to infer an enumeration from bounds plus a dropdown UI type. Both may be
+ * set on one parameter: a speed can be 0..5 and sliderable, and still want Off/Low/High.
+ *
+ * Eg. a lock state that must distinguish a jammed lock from an open one:
+ * @code{c}
+ * esp_rmaker_param_value_label_t states[] = {
+ *     { esp_rmaker_int(0), "Locked" },
+ *     { esp_rmaker_int(1), "Unlocked" },
+ *     { esp_rmaker_int(2), "Jammed" },
+ * };
+ * esp_rmaker_param_add_valid_values(lockstate_param, states, 3);
+ * @endcode
+ *
+ * @note Every value's type must match the parameter's own type. Any scalar parameter may be
+ * enumerated, floats included; only object and array parameters cannot, their values having no
+ * meaningful equality. The values and labels are deep-copied, so the array may live on the
+ * stack. Calling this again replaces the previous list.
+ *
+ * @note This is construction-phase state: set it before esp_rmaker_start() and treat it as
+ * read-only afterwards. The RainMaker Neo core does not enforce the list on writes; it is
+ * declarative metadata, and it is up to the application to validate incoming values.
+ *
+ * @param[in] param Parameter handle.
+ * @param[in] valid_values Array of value/label pairs.
+ * @param[in] count Number of entries in @p valid_values.
+ *
+ * @return ESP_RMAKER_OK on success.
+ * @return error in case of failure.
+ */
+esp_rmaker_error_t esp_rmaker_param_add_valid_values(const esp_rmaker_param_t *param,
+        const esp_rmaker_param_value_label_t *valid_values, uint8_t count);
 
 /**
  * @brief Add max count for an array parameter

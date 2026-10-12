@@ -96,6 +96,22 @@ typedef struct {
     esp_rmaker_param_val_t step;
 } esp_rmaker_param_bounds_t;
 
+/**
+ * @brief One enumerated value a parameter may take, with the text to display for it.
+ *
+ * Used with esp_rmaker_param_add_valid_values() to declare what a parameter's values
+ * *mean*, which bounds cannot express: bounds describe a numeric domain (magnitude,
+ * ordering, step), while these declare labels for specific values. Both may be set on
+ * one parameter, because ordinal-and-labelled is a real case (a speed that is 0..5,
+ * genuinely sliderable, and also wants Off/Low/Medium/High).
+ */
+typedef struct {
+    /** A value the parameter may take. Its type must match the parameter's own. */
+    esp_rmaker_param_val_t value;
+    /** Display text for this value. Clients may localise it; the value is what stays stable. */
+    const char *label;
+} esp_rmaker_param_value_label_t;
+
 /* Public functions *******************************************************/
 
 #ifdef __cplusplus

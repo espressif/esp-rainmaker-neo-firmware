@@ -709,6 +709,122 @@ node_model_persistent_deinit_end:
     }
 }
 
+/**
+ * @brief Param metadata: unit and valid_values in the node config.
+ *
+ * valid_values is the first enumeration mechanism native params get - valid_strs has never
+ * existed natively, it is produced only by the raising engines - so this covers the whole
+ * shape: both fields in the config, bounds and valid_values coexisting on one param, all
+ * three enumerable value types, and the validation that keeps a declared value the param's
+ * own value.
+ */
+void test_node_config_param_metadata(void)
+{
+    esp_rmaker_node_t *node = __setup();
+
+    esp_rmaker_device_t *device = esp_rmaker_device_create("Lock", "esp.device.lock", NULL);
+    TEST_ASSERT_NOT_NULL(device);
+
+    /* unit on its own */
+    esp_rmaker_param_t *temperature = esp_rmaker_param_create("Temperature", "esp.param.temperature",
+                                      esp_rmaker_float(22.5), PROP_FLAG_READ);
+    TEST_ASSERT_NOT_NULL(temperature);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_add_unit(temperature, "celsius"));
+
+    /* An integer enumeration: the third state bounds could never express */
+    esp_rmaker_param_t *lockstate = esp_rmaker_param_create("Lock State", "esp.param.lockstate",
+                                    esp_rmaker_int(0), PROP_FLAG_READ);
+    TEST_ASSERT_NOT_NULL(lockstate);
+    esp_rmaker_param_value_label_t states[] = {
+        { esp_rmaker_int(0), "Locked" },
+        { esp_rmaker_int(1), "Unlocked" },
+        { esp_rmaker_int(2), "Jammed" },
+    };
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_add_valid_values(lockstate, states, 3));
+
+    /* Ordinal and labelled at once: bounds and valid_values on one param */
+    esp_rmaker_param_t *speed = esp_rmaker_param_create("Speed", "esp.param.speed",
+                                esp_rmaker_int(0), PROP_FLAG_READ | PROP_FLAG_WRITE);
+    TEST_ASSERT_NOT_NULL(speed);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK,
+                      esp_rmaker_param_add_bounds(speed, esp_rmaker_int(0), esp_rmaker_int(2), esp_rmaker_int(1)));
+    esp_rmaker_param_value_label_t speeds[] = {
+        { esp_rmaker_int(0), "Off" },
+        { esp_rmaker_int(2), "High" },
+    };
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_add_valid_values(speed, speeds, 2));
+
+    /* String and boolean enumerations */
+    esp_rmaker_param_t *mode = esp_rmaker_param_create("Mode", "esp.param.ac-mode",
+                               esp_rmaker_str("eco"), PROP_FLAG_READ | PROP_FLAG_WRITE);
+    TEST_ASSERT_NOT_NULL(mode);
+    esp_rmaker_param_value_label_t modes[] = {
+        { esp_rmaker_str("eco"), "Eco" },
+        { esp_rmaker_str("turbo"), "Turbo" },
+    };
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_add_valid_values(mode, modes, 2));
+
+    esp_rmaker_param_t *power = esp_rmaker_param_create("Power", "esp.param.power",
+                                esp_rmaker_bool(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
+    TEST_ASSERT_NOT_NULL(power);
+    esp_rmaker_param_value_label_t powers[] = {
+        { esp_rmaker_bool(false), "Standby" },
+        { esp_rmaker_bool(true), "Running" },
+    };
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_add_valid_values(power, powers, 2));
+
+    /* Replacing a list keeps the parameter consistent (and must not leak the old one) */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_add_valid_values(power, powers, 2));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_add_unit(temperature, "celsius"));
+
+    /* A float param may be enumerated: the data model does not restrict the field, so the
+     * core does not either. */
+    esp_rmaker_param_value_label_t floats[] = {{ esp_rmaker_float(0.5), "Half" }, { esp_rmaker_float(1.0), "Full" }};
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_add_valid_values(temperature, floats, 2));
+
+    /* Rejected: a value whose type is not the param's own, a missing label, an empty list
+     * and NULL handles. */
+    esp_rmaker_param_value_label_t wrong_type[] = {{ esp_rmaker_bool(true), "Yes" }};
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_param_add_valid_values(lockstate, wrong_type, 1));
+    esp_rmaker_param_value_label_t no_label[] = {{ esp_rmaker_int(0), NULL }};
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_param_add_valid_values(lockstate, no_label, 1));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_param_add_valid_values(lockstate, states, 0));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_param_add_valid_values(lockstate, NULL, 1));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_param_add_valid_values(NULL, states, 3));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_param_add_unit(NULL, "celsius"));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_param_add_unit(temperature, NULL));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, temperature));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, lockstate));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, speed));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, mode));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, power));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_node_add_device(node, device));
+
+    char *config_str = esp_rmaker_get_node_config();
+    TEST_ASSERT_NOT_NULL(config_str);
+
+    TEST_ASSERT_NOT_NULL(strstr(config_str, "\"unit\":\"celsius\""));
+    TEST_ASSERT_NOT_NULL(strstr(config_str,
+                                "\"valid_values\":[{\"value\":0,\"label\":\"Locked\"},"
+                                "{\"value\":1,\"label\":\"Unlocked\"},{\"value\":2,\"label\":\"Jammed\"}]"));
+    /* bounds and valid_values on the same param */
+    TEST_ASSERT_NOT_NULL(strstr(config_str,
+                                "\"bounds\":{\"min\":0,\"max\":2,\"step\":1},"
+                                "\"valid_values\":[{\"value\":0,\"label\":\"Off\"},{\"value\":2,\"label\":\"High\"}]"));
+    TEST_ASSERT_NOT_NULL(strstr(config_str,
+                                "\"valid_values\":[{\"value\":\"eco\",\"label\":\"Eco\"},"
+                                "{\"value\":\"turbo\",\"label\":\"Turbo\"}]"));
+    TEST_ASSERT_NOT_NULL(strstr(config_str,
+                                "\"valid_values\":[{\"value\":false,\"label\":\"Standby\"},"
+                                "{\"value\":true,\"label\":\"Running\"}]"));
+    /* Only the one unit-bearing param carries a unit; nothing else grew a key. */
+    TEST_ASSERT_NULL(strstr(strstr(config_str, "\"unit\":\"celsius\"") + 1, "\"unit\":"));
+
+    free(config_str);
+    __teardown(node);
+}
+
 void test_node_config_basic(void)
 {
     esp_rmaker_node_t *node = __setup();

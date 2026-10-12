@@ -131,6 +131,11 @@ static esp_rmaker_error_t esp_rmaker_report_param_config(_esp_rmaker_param_t *pa
     }
 
     json_gen_pop_array(jptr);
+    /* unit is a machine token (celsius, lux, percent, ...), never a display symbol: the client
+     * owns the symbol and its localisation. */
+    if (param->unit) {
+        json_gen_obj_set_string(jptr, "unit", param->unit);
+    }
     if (param->bounds) {
         json_gen_push_object(jptr, "bounds");
         esp_rmaker_report_value(&param->bounds->min, "min", jptr);
@@ -140,6 +145,18 @@ static esp_rmaker_error_t esp_rmaker_report_param_config(_esp_rmaker_param_t *pa
     }
     if (param->ui_type) {
         json_gen_obj_set_string(jptr, "ui_type", param->ui_type);
+    }
+    /* valid_values declares what specific values mean; bounds only describes a numeric
+     * domain, so a param may carry both. */
+    if (param->valid_values) {
+        json_gen_push_array(jptr, "valid_values");
+        for (uint8_t i = 0; i < param->n_valid_values; i++) {
+            json_gen_start_object(jptr);
+            esp_rmaker_report_value(&param->valid_values[i].value, "value", jptr);
+            json_gen_obj_set_string(jptr, "label", (char *)param->valid_values[i].label);
+            json_gen_end_object(jptr);
+        }
+        json_gen_pop_array(jptr);
     }
     json_gen_end_object(jptr);
     return ESP_RMAKER_OK;

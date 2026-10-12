@@ -25,6 +25,27 @@
 #define ESP_RMAKER_UI_HIDDEN            "esp.ui.hidden"
 #define ESP_RMAKER_UI_QR_SCAN           "esp.ui.qr-scan"
 
+/********** STANDARD UNIT TOKENS **********/
+
+/* The canonical unit a param's values are reported in, for esp_rmaker_param_add_unit().
+ * These are machine tokens, not display symbols: a client owns the symbol and its
+ * localisation. A device declares what it actually reports in rather than converting to
+ * a house unit, so a sensor that genuinely measures in fahrenheit says so and no client
+ * has to relabel it. The set is open: this list is the convention, not a closed
+ * vocabulary, esp_rmaker_param_add_unit() accepts any token, and a client that cannot
+ * express one must degrade rather than guess. */
+
+#define ESP_RMAKER_UNIT_CELSIUS         "celsius"
+#define ESP_RMAKER_UNIT_FAHRENHEIT      "fahrenheit"
+#define ESP_RMAKER_UNIT_KELVIN          "kelvin"
+#define ESP_RMAKER_UNIT_LUX             "lux"
+#define ESP_RMAKER_UNIT_PERCENT         "percent"
+#define ESP_RMAKER_UNIT_KPA             "kpa"
+#define ESP_RMAKER_UNIT_DEGREES         "degrees"
+#define ESP_RMAKER_UNIT_SECONDS         "seconds"
+#define ESP_RMAKER_UNIT_MINUTES         "minutes"
+#define ESP_RMAKER_UNIT_CUBIC_METERS_PER_HOUR   "cubic_meters_per_hour"
+
 /********** STANDARD PARAM TYPES **********/
 
 #define ESP_RMAKER_PARAM_NAME           "esp.param.name"

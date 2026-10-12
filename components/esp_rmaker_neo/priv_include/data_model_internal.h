@@ -41,6 +41,9 @@ struct esp_rmaker_param {
     uint16_t ttl_days;  /* TTL in days for simple time series data */
     esp_rmaker_param_val_t val;
     esp_rmaker_param_bounds_t *bounds;
+    char *unit;                                     /* canonical unit token; NULL when unitless */
+    esp_rmaker_param_value_label_t *valid_values;   /* NULL when the value set is not enumerable */
+    uint8_t n_valid_values;
     struct esp_rmaker_device *parent;
     struct esp_rmaker_param *next;
 };

@@ -402,6 +402,11 @@ char *esp_rmaker_device_get_type(const esp_rmaker_device_t *device)
     return ((_esp_rmaker_device_t *)device)->type;
 }
 
+const esp_rmaker_node_t *esp_rmaker_device_get_node(const esp_rmaker_device_t *device)
+{
+    return device ? ((const _esp_rmaker_device_t *)device)->parent : NULL;
+}
+
 bool esp_rmaker_device_is_service(const esp_rmaker_device_t *device)
 {
     if (!device) {

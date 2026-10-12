@@ -58,6 +58,7 @@
 /* Configuration includes */
 #include "local_config.h"
 #include "constants/cloud.h"
+#include "constants/identity.h"
 #include "esp_rmaker_factory_part.h"
 #include "credentials/migration.h"
 #include "sdkconfig.h"
@@ -1312,15 +1313,36 @@ static esp_rmaker_error_t esp_rmaker_check_and_report_online_status(void)
 
 /* Public function definitions *****************************************************/
 
-char *esp_rmaker_get_node_id(void)
+static char *__node_id_from_ctx(const esp_rmaker_topic_ctx_t *ctx)
 {
-    char *thing_name = NULL;
-    esp_rmaker_error_t err = esp_rmaker_credentials_get_thing_name(&thing_name);
-    if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to get thing name");
+    if (!esp_rmaker_topic_ctx_is_valid(ctx) || !ctx->ops->write_thing_name) {
         return NULL;
     }
-    return thing_name;
+    char *node_id = malloc(RMAKER_THING_NAME_BUFFER_SIZE);
+    if (!node_id) {
+        return NULL;
+    }
+    const int written = ctx->ops->write_thing_name(ctx->priv, node_id, RMAKER_THING_NAME_BUFFER_SIZE);
+    if (written <= 0 || written >= RMAKER_THING_NAME_BUFFER_SIZE) {
+        free(node_id);
+        return NULL;
+    }
+    return node_id;
+}
+
+char *esp_rmaker_get_node_id(void)
+{
+    /* The self ctx needs no node, so this works before esp_rmaker_node_init() */
+    char *node_id = __node_id_from_ctx(&esp_rmaker_topic_ctx_self);
+    if (!node_id) {
+        OSAL_LOGE(TAG, "Failed to get thing name");
+    }
+    return node_id;
+}
+
+char *esp_rmaker_get_node_id_for_node(const esp_rmaker_node_t *node)
+{
+    return __node_id_from_ctx(esp_rmaker_node_topic_ctx(node));
 }
 
 esp_rmaker_error_t esp_rmaker_pre_prov_init(void)

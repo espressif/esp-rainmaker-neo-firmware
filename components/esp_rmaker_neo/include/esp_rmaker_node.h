@@ -101,12 +101,21 @@ const esp_rmaker_node_t *esp_rmaker_get_node(void);
 /**
  * @brief Get the node ID (synonymous with AWS Thing Name / MQTT client ID)
  *
- * This API returns the node ID (synonymous with AWS Thing Name / MQTT client ID)
+ * This API returns the self node ID (synonymous with AWS Thing Name / MQTT client ID).
+ * It works before esp_rmaker_node_init(). For any node, see esp_rmaker_get_node_id_for_node().
  *
  * @return Node ID on success. If not NULL, the caller must free the returned string using free().
  * @return NULL in case of failure.
  */
 char *esp_rmaker_get_node_id(void);
+
+/**
+ * @brief Get the node ID of @p node: the self node or a bridged child node.
+ *
+ * @return Node ID on success. The caller must free the returned string using free().
+ * @return NULL if @p node is NULL or has no node ID yet (unclaimed self node, child before the cloud ack).
+ */
+char *esp_rmaker_get_node_id_for_node(const esp_rmaker_node_t *node);
 
 /**
  * @brief Get Node Info

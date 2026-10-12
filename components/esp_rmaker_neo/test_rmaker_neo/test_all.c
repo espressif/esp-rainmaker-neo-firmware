@@ -24,6 +24,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_node_model_persistent_params);
     RUN_TEST(test_node_model_persistent_params_across_deinit);
     RUN_TEST(test_node_config_basic);
+    RUN_TEST(test_node_config_param_metadata);
     RUN_TEST(test_node_model_device_add_remove_and_errors);
     RUN_TEST(test_node_model_attributes_and_tags);
     RUN_TEST(test_node_model_getters_and_info);
@@ -386,6 +387,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_bridge_child_nvs_invalid_arg);
     RUN_TEST(test_bridge_accessors_local_id);
     RUN_TEST(test_bridge_accessors_topic_ctx);
+    RUN_TEST(test_bridge_accessors_get_node_id_for_node);
     RUN_TEST(test_bridge_accessors_child_from_ctx_roundtrip);
     RUN_TEST(test_bridge_accessors_child_from_ctx_after_invalidate);
     RUN_TEST(test_bridge_accessors_version_progress);
