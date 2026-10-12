@@ -99,6 +99,8 @@ menu "ESP RainMaker Neo Configuration"
                 Delay between a `esp_rmaker_param_update()` call and the actual state update report of all changed
                 parameters being sent via MQTT.
                 If another parameter update call occurs within this time window, the delay is reset.
+                After a failed report, a parameter update does not move the pending retry later. While the retry
+                backoff lasts, an update with no pending retry waits for the backoff delay, not for this delay.
                 Smaller delays reduce update latency but potentially increase the number of MQTT publishes.
 
     endmenu

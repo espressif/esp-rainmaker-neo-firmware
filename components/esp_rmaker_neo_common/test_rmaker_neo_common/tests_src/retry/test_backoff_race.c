@@ -8,9 +8,11 @@
 #define osal_scheduler_schedule_task fake_sched_schedule_task
 #define osal_scheduler_reset_timer   fake_sched_reset_timer
 #define osal_scheduler_cancel_task   fake_sched_cancel_task
+#define osal_scheduler_is_active     fake_sched_is_active
 #define esp_rmaker_backoff_reset     race_backoff_reset
 #define esp_rmaker_backoff_retry     race_backoff_retry
 #define esp_rmaker_backoff_fire      race_backoff_fire
+#define esp_rmaker_backoff_fire_keep_retry race_backoff_fire_keep_retry
 #include "../../../src/retry/backoff.c"
 
 #include "unity.h"
@@ -41,6 +43,7 @@ static osal_semaphore_handle_t s_release;
 static osal_semaphore_handle_t s_task_done;
 static bool s_block_next_cancel;
 static bool s_block_next_schedule;
+static bool s_block_next_is_active;
 static int s_reset_on_dead;
 static esp_rmaker_backoff_retry_context_t s_race_ctx;
 
@@ -127,11 +130,28 @@ osal_err_t fake_sched_cancel_task(osal_scheduler_task_handle_t *handle)
     return OSAL_ERR_OK;
 }
 
+bool fake_sched_is_active(osal_scheduler_task_handle_t handle)
+{
+    fake_sched_slot_t *slot = (fake_sched_slot_t *)handle;
+
+    osal_semaphore_take(s_fake_lock, OSAL_MAX_DELAY);
+    bool live = slot->live;
+    bool block = s_block_next_is_active;
+    s_block_next_is_active = false;
+    osal_semaphore_give(s_fake_lock);
+
+    if (block) {
+        __hold_window();
+    }
+    return live;
+}
+
 static void __race_setup(void)
 {
     memset(s_slots, 0, sizeof(s_slots));
     s_block_next_cancel = false;
     s_block_next_schedule = false;
+    s_block_next_is_active = false;
     s_reset_on_dead = 0;
 
     s_fake_lock = osal_semaphore_create_mutex();
@@ -225,5 +245,37 @@ void test_backoff_race_reset_during_retry(void)
 
     TEST_ASSERT_EQUAL_MESSAGE(0, __live_count_locked(), "retry in progress outlived the reset");
     TEST_ASSERT_NULL(s_race_ctx.handle);
+    __race_teardown();
+}
+
+static void __race_keep_task(void *arg)
+{
+    (void)arg;
+    (void)race_backoff_fire_keep_retry(&s_race_ctx, 1000, __race_noop_task, NULL);
+    osal_semaphore_give(s_task_done);
+    osal_task_delete(NULL);
+}
+
+void test_backoff_race_keep_vs_keep(void)
+{
+    __race_setup();
+    s_race_ctx.delay_ctx.delay_ms.current = s_race_ctx.delay_ctx.delay_ms.max;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, race_backoff_retry(&s_race_ctx, __race_noop_task, NULL));
+    osal_scheduler_task_handle_t retry_handle = s_race_ctx.handle;
+
+    /* The task holds the pending retry in is_active while this task calls keep too */
+    s_block_next_is_active = true;
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_task_create(__race_keep_task, "backoff_race", RACE_TASK_STACK_SIZE, NULL, RACE_TASK_PRIORITY, NULL));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_semaphore_take(s_in_window, osal_ticks_from_ms(1000)));
+
+    (void)race_backoff_fire_keep_retry(&s_race_ctx, 1000, __race_noop_task, NULL);
+
+    osal_semaphore_give(s_release);
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_semaphore_take(s_task_done, osal_ticks_from_ms(1000)));
+
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(retry_handle, s_race_ctx.handle, "a concurrent keep replaced the pending retry");
+    TEST_ASSERT_EQUAL(1, __live_count_locked());
+    race_backoff_reset(&s_race_ctx, 1000);
+    TEST_ASSERT_EQUAL(0, __live_count_locked());
     __race_teardown();
 }

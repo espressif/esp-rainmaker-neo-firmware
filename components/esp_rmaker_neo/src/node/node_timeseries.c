@@ -505,6 +505,7 @@ esp_rmaker_error_t timeseries_init(void)
     __timeseries_publish_retry_context = (esp_rmaker_backoff_retry_context_t) {
         .handle = NULL,
         .reset_gen = 0,
+        .busy = 0,
         .delay_ctx = {
             .delay_ms = {
                 .current = __TIMESERIES_PUBLISH_INITIAL_DELAY_MS,
