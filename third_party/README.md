@@ -12,9 +12,9 @@ which is the authoritative text for that dependency.
 
 | Dependency | Upstream | License | Ref pinned in | Fetched for |
 |---|---|---|---|---|
-| [Unity](https://github.com/ThrowTheSwitch/Unity) | `ThrowTheSwitch/Unity` | MIT | `RMNG_THIRD_PARTY_UNITY_TAG` (v2.6.1) | POSIX only (ESP-IDF uses its own) |
-| [Mbed TLS](https://github.com/Mbed-TLS/mbedtls) | `Mbed-TLS/mbedtls` | Apache-2.0 **OR** GPL-2.0-or-later (dual; pick one) | `RMNG_THIRD_PARTY_MBEDTLS_TAG` (v4.1.0) | POSIX only (ESP-IDF uses its own) |
-| [protobuf-c](https://github.com/protobuf-c/protobuf-c) | `protobuf-c/protobuf-c` | BSD-2-Clause | `RMNG_THIRD_PARTY_PROTOBUF_C_TAG` (v1.5.2) | POSIX only (ESP-IDF uses its own) |
+| [Unity](https://github.com/ThrowTheSwitch/Unity) | `ThrowTheSwitch/Unity` | MIT | `RMNG_THIRD_PARTY_UNITY_URL` (v2.6.1) | POSIX only (ESP-IDF uses its own) |
+| [Mbed TLS](https://github.com/Mbed-TLS/mbedtls) | `Mbed-TLS/mbedtls` | Apache-2.0 **OR** GPL-2.0-or-later (dual; pick one) | `RMNG_THIRD_PARTY_MBEDTLS_URL` (v4.1.0) | POSIX only (ESP-IDF uses its own) |
+| [protobuf-c](https://github.com/protobuf-c/protobuf-c) | `protobuf-c/protobuf-c` | BSD-2-Clause | `RMNG_THIRD_PARTY_PROTOBUF_C_URL` (v1.5.2) | POSIX only (ESP-IDF uses its own) |
 | [esp-aws-iot](https://github.com/espressif/esp-aws-iot) | `espressif/esp-aws-iot` | Apache-2.0 (its library submodules are MIT) | `RMNG_ESP_AWS_IOT_GIT_REF` in [`cmake/esp_aws_iot.cmake`](../cmake/esp_aws_iot.cmake) | ESP-IDF and POSIX |
 
 `esp-aws-iot` carries 11 library submodules. Only these six are fetched — all MIT-licensed:
@@ -32,19 +32,27 @@ Each install script defines one `*_make_available()` function that a consumer
 `include()`s and calls; it is idempotent (returns early if the target already
 exists), so there is no ordering dependency between consumers.
 
-- **Existing checkouts are reused.** If a source directory is already a git
-  working tree with a resolvable `HEAD`
-  ([`rmng_git_working_tree_current_commit()`](../cmake/fetch_helpers.cmake)), it is
-  used as-is and never re-fetched. Dropping a local fork or patched checkout
-  into place therefore just works. The exception is `esp-aws-iot`: when its ref
-  is pinned to a full 40-character SHA, a tree sitting on another commit *is*
-  re-fetched. A branch or tag is a moving ref, so an existing tree is left alone
-  and must be advanced by hand.
+- **Release archives, not git clones.** Unity, Mbed TLS, protobuf-c, curl and
+  civetweb download a pinned release archive and check its SHA-256. The Mbed TLS
+  archive already contains its `framework` and `tf-psa-crypto` submodules.
+  `esp-aws-iot` is still a git clone.
+- **Only a stamped tree is reused.** An archive fetch writes a `.rmng-fc-stamp` file
+  with the archive SHA-256 into the source directory
+  ([`rmng_fetchcontent_source_ready()`](../cmake/fetch_helpers.cmake)). A directory with a
+  matching stamp is used as-is and never re-fetched. Any other directory is deleted
+  and fetched again, so an interrupted fetch repairs itself.
+- **Git checkouts are not used.** A clean git clone at the pinned release commit
+  (`*_COMMIT`) is replaced by the archive. Any other git checkout stops the configure
+  ([`rmng_fetchcontent_guard_checkout()`](../cmake/fetch_helpers.cmake)), so local work is never
+  deleted. Move or delete that directory, then configure again.
+- **`esp-aws-iot` re-fetches on a SHA change.** When its ref is pinned to a full
+  40-character SHA, a tree sitting on another commit *is* re-fetched. A branch or
+  tag is a moving ref, so an existing tree is left alone and must be advanced by hand.
 - **Parallel configures are serialized.** Source directories live in the repo
   tree and are shared between concurrent configure processes, so populate is guarded
   by a `.rmng-fc-<name>.lock` file next to each source directory.
-- **First configure needs network access**, including for submodules. Prime a cache
-  or offline mirror by cloning the pinned refs into the directories above before configuring.
+- **First configure needs network access.** To work offline, extract the pinned
+  archives into the directories above and write each `.rmng-fc-stamp`.
 - **Mbed TLS needs a virtualenv Python.** `mbedtls_make_available()` hard-fails
   unless the `Python3` CMake finds is a venv interpreter (PEP 405), then
   installs Mbed TLS' `scripts/basic.requirements.txt` into it. Activate a venv,
