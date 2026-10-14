@@ -32,6 +32,18 @@ menu "ESP RainMaker Neo App Network Configuration"
             This will cause IPv4 networking for Thread to not work.
             Set LWIP_HOOK_DNS_EXT_RESOLVE_CUSTOM to y if you want to use IPv4 networking for Thread.
 
+    config APP_NETWORK_PROV_CONSOLE_CMD
+        bool "Enable the provisioning console command"
+        depends on ESP_RMAKER_NEO_CONSOLE_ENABLE
+        default y
+        help
+            Register a console command that provisions the node from the serial console, without a
+            phone app: `wifi-prov <ssid> [<passphrase>]` on Wi-Fi builds, `thread-prov
+            <dataset_tlvs_hex>` on Thread builds.
+
+            While a provisioning session is running, the credentials are handed to the provisioning
+            manager. Once the node is provisioned, they are applied to the network stack directly.
+
     choice APP_NETWORK_POP_TYPE
         prompt "Proof of Possession Type"
         default APP_NETWORK_POP_TYPE_RANDOM

@@ -20,6 +20,10 @@ if (ESP_PLATFORM)
         list(APPEND srcs "src/thread_internal.c")
     endif ()
 
+    if (CONFIG_APP_NETWORK_PROV_CONSOLE_CMD)
+        list(APPEND srcs "src/prov_console_cmd.c")
+    endif ()
+
     idf_component_register(
         SRCS ${srcs}
         INCLUDE_DIRS "include"
@@ -32,6 +36,10 @@ if (ESP_PLATFORM)
     # its own PRIV_REQUIRES.
     if (CONFIG_NETWORK_PROV_NETWORK_TYPE_THREAD)
         list(APPEND opt_priv_req "openthread")
+    endif ()
+
+    if (CONFIG_APP_NETWORK_PROV_CONSOLE_CMD)
+        list(APPEND opt_priv_req "console")
     endif ()
 
     if (opt_priv_req)
