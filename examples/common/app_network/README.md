@@ -41,6 +41,23 @@ provisioning event: `on_begin` before the network starts, `on_session_start` whe
 connects, `on_end` when provisioning finishes either way. All are optional. They never fire on
 POSIX, where the setter is a no-op.
 
+## Provisioning from the console
+
+With `APP_NETWORK_PROV_CONSOLE_CMD` enabled (default, requires `ESP_RMAKER_NEO_CONSOLE_ENABLE`),
+`app_network_provision()` registers a console command that provisions the node without a phone
+app:
+
+- Wi-Fi builds: `wifi-prov <ssid> [<passphrase>]`
+- Thread builds: `thread-prov <dataset_tlvs_hex>`
+
+While a provisioning session is running, the credentials go to the provisioning manager and the
+session is stopped as soon as they work, instead of waiting out
+`NETWORK_PROV_AUTOSTOP_TIMEOUT`. Once the node is provisioned, they are applied to the network
+stack directly, replacing the stored ones.
+
+Assisted claiming still needs the phone app: an unclaimed node provisioned from the console
+connects to the network but never gets a certificate.
+
 ## Connecting to IPv4 Servers on Thread
 
 Thread networks are IPv6-only, hence **DNS64 is required** to connect to IPv4 servers:

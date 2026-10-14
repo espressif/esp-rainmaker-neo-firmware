@@ -13,6 +13,13 @@
 /* Declarations */
 #include "app_network_neo.h"
 
+/* Configuration includes */
+#include "sdkconfig.h"
+
+#ifdef CONFIG_APP_NETWORK_PROV_CONSOLE_CMD
+#include "prov_console_cmd.h"
+#endif /* CONFIG_APP_NETWORK_PROV_CONSOLE_CMD */
+
 /* RMNG includes */
 #include "esp_rmaker_flow.h"
 #include "esp_rmaker_error_types.h"
@@ -53,6 +60,11 @@ static void prov_event_handler(void *arg, esp_event_base_t base, int32_t id, voi
 
 osal_err_t app_network_provision(uint16_t device_type, uint8_t device_subtype)
 {
+#ifdef CONFIG_APP_NETWORK_PROV_CONSOLE_CMD
+    /* Registered here so the command can also feed credentials to a provisioning session in progress. */
+    app_network_register_prov_command();
+#endif /* CONFIG_APP_NETWORK_PROV_CONSOLE_CMD */
+
     /* 1. Initialise the SDK components required before provisioning. */
     if (esp_rmaker_pre_prov_init() != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to initialise pre-provisioning components");
