@@ -16,7 +16,7 @@
  * Separate from the packed per-child record (``bridge_child_nvs``)
  * because the payload is unbounded.
  *
- * Only present when ``CONFIG_RMNG_BRIDGE_ENABLED``.
+ * Only present when ``CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE``.
  */
 
 #ifndef __BRIDGE_CHILD_TRIGGERS_NVS_H__
@@ -24,7 +24,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include <stddef.h>
 #include <stdint.h>
@@ -65,6 +65,6 @@ esp_rmaker_error_t bridge_child_triggers_nvs_erase(esp_rmaker_bridge_child_handl
 }
 #endif
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 #endif /* __BRIDGE_CHILD_TRIGGERS_NVS_H__ */

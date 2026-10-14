@@ -181,7 +181,7 @@ osal_err_t app_run(void)
     }
 
     /* Enable optional services. */
-#if CONFIG_ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE
     /* On-Network Challenge Response: node-group association via an HTTP server on the node. */
     esp_rmaker_chal_resp_service_enable();
 #else
@@ -196,7 +196,7 @@ osal_err_t app_run(void)
 
     esp_rmaker_ota_config_t ota_config = {
         .custom_filetype_handler_lookup = custom_mock_lookup,
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
         .custom_job_cb = custom_mock_custom_job_cb, /* Optional: custom job callback. */
 #endif
         .ota_cb = NULL,             /* Use the default OTA callback. */

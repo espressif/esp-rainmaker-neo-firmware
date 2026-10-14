@@ -78,15 +78,8 @@ static esp_rmaker_error_t esp_rmaker_default_bulk_write_cb(const esp_rmaker_devi
         for (int i = 0; i < count; i++) {
             param = (_esp_rmaker_param_t *)(write_req[i].param);
             if (param->type && (strcmp(param->type, ESP_RMAKER_PARAM_NAME) == 0)) {
-#ifndef CONFIG_RMAKER_NAME_PARAM_CB
                 esp_rmaker_param_update(write_req[i].param, write_req[i].val);
                 continue;
-#else
-                if (!_device->write_cb) {
-                    esp_rmaker_param_update(write_req[i].param, write_req[i].val);
-                    continue;
-                }
-#endif
             }
             if (_device->write_cb) {
                 if (_device->write_cb(device, write_req[i].param, write_req[i].val, priv_data, ctx) != ESP_RMAKER_OK) {

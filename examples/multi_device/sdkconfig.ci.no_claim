@@ -2,4 +2,4 @@
 # partition by the host-side factory tooling.
 # Assisted claiming defaults to enabled whenever BLE is on, so this profile keeps the
 # no-claiming path (claim.c excluded, core lifecycle hooks compiled out) covered.
-CONFIG_ESP_RMAKER_ASSISTED_CLAIM=n
+CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM=n

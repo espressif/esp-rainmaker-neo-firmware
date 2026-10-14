@@ -69,8 +69,8 @@ list(APPEND RMNG_PRIV_REQUIRES esp_schedule)
 if (NOT DEFINED RMNG_CONSOLE_ENABLED)
     set(RMNG_CONSOLE_ENABLED ON)
 endif ()
-if (DEFINED CONFIG_RMNG_CONSOLE_ENABLED)
-    set(RMNG_CONSOLE_ENABLED ${CONFIG_RMNG_CONSOLE_ENABLED})
+if (DEFINED CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE)
+    set(RMNG_CONSOLE_ENABLED ${CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE})
 endif ()
 message(STATUS "RMNG_CONSOLE_ENABLED: ${RMNG_CONSOLE_ENABLED}")
 # Assisted claiming. Lets a node without pre-flashed cloud credentials obtain them at first setup, via the phone app
@@ -78,7 +78,7 @@ message(STATUS "RMNG_CONSOLE_ENABLED: ${RMNG_CONSOLE_ENABLED}")
 # is compiled unconditionally, and on every platform, so the host tests link the same object the firmware does rather
 # than reaching into claim.c (which is BLE-only, hence ESP-only).
 list(APPEND RMNG_SRCS "${RMNG_SRC_DIR}/claim/claim_rules.c" "${RMNG_SRC_DIR}/claim/claim_pb-c.c")
-if (CONFIG_ESP_RMAKER_ASSISTED_CLAIM)
+if (CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM)
     list(APPEND RMNG_SRCS "${RMNG_SRC_DIR}/claim/claim.c")
 endif ()
 
@@ -121,8 +121,8 @@ if (NOT _rmng_checks_done)
 endif ()
 
 # Host control sources. Defining them is unconditional; only consumption is gated on RMNG_HOST_CTRL, which is resolved
-# in CMakeLists.txt. bridge_handlers.c is not here: it depends on CONFIG_RMNG_BRIDGE_ENABLED, and on POSIX no CONFIG_*
-# exists yet at the point this file is included.
+# in CMakeLists.txt. bridge_handlers.c is not here: it depends on CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE, and on POSIX no
+# CONFIG_* exists yet at the point this file is included.
 set(RMNG_HOST_CTRL_SRCS
     "${RMNG_SRC_DIR}/host_ctrl/host_ctrl_core.c"
     "${RMNG_SRC_DIR}/host_ctrl/host_ctrl_handler.c"

@@ -14,6 +14,7 @@ subtrees:
               - file: specs/local_ctrl_endpoint_protocol
               - file: specs/time_sync
               - file: specs/error_handling
+              - file: specs/build_configuration
               - file: specs/networking/index
                 subtrees:
                   - maxdepth: 2

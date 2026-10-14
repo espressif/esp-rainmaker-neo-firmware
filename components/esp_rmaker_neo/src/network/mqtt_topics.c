@@ -17,7 +17,7 @@
 
 #include <string.h>
 
-#define ESP_RMAKER_MQTT_USE_BASIC_INGEST CONFIG_ESP_RMAKER_MQTT_USE_BASIC_INGEST
+#define ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS CONFIG_ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
 
 /* Private function declarations *******************************************************/
 
@@ -142,11 +142,11 @@ int esp_rmaker_mqtt_topic_to_cloud(const esp_rmaker_topic_ctx_t *ctx, char *buff
         return -1;
     }
 
-#if ESP_RMAKER_MQTT_USE_BASIC_INGEST
+#if ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
     return __format_with_ctx_thing(ctx, buffer, buffer_size, "$aws/rules/node_to_cloud_rule/rainmaker/nodes/%s/to_cloud");
 #else
     return __format_with_ctx_thing(ctx, buffer, buffer_size, "rainmaker/nodes/%s/to_cloud");
-#endif /* ESP_RMAKER_MQTT_USE_BASIC_INGEST */
+#endif /* ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS */
 }
 
 int esp_rmaker_mqtt_topic_from_cloud(char *buffer, size_t buffer_size)
@@ -196,7 +196,7 @@ int esp_rmaker_mqtt_topic_timeseries_report(const esp_rmaker_topic_ctx_t *ctx, c
     if (buffer == NULL || buffer_size == 0) {
         return -1;
     }
-#if ESP_RMAKER_MQTT_USE_BASIC_INGEST
+#if ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
     return __format_with_ctx_thing_and_group(ctx, buffer, buffer_size, "$aws/rules/node_ts_rule/rainmaker/nodes/%s/ts/%s");
 #else
     return __format_with_ctx_thing_and_group(ctx, buffer, buffer_size, "rainmaker/nodes/%s/ts/%s");
@@ -214,11 +214,11 @@ int esp_rmaker_mqtt_topic_notify_for_node(const esp_rmaker_topic_ctx_t *ctx, cha
         return -1;
     }
 
-#if ESP_RMAKER_MQTT_USE_BASIC_INGEST
+#if ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
     return __format_with_ctx_thing_and_group(ctx, buffer, buffer_size, "$aws/rules/node_notify_rule/rainmaker/nodes/%s/notify/%s");
 #else
     return __format_with_ctx_thing_and_group(ctx, buffer, buffer_size, "rainmaker/nodes/%s/notify/%s");
-#endif /* ESP_RMAKER_MQTT_USE_BASIC_INGEST */
+#endif /* ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS */
 }
 
 int esp_rmaker_mqtt_topic_group_control_broadcast(char *buffer, size_t buffer_size, const char *primary)
@@ -301,7 +301,7 @@ esp_rmaker_error_t esp_rmaker_mqtt_topic_parse_group_control_subgroup(
     return ESP_RMAKER_OK;
 }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 int esp_rmaker_mqtt_topic_group_control_subgroup_wildcard(char *buffer, size_t buffer_size, const char *primary)
 {
@@ -319,7 +319,7 @@ int esp_rmaker_mqtt_topic_bridges_to_cloud(char *buffer, size_t buffer_size)
         return -1;
     }
 
-#if ESP_RMAKER_MQTT_USE_BASIC_INGEST
+#if ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
     return __format_with_thing_name(buffer, buffer_size, "$aws/rules/bridge_to_cloud_rule/rainmaker/bridges/%s/to_cloud");
 #else
     return __format_with_thing_name(buffer, buffer_size, "rainmaker/bridges/%s/to_cloud");
@@ -344,7 +344,7 @@ int esp_rmaker_mqtt_topic_bridges_children_params_filter(char *buffer, size_t bu
     return __format_with_thing_name(buffer, buffer_size, "rainmaker/bridges/%s/children/+/user/+/params");
 }
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 /* --- Generic operations ---*/
 

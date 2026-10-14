@@ -33,6 +33,5 @@ Optional and **off by default**: `OSAL_INCLUDE_HEAP_MONITOR` (CMake) /
 `CONFIG_OSAL_INCLUDE_HEAP_MONITOR` (Kconfig, `default n`). Enabling it adds the
 per-platform source and the `include/` directory.
 
-Note that the Kconfig option also `select`s `HEAP_TRACING_ENABLE_STANDALONE` and
-`HEAP_PLACE_FUNCTION_INTO_FLASH`, although the implementation itself only calls
-`heap_caps_get_info()`.
+Note that the Kconfig option also `select`s `HEAP_PLACE_FUNCTION_INTO_FLASH`,
+although the implementation itself only calls `heap_caps_get_info()`.

@@ -300,7 +300,7 @@ static inline const esp_rmaker_topic_ctx_t *esp_rmaker_cloud_events_tracker_ctx(
     return (t && t->ctx) ? t->ctx : &esp_rmaker_topic_ctx_self;
 }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 /**
  * @brief Build the ``addChild`` cloud event.
@@ -332,7 +332,7 @@ esp_rmaker_error_t esp_rmaker_cloud_event_removeChild(
     esp_rmaker_cloud_event_t *p_event,
     char *request_payload_json);
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 #ifdef __cplusplus
 }

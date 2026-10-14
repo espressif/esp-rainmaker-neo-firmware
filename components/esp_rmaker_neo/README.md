@@ -25,14 +25,14 @@ before it can connect — see
 `src/` is organized by feature: `node/`, `network/` (MQTT connection, shadows,
 reporting), `data_model/`, `services/` (schedules, timezone, system),
 `bridge/`, `chal_resp/`, `prov_helpers/`, `console/`, `host_ctrl/`
-(serial-driven control plane, `CONFIG_RMNG_HOST_CTRL`). Managed-component glue
+(serial-driven control plane, `CONFIG_ESP_RMAKER_NEO_HOST_CTRL`). Managed-component glue
 lives in [`overrides/`](overrides/README.md); test-only socket fault injection in
 [`fault_injection/`](fault_injection/README.md); unit tests in `test_rmaker_neo/`.
 
 ## Notable options
 
-- `CONFIG_RMNG_HOST_CTRL` — drive the SDK over serial
+- `CONFIG_ESP_RMAKER_NEO_HOST_CTRL` — drive the SDK over serial
   ([host control](src/host_ctrl/host_ctrl_python/README.md)); selects heap
   monitoring and the virtual scheduler.
-- `CONFIG_RMNG_BRIDGE_ENABLED` — bridged child devices.
-- `CONFIG_RMNG_CONSOLE_ENABLED` — RMNG serial console commands (default on).
+- `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE` — bridged child devices.
+- `CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE` — RMNG serial console commands (default on).

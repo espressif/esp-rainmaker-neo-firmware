@@ -19,9 +19,9 @@ python factory_nvs_gen.py --matter [--vendor-id <hex>] [--product-id <hex>] <fac
 ```
 
 - `factory_partition_label`: Partition label to use
-    - Kconfig option: `CONFIG_ESP_RMAKER_FACTORY_PARTITION_NAME`
+    - Kconfig option: `CONFIG_ESP_RMAKER_NEO_FACTORY_PARTITION_NAME`
 - `factory_namespace`: Namespace within the partition to store factory credentials
-    - Kconfig option: `CONFIG_ESP_RMAKER_FACTORY_NAMESPACE`
+    - Kconfig option: `CONFIG_ESP_RMAKER_NEO_FACTORY_NAMESPACE`
 - `json_input_file`: path to [JSON input](#input) (requirements differ for `--matter`; see below).
 
 ### `--matter` (Matter factory merged with RainMaker)
@@ -110,7 +110,7 @@ fctry,    data, nvs,     0x3E0000,  0x6000,
 ```
 
 - The **name** (`fctry` here) must match the partition label passed to this
-  tool and what firmware expects via `CONFIG_ESP_RMAKER_FACTORY_PARTITION_NAME`
+  tool and what firmware expects via `CONFIG_ESP_RMAKER_NEO_FACTORY_PARTITION_NAME`
   (see [this header file](../../components/esp_rmaker_neo/priv_include/constants/nvs.h)).
 - Partition **type**: `data`, **subtype**: `nvs`.
 - **Size** must be at least as large as the generated `.bin`. The examples use

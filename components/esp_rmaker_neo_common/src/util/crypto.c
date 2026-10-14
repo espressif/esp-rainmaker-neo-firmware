@@ -45,8 +45,8 @@
 #define RMAKER_CRYPTO_HAVE_CSR_WRITE 1
 #endif
 
-#if defined(CONFIG_RMAKER_CRYPTO_CSR_GENERATION) && !defined(RMAKER_CRYPTO_HAVE_CSR_WRITE)
-#error "Key/CSR generation was requested but mbedTLS certificate-request writing is disabled. Enable MBEDTLS_PEM_WRITE_C, MBEDTLS_PK_WRITE_C, MBEDTLS_X509_CREATE_C and MBEDTLS_X509_CSR_WRITE_C (ESP-IDF: Component config > mbedTLS), or turn off whatever selected RMAKER_CRYPTO_CSR_GENERATION (e.g. claiming)."
+#if defined(CONFIG_ESP_RMAKER_NEO_CLAIM_CSR_SUPPORT) && !defined(RMAKER_CRYPTO_HAVE_CSR_WRITE)
+#error "Key/CSR generation was requested but mbedTLS certificate-request writing is disabled. Enable MBEDTLS_PEM_WRITE_C, MBEDTLS_PK_WRITE_C, MBEDTLS_X509_CREATE_C and MBEDTLS_X509_CSR_WRITE_C (ESP-IDF: Component config > mbedTLS), or turn off whatever selected ESP_RMAKER_NEO_CLAIM_CSR_SUPPORT (e.g. claiming)."
 #endif
 
 static const char *TAG = "rmng_crypto";

@@ -33,7 +33,7 @@
 #include "esp_rmaker_system_ctrl.h"
 
 /* Services includes */
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE
 #include "esp_rmaker_standard_services.h"
 #endif
 
@@ -102,18 +102,18 @@ static void esp_rmaker_app_default_event_handler(void *event_handler_arg, osal_e
         case RMAKER_EVENT_LOCAL_CTRL_STARTED:
             // Local control started.
             OSAL_LOGI(TAG, "Local control started");
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE
             OSAL_LOGI(TAG, "Enabling challenge response");
             esp_rmaker_chal_resp_service_enable();
-#endif /* CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE */
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE */
             break;
         case RMAKER_EVENT_LOCAL_CTRL_STOPPED:
             // Local control stopped.
             OSAL_LOGI(TAG, "Local control stopped");
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE
             OSAL_LOGI(TAG, "Disabling challenge response");
             esp_rmaker_chal_resp_service_disable();
-#endif /* CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE */
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE */
             break;
 
         default:

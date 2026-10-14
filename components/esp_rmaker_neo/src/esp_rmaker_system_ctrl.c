@@ -266,7 +266,7 @@ esp_rmaker_error_t esp_rmaker_system_ctrl_clear_data_namespaces(void)
     static const char *const data_namespaces[] = {
         RMAKER_NVS_CHECKSUM_NAMESPACE,
         RMAKER_NVS_LOCAL_CONFIG_NAMESPACE,
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         /* Per-child thing_name / group_info / ncfg_ver / checksum entries, per-child trigger
          * entries and per-child schedule details. Factory reset must wipe all of these so the
          * next bridge_init starts clean. */

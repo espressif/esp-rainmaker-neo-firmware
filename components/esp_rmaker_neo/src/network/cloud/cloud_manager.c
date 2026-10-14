@@ -55,7 +55,7 @@
 #include "constants/network.h"
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "bridge/bridge_internal.h"
 #endif
 
@@ -403,7 +403,7 @@ static bool __is_subscribe_ack(const osal_mqtt_event_loop_channel_t *ch)
             ch->sub == MQTT_CHANNEL_SUB_CLOUD_MANAGER_START_LISTENING) {
         return true;
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     if (ch->main == MQTT_CHANNEL_MAIN_BRIDGE &&
             (ch->sub == MQTT_CHANNEL_SUB_BRIDGE_FILTER_CLOUD_SUBSCRIBE ||
              ch->sub == MQTT_CHANNEL_SUB_BRIDGE_FILTER_PARAMS_SUBSCRIBE)) {
@@ -419,7 +419,7 @@ static bool __is_unsubscribe_ack(const osal_mqtt_event_loop_channel_t *ch)
             ch->sub == MQTT_CHANNEL_SUB_CLOUD_MANAGER_STOP_LISTENING) {
         return true;
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     if (ch->main == MQTT_CHANNEL_MAIN_BRIDGE &&
             (ch->sub == MQTT_CHANNEL_SUB_BRIDGE_FILTER_CLOUD_UNSUBSCRIBE ||
              ch->sub == MQTT_CHANNEL_SUB_BRIDGE_FILTER_PARAMS_UNSUBSCRIBE)) {
@@ -588,7 +588,7 @@ static void __dispatch_parsed_payload(const esp_rmaker_topic_ctx_t *ctx, const c
             } else if (first_char == 's') {
                 __set_event_response_payload_handler(ctx, event_name, &jctx);
             }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
             else if (first_char == 'b') {
                 if (ctx != &esp_rmaker_topic_ctx_self) {
                     OSAL_LOGW(TAG, "Bridge event '%s' arriving on child '%s' - ignoring", event_name, __tname);
@@ -601,7 +601,7 @@ static void __dispatch_parsed_payload(const esp_rmaker_topic_ctx_t *ctx, const c
                 }
                 json_obj_leave_object(&jctx);
             }
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
             else {
                 OSAL_LOGE(TAG, "Received invalid event name: %s", event_name);
                 json_obj_leave_object(&jctx);
@@ -950,8 +950,8 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_init(void)
 
     /* Inbox: one slot for self + one per child slot, dynamically populated
      * on first-use registration in esp_rmaker_cloud_manager_send. */
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
-    inbox.num_entries = 1 + CONFIG_RMNG_BRIDGE_MAX_CHILDREN;
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
+    inbox.num_entries = 1 + CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN;
 #else
     inbox.num_entries = 1;
 #endif
@@ -1057,7 +1057,7 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_start_listening(uint32_t timeout_ms)
      * bridge filter subscribes all land on the SUBSCRIBED_TO_CLOUD bit
      * through the shared ack counter. Reset gate state before issuing. */
     unsigned int expected = 1;
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     expected += BRIDGE_INTERNAL_FILTER_SUB_COUNT;
 #endif
     atomic_store(&__listening_gate.subscribe_expected, expected);
@@ -1075,7 +1075,7 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_start_listening(uint32_t timeout_ms)
         return ESP_RMAKER_FAIL;
     }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     /* Issue the bridge subscribes. Acks land on the same gate. A subscribe
      * that fails to issue will never ACK, so lower the gate's expected count
      * by the shortfall - otherwise the gate could never be satisfied and the
@@ -1097,7 +1097,7 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_start_listening(uint32_t timeout_ms)
             esp_rmaker_core_subscribed_to_cloud();
         }
     }
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
     esp_rmaker_error_t wait_err = esp_rmaker_network_wait_bits(RMAKER_NETWORK_EVENT_GROUP_BIT_SUBSCRIBED_TO_CLOUD, timeout_ms);
     /* Stop accepting late acks regardless of outcome. */
@@ -1115,7 +1115,7 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_stop_listening(uint32_t timeout_ms)
     }
 
     unsigned int expected = 1;
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     expected += BRIDGE_INTERNAL_FILTER_SUB_COUNT;
 #endif
     atomic_store(&__listening_gate.unsubscribe_expected, expected);
@@ -1133,7 +1133,7 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_stop_listening(uint32_t timeout_ms)
         return ESP_RMAKER_FAIL;
     }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     uint8_t bridge_issued = 0;
     (void)bridge_internal_unsubscribe(&bridge_issued);
     int shortfall = (int)BRIDGE_INTERNAL_FILTER_SUB_COUNT - (int)bridge_issued;
@@ -1144,7 +1144,7 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_stop_listening(uint32_t timeout_ms)
             esp_rmaker_core_unsubscribed_from_cloud();
         }
     }
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
     esp_rmaker_error_t wait_err = esp_rmaker_network_wait_bits(RMAKER_NETWORK_EVENT_GROUP_BIT_UNSUBSCRIBED_FROM_CLOUD, timeout_ms);
     atomic_store(&__listening_gate.unsubscribe_in_flight, false);
@@ -1159,9 +1159,9 @@ bool esp_rmaker_cloud_manager_is_listening(void)
 /* Topic-builder strategy for ::__send_with_topic. Caller picks node-vs-bridge. */
 typedef enum {
     __SEND_TOPIC_KIND_NODE_TO_CLOUD,    /**< Regular node-to-cloud topic */
-#if CONFIG_RMNG_BRIDGE_ENABLED
+#if CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     __SEND_TOPIC_KIND_BRIDGE_TO_CLOUD,  /**< Bridge-to-cloud topic */
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 } __send_topic_kind_t;
 
 /* Shared core for the public ``send`` entrypoints. Builds the JSON
@@ -1209,11 +1209,11 @@ static esp_rmaker_error_t __send_with_topic(const esp_rmaker_topic_ctx_t *ctx,
     case __SEND_TOPIC_KIND_NODE_TO_CLOUD:
         topic_len = esp_rmaker_mqtt_topic_to_cloud(ctx, publish_topic, sizeof(publish_topic));
         break;
-#if CONFIG_RMNG_BRIDGE_ENABLED
+#if CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     case __SEND_TOPIC_KIND_BRIDGE_TO_CLOUD:
         topic_len = esp_rmaker_mqtt_topic_bridges_to_cloud(publish_topic, sizeof(publish_topic));
         break;
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
     default:
         OSAL_LOGE(TAG, "Invalid send topic kind: %d", (int)kind);
         free(payload);
@@ -1256,11 +1256,11 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_send(const esp_rmaker_topic_ctx_t *c
     return __send_with_topic(ctx, __SEND_TOPIC_KIND_NODE_TO_CLOUD, p_event, event_count, sub_channel);
 }
 
-#if CONFIG_RMNG_BRIDGE_ENABLED
+#if CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 esp_rmaker_error_t esp_rmaker_cloud_manager_send_bridge(esp_rmaker_cloud_event_t *p_event, size_t event_count, uint32_t sub_channel)
 {
     /* Inbox keyed by self ctx - bridge-namespace publish is conceptually
      * the parent acting on its own behalf. */
     return __send_with_topic(&esp_rmaker_topic_ctx_self, __SEND_TOPIC_KIND_BRIDGE_TO_CLOUD, p_event, event_count, sub_channel);
 }
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

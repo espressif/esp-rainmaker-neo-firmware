@@ -604,7 +604,7 @@ const esp_rmaker_device_t *esp_rmaker_param_get_device(const esp_rmaker_param_t 
  * @brief Update a parameter
  *
  * This will update the value of a parameter with ESP RainMaker Neo core and schedule a delayed report
- * of all changed parameters. The report will be sent after a configurable delay (CONFIG_RMAKER_STATE_REPORT_DELAY_MS).
+ * of all changed parameters. The report will be sent after a configurable delay (CONFIG_ESP_RMAKER_NEO_STATE_REPORT_DELAY_MS).
  * This can be used when multiple parameters need to be reported together, as multiple calls will
  * coalesce into a single report.
  *

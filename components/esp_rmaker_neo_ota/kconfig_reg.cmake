@@ -8,6 +8,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/test_rmaker_neo_ota/kconfig_reg.cmake)
 
 kconfig_register(
     NAME esp_rmaker_neo_ota
-    KCONFIGS ${CMAKE_CURRENT_LIST_DIR}/Kconfig
+    KCONFIGS ${CMAKE_CURRENT_LIST_DIR}/Kconfig.projbuild
     CHILDREN test_rmaker_neo_ota
 )

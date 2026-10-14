@@ -1,10 +1,10 @@
 # Same style as ESP-IDF defaults.
 
 # Force enable RMNG remote.
-CONFIG_RMNG_HOST_CTRL=y
+CONFIG_ESP_RMAKER_NEO_HOST_CTRL=y
 
 # device-sim is a remote-control harness, so the console is not built.
-CONFIG_RMNG_CONSOLE_ENABLED=n
+CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE=n
 
 # Remote control might need larger MQTT buffers for huge payloads (e.g., shadow documents)
 # Switch to coreMQTT with larger single network buffer

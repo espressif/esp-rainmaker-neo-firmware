@@ -24,7 +24,7 @@ Some publishes have two topic forms:
 - **Basic-ingest topic**: prefixed with `$aws/rules/<rule_name>/`. The message is consumed directly by an AWS IoT rule and is **not** delivered to MQTT subscribers. Cheaper than a normal publish; used whenever subscribers do not need the message.
 - **Non-basic-ingest topic**: standard MQTT topic without the `$aws/rules/<rule_name>/` prefix. The message is published normally and is visible to any subscribers.
 
-Per-topic basic-ingest support is noted in each topic section below. Basic ingest is enabled by default (`CONFIG_ESP_RMAKER_MQTT_USE_BASIC_INGEST=y`); set it to `n` to fall back to the non-basic-ingest form for all supporting topics.
+Per-topic basic-ingest support is noted in each topic section below. Basic ingest is enabled by default (`CONFIG_ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS=y`); set it to `n` to fall back to the non-basic-ingest form for all supporting topics.
 
 ## Cloud Communication Topics
 
@@ -105,7 +105,7 @@ A node subscribes to the broadcast topic and to one subgroup topic per subgroup 
   - request: `$aws/things/{thing_name}/shadow/name/params-{group_info_str}/get`
   - response: `$aws/things/{thing_name}/shadow/name/params-{group_info_str}/get/accepted`
 - **QoS**: QoS 1
-- **Purpose**: Read back the shadow's current `reported` document. The subscription is (re)established whenever the node sets up for new group information; the `get` publish is issued on demand. Only used when `CONFIG_RMNG_HOST_CTRL` is enabled.
+- **Purpose**: Read back the shadow's current `reported` document. The subscription is (re)established whenever the node sets up for new group information; the `get` publish is issued on demand. Only used when `CONFIG_ESP_RMAKER_NEO_HOST_CTRL` is enabled.
 - **Payload**: AWS IoT Shadow JSON format
 
 ### Indexed Shadow Get (Publish) and Get Accepted (Subscribe)
@@ -114,7 +114,7 @@ A node subscribes to the broadcast topic and to one subgroup topic per subgroup 
   - request: `$aws/things/{thing_name}/shadow/name/iparams/get`
   - response: `$aws/things/{thing_name}/shadow/name/iparams/get/accepted`
 - **QoS**: QoS 1
-- **Purpose**: Read back the indexed shadow's current `reported` document. Only used when `CONFIG_RMNG_HOST_CTRL` is enabled.
+- **Purpose**: Read back the indexed shadow's current `reported` document. Only used when `CONFIG_ESP_RMAKER_NEO_HOST_CTRL` is enabled.
 - **Payload**: AWS IoT Shadow JSON format
 
 ## Timeseries Topics
@@ -141,7 +141,7 @@ A node subscribes to the broadcast topic and to one subgroup topic per subgroup 
 
 ## Bridge Topics
 
-Only present when `CONFIG_RMNG_BRIDGE_ENABLED` is set (default off). A bridge node proxies cloud connectivity for bridged children that have no MQTT connection of their own; `{bridge_thing_name}` is the bridge's own thing name.
+Only present when `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE` is set (default off). A bridge node proxies cloud connectivity for bridged children that have no MQTT connection of their own; `{bridge_thing_name}` is the bridge's own thing name.
 
 - **Bridge To Cloud (Publish)**, supports [basic ingest](#basic-ingest):
   - basic-ingest: `$aws/rules/bridge_to_cloud_rule/rainmaker/bridges/{bridge_thing_name}/to_cloud`
@@ -159,15 +159,15 @@ Each bridged child is a full cloud Thing: its shadows, timeseries and notificati
 On first connection, the node subscribes to:
 
 1.  [From Cloud](#from-cloud-subscribe) - Cloud events
-2.  [Named Shadow Get Accepted](#named-shadow-get-publish-and-get-accepted-subscribe) - Shadow read-back (after group info received; only with `CONFIG_RMNG_HOST_CTRL`)
+2.  [Named Shadow Get Accepted](#named-shadow-get-publish-and-get-accepted-subscribe) - Shadow read-back (after group info received; only with `CONFIG_ESP_RMAKER_NEO_HOST_CTRL`)
 3.  [Parameters to Node](#parameters-to-node-subscribe) - Parameter updates (unicast; after group info received)
 4.  [Group Control Topics](#group-control-topics) - Group control topics (when the node has valid group information)
 
 ### Subscription Timing
 
 - **From Cloud**: Subscribed immediately after MQTT connection
-- **Indexed Shadow Get Accepted**: Subscribed after the whole cloud-setup step (`from_cloud` subscription **and** the `get*` request bundle) has run — both are serial work-queue tasks queued on the first MQTT connection. Only when `CONFIG_RMNG_HOST_CTRL` is enabled
-- **Named Shadow Get Accepted**: Subscribed when the node sets up for (new) group information, before the params subscription; only when `CONFIG_RMNG_HOST_CTRL` is enabled
+- **Indexed Shadow Get Accepted**: Subscribed after the whole cloud-setup step (`from_cloud` subscription **and** the `get*` request bundle) has run — both are serial work-queue tasks queued on the first MQTT connection. Only when `CONFIG_ESP_RMAKER_NEO_HOST_CTRL` is enabled
+- **Named Shadow Get Accepted**: Subscribed when the node sets up for (new) group information, before the params subscription; only when `CONFIG_ESP_RMAKER_NEO_HOST_CTRL` is enabled
 - **Params Topic**: Subscribed after receiving group information
 - **Group Control Topics**: Subscribed together with the params topic when group information includes a non-empty primary group ID; the node must be subscribed to all (unicast + broadcast + per-subgroup) before state-change listening is considered complete
 

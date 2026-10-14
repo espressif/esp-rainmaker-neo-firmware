@@ -35,8 +35,8 @@
 
 /* Factory partition constants ******************************************************/
 
-#define RMAKER_NVS_FACTORY_PART_NAME                     CONFIG_ESP_RMAKER_FACTORY_PARTITION_NAME
-#define RMAKER_NVS_FACTORY_NAMESPACE                     CONFIG_ESP_RMAKER_FACTORY_NAMESPACE
+#define RMAKER_NVS_FACTORY_PART_NAME                     CONFIG_ESP_RMAKER_NEO_FACTORY_PARTITION_NAME
+#define RMAKER_NVS_FACTORY_NAMESPACE                     CONFIG_ESP_RMAKER_NEO_FACTORY_NAMESPACE
 #define RMAKER_NVS_FACTORY_KEY_CLIENT_KEY                "client_key"
 #define RMAKER_NVS_FACTORY_KEY_CLIENT_CERT               "client_cert"
 #define RMAKER_NVS_FACTORY_KEY_MQTT_HOST                 "mqtt_host"

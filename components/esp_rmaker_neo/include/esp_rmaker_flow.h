@@ -50,9 +50,9 @@
 /* Configuration includes. */
 #include "sdkconfig.h"
 
-#if CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER
+#if CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
 #include "osal_mqtt_prototypes.h"
-#endif /* CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER */
+#endif /* CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER */
 
 /* Structure definitions *******************************************************/
 
@@ -66,10 +66,10 @@ typedef struct {
      */
     bool enable_time_sync;
 
-#if CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER
+#if CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
     /** MQTT setup function to use. If not provided, an error will be returned. */
     osal_mqtt_impl_setup_t mqtt_setup_fn;
-#endif /* CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER */
+#endif /* CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER */
 } esp_rmaker_config_t;
 
 /* Constants *******************************************************/
@@ -77,9 +77,9 @@ typedef struct {
 /**
  * @brief Default configuration for the ESP RainMaker Neo SDK.
  *
- * When CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER is set, override mqtt_setup_fn in your application code.
+ * When CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER is set, override mqtt_setup_fn in your application code.
  */
-#if CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER
+#if CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
 #define ESP_RMAKER_DEFAULT_CONFIG (esp_rmaker_config_t) { \
     .enable_time_sync = true, \
     .mqtt_setup_fn = NULL, \

@@ -11,7 +11,7 @@
 
 #include "bridge/bridge_child_nvs.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include "bridge/bridge_internal.h"
 #include "constants/nvs.h"
@@ -349,4 +349,4 @@ esp_rmaker_error_t bridge_child_nvs_set_node_tags(esp_rmaker_bridge_child_handle
     return err;
 }
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

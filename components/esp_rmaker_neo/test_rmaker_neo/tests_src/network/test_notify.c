@@ -22,7 +22,7 @@
 #include "node_internal.h"
 #include "network/mqtt_topics.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "esp_rmaker_bridge.h"
 #include "bridge/bridge_internal.h"
 #endif
@@ -155,7 +155,7 @@ static void __expected_notify_topic(const esp_rmaker_node_t *node, char *out, si
 void test_notify_send_push_routes_by_update_id(void)
 {
     osal_event_loop_create_default();
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     bridge_internal_deinit();
 #endif
     esp_rmaker_config_t config = { .enable_time_sync = false };
@@ -172,7 +172,7 @@ void test_notify_send_push_routes_by_update_id(void)
     esp_rmaker_error_t err_self, err_null;
     __expected_notify_topic(node, expected_self, sizeof(expected_self));
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_test_seed_child("a", "lid-a", "parent--a");
     TEST_ASSERT_NOT_NULL(child);
     esp_rmaker_node_t *child_node = esp_rmaker_bridge_child_node(child);
@@ -194,14 +194,14 @@ void test_notify_send_push_routes_by_update_id(void)
     esp_rmaker_state_update_id_t self_id = esp_rmaker_state_update_id_create(self_param);
     __push_and_capture(self_id, &err_self, actual_self, sizeof(actual_self), payload_self, sizeof(payload_self));
     __push_and_capture(NULL, &err_null, actual_null, sizeof(actual_null), payload_null, sizeof(payload_null));
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_state_update_id_t child_id = esp_rmaker_state_update_id_create(child_param);
     __push_and_capture(child_id, &err_child, actual_child, sizeof(actual_child), payload_child, sizeof(payload_child));
 #endif
 
     esp_rmaker_mqtt_impl = saved_impl;
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     data_model_state_update_id_release(child_id);
 #endif
     data_model_state_update_id_release(self_id);
@@ -211,7 +211,7 @@ void test_notify_send_push_routes_by_update_id(void)
      * suite and bury this failure. */
     esp_rmaker_node_clear_stored_values(node);
     esp_rmaker_node_deinit(node);
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     bridge_internal_deinit();
 #endif
     osal_event_loop_delete_default();
@@ -231,7 +231,7 @@ void test_notify_send_push_routes_by_update_id(void)
     TEST_ASSERT_EQUAL_STRING(expected_self, actual_null);
     TEST_ASSERT_EQUAL_STRING("{\"notify\":{\"push\":true}}", payload_null);
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     /* A param owned by a bridge child publishes on that child's notify topic, NOT the
      * parent's. This is what breaks when the update ID is discarded. */
     TEST_ASSERT_NOT_NULL(child_id);

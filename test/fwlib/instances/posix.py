@@ -485,7 +485,7 @@ class FirmwareInstanceFactoryPosix(FirmwareInstanceFactory):
         )
         add_defaults = gen_sdkconfig_defaults(
             {
-                "RMNG_TESTING": "y",
+                "ESP_RMAKER_NEO_TESTING": "y",
                 **force_ipv4_config,
                 **self._get_add_configs(),
                 **add_configs,

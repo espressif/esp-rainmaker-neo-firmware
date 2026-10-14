@@ -16,6 +16,10 @@ For **setup, building, and factory provisioning**, see the [firmware guides](htt
 - [Time Synchronization](time_sync.md) -- NTP/SNTP setup, which services require synchronised time, and failure handling.
 - [Error Handling and Recovery Strategies](error_handling.md) -- the general error handling approach, retry strategies for MQTT, shadows and events, and the error recovery flows.
 
+## Conventions
+
+- [Build-Time Configuration](build_configuration.md) -- the Kconfig naming rules: prefixes per component, which symbols are shared with RainMaker classic, and how menus are titled.
+
 ## Subsystems
 
 - [Networking](networking/index.md) -- MQTT topics, connection lifecycle and the event-based cloud communication protocol.

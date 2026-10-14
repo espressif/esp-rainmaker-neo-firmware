@@ -50,11 +50,11 @@
 #include "protocomm_security2.h"
 #endif
 
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
 #include "esp_srp.h"
 #endif
 
-#if CONFIG_ESP_PLATFORM
+#ifdef CONFIG_IDF_TARGET
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #endif
@@ -85,7 +85,7 @@
 
 /* Set by Kconfig when the configured security scheme uses a PoP (security 2, or
  * security 1 with PoP). */
-#define LOCAL_CTRL_POP_IN_USE CONFIG_ESP_RMAKER_LOCAL_CTRL_POP_IN_USE
+#define LOCAL_CTRL_POP_IN_USE CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_POP_IN_USE
 
 /* Types *******************************************************/
 
@@ -107,10 +107,10 @@ typedef struct {
 #if LOCAL_CTRL_POP_IN_USE
     bool pop_from_nvs; /**< True if the PoP was loaded from NVS (i.e. not freshly generated this run) */
 #endif
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_1
     protocomm_security1_params_t sec1_params; /**< Security 1 parameters (PoP) */
 #endif
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
     protocomm_security2_params_t sec2_params; /**< Security 2 parameters (salt + verifier) */
     char *sec2_salt;       /**< SRP6a salt buffer (allocated by esp_srp_gen_salt_verifier or NVS read) */
     int   sec2_salt_len;
@@ -164,7 +164,7 @@ static const char *TAG = "rmng_svc_local_ctrl";
  */
 #define LOCAL_CTRL_NVS_POP_KEY   "pop"
 
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
 /**
  * @brief NVS keys for the cached SRP6a salt and verifier.
  */
@@ -188,7 +188,7 @@ static const char *LOCAL_CTRL_SEC2_USERNAME = "wifiprov";
 /**
  * @brief PoP length in characters - the value printed on the device and entered by a user.
  */
-#define LOCAL_CTRL_POP_CHARS    CONFIG_ESP_RMAKER_LOCAL_CTRL_POP_LENGTH
+#define LOCAL_CTRL_POP_CHARS    CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_POP_LENGTH
 
 /**
  * @brief Random bytes behind the PoP. Hex is two characters per byte, so an odd character
@@ -200,7 +200,7 @@ static const char *LOCAL_CTRL_SEC2_USERNAME = "wifiprov";
 /**
  * @brief Stack size for the HTTP server task.
  */
-#define LOCAL_CTRL_STACK_SIZE    CONFIG_ESP_RMAKER_LOCAL_CTRL_STACK_SIZE
+#define LOCAL_CTRL_STACK_SIZE    CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_STACK_SIZE
 
 /* Variables *******************************************************/
 
@@ -209,12 +209,12 @@ static const char *LOCAL_CTRL_SEC2_USERNAME = "wifiprov";
  */
 static __local_ctrl_service_priv_data_t *__priv_data = NULL;
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
 /**
- * @brief HTTP port override from host control (POSIX/tests). 0 = use CONFIG_ESP_RMAKER_LOCAL_CTRL_HTTP_PORT.
+ * @brief HTTP port override from host control (POSIX/tests). 0 = use CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT.
  */
 static uint16_t s_local_ctrl_http_port_override;
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
 /**
  * @brief Custom PoP set by application before the service starts.
@@ -317,17 +317,17 @@ __local_ctrl_get_pop_fail:
 
 static uint16_t __local_ctrl_effective_http_port(void)
 {
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
     if (s_local_ctrl_http_port_override != 0) {
         return s_local_ctrl_http_port_override;
     }
-#endif /* CONFIG_RMNG_HOST_CTRL */
-    return (uint16_t) CONFIG_ESP_RMAKER_LOCAL_CTRL_HTTP_PORT;
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
+    return (uint16_t) CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT;
 }
 
 /* Session security *******************************************************/
 
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
 /* Declared in local_ctrl/sec2_cache.h - not static, so the caching rule below can be
  * unit-tested without standing up the HTTP server and mDNS. */
 esp_rmaker_error_t esp_rmaker_local_ctrl_sec2_resolve_salt_verifier(
@@ -404,7 +404,7 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_sec2_resolve_salt_verifier(
     *out_verifier_len = verifier_len;
     return ESP_RMAKER_OK;
 }
-#endif /* CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2 */
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2 */
 
 /**
  * @brief Set up session security on the protocomm instance per the configured version.
@@ -413,8 +413,8 @@ static esp_rmaker_error_t __core_setup_security(void)
 {
     esp_err_t err = ESP_FAIL;
 
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC1_POP
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_1
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP
     esp_rmaker_error_t rerr = __local_ctrl_get_pop();
     if (rerr != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to get PoP");
@@ -424,11 +424,11 @@ static esp_rmaker_error_t __core_setup_security(void)
     __priv_data->sec1_params.len = strlen(__priv_data->pop);
     err = protocomm_set_security(__priv_data->pc, LOCAL_CTRL_SECURITY_ENDPOINT, &protocomm_security1,
                                  &__priv_data->sec1_params);
-#else /* !CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC1_POP */
+#else /* !CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP */
     OSAL_LOGI(TAG, "Security 1 configured without PoP");
     err = protocomm_set_security(__priv_data->pc, LOCAL_CTRL_SECURITY_ENDPOINT, &protocomm_security1, NULL);
-#endif /* CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC1_POP */
-#elif CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP */
+#elif CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
     esp_rmaker_error_t rerr = __local_ctrl_get_pop();
     if (rerr != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to get PoP");
@@ -499,7 +499,7 @@ static esp_rmaker_error_t __core_refresh_advert(void)
         strlcat(caps_json, "\"" LOCAL_CTRL_TXT_CAP_CHAL_RESP "\"", sizeof(caps_json));
         strlcat(caps_txt, LOCAL_CTRL_TXT_CAP_CHAL_RESP, sizeof(caps_txt));
     }
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1 && !CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC1_POP
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_1 && !CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP
     if (caps_json[0] != '\0') {
         strlcat(caps_json, ",", sizeof(caps_json));
     }
@@ -679,7 +679,7 @@ static void __local_ctrl_free_priv_data(void)
         if (__priv_data->version_json) {
             free(__priv_data->version_json);
         }
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
         if (__priv_data->sec2_salt) {
             free(__priv_data->sec2_salt);
         }
@@ -728,9 +728,9 @@ static void __core_stop_if_idle(void)
     }
     __local_ctrl_free_priv_data();
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
     s_local_ctrl_http_port_override = 0;
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 }
 
 /* Challenge-response feature *******************************************************/
@@ -857,7 +857,7 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_set_pop(const char *pop)
     return ESP_RMAKER_OK;
 }
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
 esp_rmaker_error_t esp_rmaker_local_ctrl_set_http_port_from_host_ctrl(int port)
 {
     if (port < 1 || port > 65535) {
@@ -883,7 +883,7 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_set_http_port_from_host_ctrl(int port)
     s_local_ctrl_http_port_override = (uint16_t) port;
     return ESP_RMAKER_OK;
 }
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
 esp_rmaker_error_t esp_rmaker_local_ctrl_service_enable(void)
 {
@@ -918,7 +918,7 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_service_enable(void)
     }
 
     /* Add the local control service to the node */
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
     const char *sec2_username = LOCAL_CTRL_SEC2_USERNAME;
     esp_rmaker_local_ctrl_sec_t sec_ver = ESP_RMAKER_LOCAL_CTRL_SEC2;
 #else

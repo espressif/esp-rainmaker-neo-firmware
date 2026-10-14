@@ -4,4 +4,4 @@
 
 include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/menuconfig.cmake)
 
-kconfig_register(NAME esp_rmaker_neo_common KCONFIGS ${CMAKE_CURRENT_LIST_DIR}/Kconfig)
+kconfig_register(NAME esp_rmaker_neo_common KCONFIGS ${CMAKE_CURRENT_LIST_DIR}/Kconfig.projbuild)

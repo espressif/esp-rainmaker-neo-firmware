@@ -1258,7 +1258,7 @@ def test_ota_signature_verify_disabled_passes(
     ota_job,
 ):
     """
-    When RMNG_OTA_SIGNATURE_VERIFY_ENABLE=n, the device has no codesign cert and accepts jobs with no signature.
+    When ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE=n, the device has no codesign cert and accepts jobs with no signature.
     Ensure an OTA job with skip_signing=True (null signature) still succeeds.
     """
     test_env = associated_shadow_tracked_test_env_no_sig_verify
@@ -1289,7 +1289,7 @@ def test_ota_signature_verify_enabled_rejects_unsigned_job(
     ota_job,
 ):
     """
-    When RMNG_OTA_SIGNATURE_VERIFY_ENABLE=y, the device requires a valid signature in the job document.
+    When ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE=y, the device requires a valid signature in the job document.
     Ensure an OTA job with skip_signing=True is rejected. ota_aws.py mimics AWS default behavior by
     writing the literal "N/A" for unsigned files, so the device rejects with INVALID_BASE64 rather than
     SIGNATURE_MISSING.
@@ -1573,7 +1573,7 @@ def test_ota_resume_after_interrupt(
     resume_offset = _wait_resume_offset_positive(test_env, timeout=120)
     assert resume_offset > 0, (
         "Resume Offset never became > 0; device may have restarted the download "
-        "from scratch (or CONFIG_RMNG_OTA_RESUME is disabled)"
+        "from scratch (or CONFIG_ESP_RMAKER_NEO_OTA_RESUME is disabled)"
     )
 
     # --- Step 6: assert end-to-end success -------------------------------

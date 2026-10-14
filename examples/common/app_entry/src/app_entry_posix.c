@@ -50,15 +50,15 @@ __attribute__((weak)) void app_teardown(void)
     }
 
     /* Disable optional local HTTP service */
-#if CONFIG_ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE
     if (esp_rmaker_chal_resp_service_disable() != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to disable on-network challenge response service");
     }
-#else /* !CONFIG_ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE */
+#else /* !CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE */
     if (esp_rmaker_local_ctrl_service_disable() != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to disable local control service");
     }
-#endif /* !CONFIG_ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE */
+#endif /* !CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE */
 
     /* Deinitialise the SDK */
     if (esp_rmaker_node_deinit(esp_rmaker_get_node()) != ESP_RMAKER_OK) {

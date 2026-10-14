@@ -90,7 +90,7 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_send(const esp_rmaker_topic_ctx_t *c
         size_t event_count,
         uint32_t sub_channel);
 
-#if CONFIG_RMNG_BRIDGE_ENABLED
+#if CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 /**
  * @brief Send bridge-parent-scoped events to the cloud.
  *
@@ -113,7 +113,7 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_send(const esp_rmaker_topic_ctx_t *c
 esp_rmaker_error_t esp_rmaker_cloud_manager_send_bridge(esp_rmaker_cloud_event_t *p_event,
         size_t event_count,
         uint32_t sub_channel);
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 #ifdef __cplusplus
 }

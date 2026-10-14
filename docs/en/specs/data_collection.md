@@ -30,8 +30,8 @@ The path separator is `.`; device and parameter ids must not contain `.`. The re
 
 - A data point is enqueued when a parameter with the `time_series` property changes value. Enqueuing happens during the [state reporting flow](state_management.md#outgoing-state-reporting), but publishing does **not**: the queue is drained by its own throttled task.
 - **One point per MQTT message.** Points are never merged into a single payload.
-- **Throttling**: the drain task publishes one queued point, then reschedules after `CONFIG_RMAKER_TIMESERIES_PUBLISH_INITIAL_DELAY_MS` (default 100 ms). That success-path reschedule is flat — no jitter is applied. On a publish failure the point is requeued and the delay grows exponentially up to `CONFIG_RMAKER_TIMESERIES_PUBLISH_MAX_DELAY_MS` (default 300 000 ms), with up to one initial-delay's worth of random jitter (0--100 ms by default) added to each retry.
-- **Bounded queue**: the queue holds `CONFIG_RMAKER_TIMESERIES_DATA_QUEUE_LENGTH` points (default 100). Points pushed to a full queue are dropped.
+- **Throttling**: the drain task publishes one queued point, then reschedules after `CONFIG_ESP_RMAKER_NEO_TIMESERIES_PUBLISH_INITIAL_DELAY_MS` (default 100 ms). That success-path reschedule is flat — no jitter is applied. On a publish failure the point is requeued and the delay grows exponentially up to `CONFIG_ESP_RMAKER_NEO_TIMESERIES_PUBLISH_MAX_DELAY_MS` (default 300 000 ms), with up to one initial-delay's worth of random jitter (0--100 ms by default) added to each retry.
+- **Bounded queue**: the queue holds `CONFIG_ESP_RMAKER_NEO_TIMESERIES_DATA_QUEUE_LENGTH` points (default 100). Points pushed to a full queue are dropped.
 - **Timestamp validity**: the timestamp is captured when the parameter update is recorded, not at publish time. A point whose timestamp predates a valid wall clock is dropped rather than published (see [Time Synchronization](time_sync.md)).
 - If MQTT budgeting is enabled and budget is exhausted, timeseries messages may be dropped.
 

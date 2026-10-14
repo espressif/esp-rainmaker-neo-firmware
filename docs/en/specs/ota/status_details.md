@@ -102,7 +102,7 @@ The complete set of SDK-generated failure reasons:
 
 * - ``"Image signature invalid"``
   - Signature verification failed (only reachable when
-    ``CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE`` is set)
+    ``CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE`` is set)
 
 * - ``"Post download checks failed"``
   - A post-download check other than the ones above failed, e.g. the filetype
@@ -122,7 +122,7 @@ The complete set of SDK-generated failure reasons:
 
 * - ``"Failed to process custom job document"``
   - The custom job-document callback reported failure (requires
-    ``CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT``)
+    ``CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT``)
 
 * - ``"Unknown error"``
   - Fallback when no more specific reason is available
@@ -205,7 +205,7 @@ Reports rejection of the OTA update with reason.
 
 * - ``"Invalid custom job document"``
   - The custom job-document callback rejected the document (requires
-    ``CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT``)
+    ``CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT``)
 ```
 
 **Example:**

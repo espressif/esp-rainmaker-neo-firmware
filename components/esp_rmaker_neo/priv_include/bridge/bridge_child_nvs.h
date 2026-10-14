@@ -14,7 +14,7 @@
  * that see a wrong on-disk version or unexpected size erase the entry
  * (invalidated -> treated as absent).
  *
- * Only present when ``CONFIG_RMNG_BRIDGE_ENABLED``.
+ * Only present when ``CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE``.
  */
 
 #ifndef __BRIDGE_CHILD_NVS_H__
@@ -22,7 +22,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -129,6 +129,6 @@ esp_rmaker_error_t bridge_child_nvs_set_node_tags(esp_rmaker_bridge_child_handle
 }
 #endif
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 #endif /* __BRIDGE_CHILD_NVS_H__ */

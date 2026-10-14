@@ -2,7 +2,7 @@
 
 Test-only fault injection for the SDK. Nothing here is a product feature — it exists so that firmware tests can make
 things fail on demand and assert what the SDK does next (reconnect backoff, retry, state reporting). Everything in this
-directory is built only when host control is enabled (`CONFIG_RMNG_HOST_CTRL` on ESP-IDF, `-DRMNG_HOST_CTRL=ON` on
+directory is built only when host control is enabled (`CONFIG_ESP_RMAKER_NEO_HOST_CTRL` on ESP-IDF, `-DRMNG_HOST_CTRL=ON` on
 POSIX); see [`../Kconfig`](../Kconfig). With host control off none of it reaches a production image.
 
 | Directory | Injects | Docs |

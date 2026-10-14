@@ -5,7 +5,7 @@ keep holding past a second for a **factory reset**.
 
 ## Enabled by default
 
-`APP_RESET_ENABLED` defaults to **y**, so any example that registers this on its button ships
+`APP_RESET_ENABLE` defaults to **y**, so any example that registers this on its button ships
 with both resets active:
 
 | Hold duration | Action |
@@ -14,7 +14,7 @@ with both resets active:
 | `APP_RESET_FACTORY_TIME_MS` (default **10 s**) | **Factory reset** — wipes RMNG data and network credentials, then reboots |
 
 A factory reset does **not** erase the factory NVS partition, so device credentials survive.
-Set `APP_RESET_ENABLED=n` to disable both.
+Set `APP_RESET_ENABLE=n` to disable both.
 
 The two thresholds are latched, so releasing after crossing into factory-reset territory does
 **not** also fire the network reset.

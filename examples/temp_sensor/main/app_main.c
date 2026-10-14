@@ -119,7 +119,7 @@ osal_err_t app_run(void)
     esp_rmaker_node_add_device(node, temp_sensor_device);
 
     /* Enable optional services. */
-#if CONFIG_ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE
     /* On-Network Challenge Response: node-group association via an HTTP server on the node. */
     esp_rmaker_chal_resp_service_enable();
 #else

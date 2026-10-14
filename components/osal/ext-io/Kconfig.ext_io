@@ -1,4 +1,4 @@
-menu "External I/O Configuration"
+menu "OSAL External I/O Configuration"
     menu "ESP-IDF"
         orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
 

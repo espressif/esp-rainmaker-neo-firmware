@@ -14,7 +14,7 @@
 
 #include "sdkconfig.h"
 
-#if CONFIG_RMNG_OTA_TRANSPORT_MQTT
+#if CONFIG_ESP_RMAKER_NEO_OTA_USE_MQTT
 #define RMNG_OTA_PROTOCOL "MQTT"
 #else
 #error "Invalid OTA transport"

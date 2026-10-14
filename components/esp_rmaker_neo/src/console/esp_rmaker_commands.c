@@ -22,11 +22,11 @@
 #include "esp_rmaker_console.h"
 #include "system_ctrl_internal.h"
 
-#ifdef CONFIG_ESP_RMAKER_ASSISTED_CLAIM
+#ifdef CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
 #include "esp_rmaker_credentials.h"
-#endif /* CONFIG_ESP_RMAKER_ASSISTED_CLAIM */
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
 
-#ifdef CONFIG_RMNG_CONSOLE_PARAM_CMDS_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_CONSOLE_PARAM_CMDS_ENABLE
 #include <stdlib.h>
 #include <string.h>
 
@@ -34,7 +34,7 @@
 #include "esp_rmaker_state.h"
 #include "esp_rmaker_data_model.h"
 #include "data_model_internal.h"
-#endif /* CONFIG_RMNG_CONSOLE_PARAM_CMDS_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_CONSOLE_PARAM_CMDS_ENABLE */
 
 static const char *TAG = "rmng_console_cmds";
 
@@ -121,7 +121,7 @@ static int reset_factory_handler(int argc, char **argv)
     return CONSOLE_OK;
 }
 
-#ifdef CONFIG_ESP_RMAKER_ASSISTED_CLAIM
+#ifdef CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
 static int clear_claim_data_handler(int argc, char **argv)
 {
     (void) argc;
@@ -151,9 +151,9 @@ static int clear_claim_data_handler(int argc, char **argv)
     }
     return (err == ESP_RMAKER_OK && reboot_err == ESP_RMAKER_OK) ? CONSOLE_OK : CONSOLE_FAIL;
 }
-#endif /* CONFIG_ESP_RMAKER_ASSISTED_CLAIM */
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
 
-#ifdef CONFIG_RMNG_CONSOLE_PARAM_CMDS_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_CONSOLE_PARAM_CMDS_ENABLE
 /* Resolve a device + parameter handle from their IDs. Prints a message and returns NULL on failure. */
 static esp_rmaker_param_t *resolve_param(const char *device_id, const char *param_id)
 {
@@ -357,7 +357,7 @@ static int get_param_handler(int argc, char **argv)
 
     return CONSOLE_OK;
 }
-#endif /* CONFIG_RMNG_CONSOLE_PARAM_CMDS_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_CONSOLE_PARAM_CMDS_ENABLE */
 
 static void register_command(const char *command, const char *help, esp_console_cmd_func_t func)
 {
@@ -389,12 +389,12 @@ void esp_rmaker_register_commands(void)
      * deregister is needed -- esp_console_cmd_deregister is unavailable before ESP-IDF v5.4. */
     register_command("reset-to-factory", "Factory reset (erase RMNG NVS + network creds) and reboot", &reset_factory_handler);
 
-#ifdef CONFIG_ESP_RMAKER_ASSISTED_CLAIM
+#ifdef CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
     register_command("clear-claim-data", "Erase claim data (node ID, cert, key, MQTT host) from the factory partition and reboot", &clear_claim_data_handler);
-#endif /* CONFIG_ESP_RMAKER_ASSISTED_CLAIM */
-#ifdef CONFIG_RMNG_CONSOLE_PARAM_CMDS_ENABLED
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
+#ifdef CONFIG_ESP_RMAKER_NEO_CONSOLE_PARAM_CMDS_ENABLE
     register_command("set-param", "Set device parameter value with callback. Usage: set-param <device_id> <param_id> <value>", &set_param_handler);
     register_command("update-param", "Update device parameter value without callback. Usage: update-param <device_id> <param_id> <value>", &update_param_handler);
     register_command("get-param", "Get device parameter value. Usage: get-param <device_id> <param_id>", &get_param_handler);
-#endif /* CONFIG_RMNG_CONSOLE_PARAM_CMDS_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_CONSOLE_PARAM_CMDS_ENABLE */
 }

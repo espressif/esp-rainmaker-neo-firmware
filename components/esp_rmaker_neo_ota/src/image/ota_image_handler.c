@@ -134,7 +134,7 @@ static esp_rmaker_error_t image_handler_end(const image_handler_ctx_t *p_ctx, bo
             }
         }
 
-#if CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE
         /* Verify the signature of the partition */
         uint8_t hash[32];
         err = ft_handler->get_sha256_hash(handle, hash);
@@ -159,7 +159,7 @@ static esp_rmaker_error_t image_handler_end(const image_handler_ctx_t *p_ctx, bo
             goto image_handler_end_post_download_checks_complete;
         }
         OSAL_LOGI(TAG, "Signature verified successfully");
-#endif /* CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE */
 
         /* Perform integration check */
         err = ft_handler->perform_integration_check(handle);
@@ -244,7 +244,7 @@ esp_rmaker_error_t image_handler_begin(const char *signature_base64, size_t imag
         memcpy(p_ctx->expected_md5, file_md5, sz);
     }
 
-#if CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE
     /* Require and convert base64 signature when verification is enabled */
     if (signature_base64 == NULL || strlen(signature_base64) == 0) {
         OSAL_LOGE(TAG, "OTA signature verification enabled but signature is missing");
@@ -256,7 +256,7 @@ esp_rmaker_error_t image_handler_begin(const char *signature_base64, size_t imag
         err = ESP_RMAKER_INVALID_ARG;
         goto image_handler_begin_fail;
     }
-#endif /* CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE */
 
     /* Begin (or resume) the image. Resume is best-effort: any failure falls back to a
      * fresh begin (full re-download), so an interrupted-resume never fails a job that a
@@ -389,7 +389,7 @@ void image_handler_end_and_cleanup(const image_handler_ctx_t *p_ctx, image_handl
     /* Terminal download->FSM handoff. */
     (void) ota_job_state_post_terminal_event(&event_data);
 
-#if CONFIG_RMNG_OTA_RESUME
+#if CONFIG_ESP_RMAKER_NEO_OTA_RESUME
     /* Resume-tracker lifecycle: clear ONLY when the download actually completed (all bytes
      * received). SUCCESS means complete - whether or not post-download checks passed, the bytes
      * are fully downloaded so a resume offers nothing (and a bad complete image would re-fail the

@@ -23,7 +23,7 @@ Most retry contexts share one backoff shape: an initial delay, doubling per atte
 
 ### Shadow Update Failures
 
-- **Automatic Retry**: A publish error, or a PUBACK reporting failure, schedules another state report using the common backoff shape (initial delay = `CONFIG_RMAKER_STATE_REPORT_DELAY_MS`)
+- **Automatic Retry**: A publish error, or a PUBACK reporting failure, schedules another state report using the common backoff shape (initial delay = `CONFIG_ESP_RMAKER_NEO_STATE_REPORT_DELAY_MS`)
 - **Publish Error Keeps the Scope**: A synchronous publish failure leaves the node's pending-update list and change flags untouched, so the retry repeats the original scope (changed-only stays changed-only). Nothing is lost — the same updates are still queued
 - **PUBACK Failure Escalates to a Full Report**: A publish that is accepted locally but reports failure at PUBACK time has already had its pending list and change flags cleared, so the retry re-reports **all** parameters
 - **Tag Checksum Not Committed**: For the indexed shadow, the node-tag checksum is only committed on a successful PUBACK, so tags are re-emitted on the retry
@@ -31,7 +31,7 @@ Most retry contexts share one backoff shape: an initial delay, doubling per atte
 
 ### Timeseries Publish Failures
 
-- **Requeued**: The point is pushed back onto the timeseries queue and the drain task is rescheduled with exponentially growing delay, up to `CONFIG_RMAKER_TIMESERIES_PUBLISH_MAX_DELAY_MS`
+- **Requeued**: The point is pushed back onto the timeseries queue and the drain task is rescheduled with exponentially growing delay, up to `CONFIG_ESP_RMAKER_NEO_TIMESERIES_PUBLISH_MAX_DELAY_MS`
 - **Dropped**: A point whose MQTT topic cannot be built is dropped, not retried
 
 ### Event Publishing Failures

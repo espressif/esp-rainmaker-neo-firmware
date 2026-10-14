@@ -22,7 +22,7 @@ The following handlers **must** be implemented, or the handler is rejected as in
 - `on_download_begin`: Called when the download starts. You should allocate any necessary resources (e.g., a download context) and return a handle.
 - `on_download_chunk`: Called for each chunk of data received.
 - `on_download_complete`: Called when the download is finished (successfully or otherwise). You should perform initial cleanup here.
-- `get_sha256_hash`: Returns the SHA256 hash of the downloaded data for signature verification. Required even when `CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE` is off (in which case the engine never calls it).
+- `get_sha256_hash`: Returns the SHA256 hash of the downloaded data for signature verification. Required even when `CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE` is off (in which case the engine never calls it).
 - `perform_integration_check`: Performs any final checks before the update is considered valid (e.g., checksum verification, internal version checks).
 - `on_post_download_checks_complete`: Called after the header, MD5, signature and integration checks. You must decide if the device should reboot.
 
@@ -103,7 +103,7 @@ sequenceDiagram
             E->>H: get_md5_hash()
             E->>E: Compare against file_md5
         end
-        opt CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE
+        opt CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE
             E->>H: get_sha256_hash()
             E->>E: Verify Signature
         end

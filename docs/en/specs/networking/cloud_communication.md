@@ -167,7 +167,7 @@ The node treats the exact string `"success"` as success; anything else is a fail
 
 ### Bridge events
 
-Only present when `CONFIG_RMNG_BRIDGE_ENABLED` is set (default off). A bridge publishes these on its own `to_cloud` topic to manage the cloud Things of its bridged children:
+Only present when `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE` is set (default off). A bridge publishes these on its own `to_cloud` topic to manage the cloud Things of its bridged children:
 
 ```{list-table}
 :header-rows: 1

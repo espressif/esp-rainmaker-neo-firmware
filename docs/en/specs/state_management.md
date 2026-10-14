@@ -87,7 +87,7 @@ The cloud sets `online = false` when it detects the node has disconnected (via A
 
 ### Shadows
 
-State reporting is done by reporting on **two AWS IoT shadows** per node. (With `CONFIG_RMNG_BRIDGE_ENABLED`, each bridged child is a cloud Thing of its own and so has its own pair of shadows, reported over the bridge's connection.)
+State reporting is done by reporting on **two AWS IoT shadows** per node. (With `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE`, each bridged child is a cloud Thing of its own and so has its own pair of shadows, reported over the bridge's connection.)
 
 #### Shadow Update Behavior
 
@@ -102,7 +102,7 @@ Notification settings do **not** trigger a report on their own: `notify` is atta
 
 **Update Timing**:
 
-- **Coalescing Window**: A state change schedules the report after `CONFIG_RMAKER_STATE_REPORT_DELAY_MS` (default 500 ms). Any further change inside that window restarts the timer, so a burst of updates collapses into one report
+- **Coalescing Window**: A state change schedules the report after `CONFIG_ESP_RMAKER_NEO_STATE_REPORT_DELAY_MS` (default 500 ms). Any further change inside that window restarts the timer, so a burst of updates collapses into one report
 - **Batching**: All changes pending when the timer fires go into a single shadow update per shadow
 - **Separate Updates**: Named shadow and indexed shadow are published as two independent MQTT messages
 

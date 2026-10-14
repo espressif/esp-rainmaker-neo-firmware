@@ -26,9 +26,9 @@
 #include "osal_semaphore.h"
 #include "osal_queue.h"
 #include "osal_sysinfo.h"
-#if !CONFIG_RMNG_OTA_DISABLE_AUTO_REBOOT
+#if !CONFIG_ESP_RMAKER_NEO_OTA_DISABLE_AUTO_REBOOT
 #include "osal_sysctrl.h"
-#endif /* !CONFIG_RMNG_OTA_DISABLE_AUTO_REBOOT */
+#endif /* !CONFIG_ESP_RMAKER_NEO_OTA_DISABLE_AUTO_REBOOT */
 
 /* RMNG includes */
 #include "esp_rmaker_work_queue.h"
@@ -155,11 +155,11 @@ static ota_job_pre_init_event_queue_t g_pre_init_event_queue = {0};
  *
  * Guarantees FSM transitions and the error/recovery path do not stall on heap
  * exhaustion. Slots are served via a fixed-size queue of pointers: take =
- * queue_receive, return = queue_send. Pool is sized to CONFIG_RMNG_OTA_EVENT_POOL_SIZE;
+ * queue_receive, return = queue_send. Pool is sized to CONFIG_ESP_RMAKER_NEO_OTA_EVENT_POOL_SIZE;
  * on exhaustion, copy_event_data falls back to heap so behaviour degrades
  * gracefully instead of failing outright.
  */
-#define OTA_JOB_EVENT_POOL_SIZE CONFIG_RMNG_OTA_EVENT_POOL_SIZE
+#define OTA_JOB_EVENT_POOL_SIZE CONFIG_ESP_RMAKER_NEO_OTA_EVENT_POOL_SIZE
 static ota_job_event_data_t g_event_pool_slots[OTA_JOB_EVENT_POOL_SIZE];
 static osal_queue_handle_t g_event_pool_free_queue = NULL;
 
@@ -207,9 +207,9 @@ static esp_rmaker_error_t execution_version_to_int32(const char *execution_versi
 static esp_rmaker_ota_error_reason_t pending_jobs_to_job_id_queue(const char *payload, size_t payload_len,
         const char *in_progress_jobid_array_path, const char *pending_jobid_array_path);
 static const char *get_next_job_id_from_queue(void);
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 static void flush_job_id_queue(void);
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 /* Forward declarations - State handlers */
 static void on_event_ignored(const ota_job_event_data_t *event_data);
@@ -224,9 +224,9 @@ static ota_job_state_t handle_state_pending_jobs_received(const ota_job_event_da
 static ota_job_state_t handle_state_fetching_job_doc(const ota_job_event_data_t *event_data, bool *should_free_event);
 static ota_job_state_t handle_state_waiting_for_job_doc(const ota_job_event_data_t *event_data, bool *should_free_event);
 static ota_job_state_t handle_state_job_doc_received(const ota_job_event_data_t *event_data, bool *should_free_event);
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 static ota_job_state_t handle_state_custom_job_execution(const ota_job_event_data_t *event_data, bool *should_free_event);
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 static ota_job_state_t handle_state_job_execution(const ota_job_event_data_t *event_data, bool *should_free_event);
 static ota_job_state_t handle_state_post_download(const ota_job_event_data_t *event_data, bool *should_free_event);
 static ota_job_state_t handle_state_error(const ota_job_event_data_t *event_data, bool *should_free_event);
@@ -262,10 +262,10 @@ static void mqtt_on_update_rejected(const char *topic, size_t topic_len,
                                     void *payload, size_t payload_len, void *priv_data);
 
 /* Forward declarations - Download window operations */
-#if CONFIG_RMNG_OTA_TIME_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT
 static bool has_download_window(const ota_job_download_window_t *download_window);
 static int32_t get_download_window_delay_time(const ota_job_download_window_t *download_window);
-#endif /* CONFIG_RMNG_OTA_TIME_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT */
 
 /* Forward declarations - Helper functions */
 static void start_response_timer(void);
@@ -348,7 +348,7 @@ esp_rmaker_error_t ota_job_state_init(const ota_job_config_t *ota_job_config)
     g_ota_state_ctx.thing_name_length = thing_name_len;
     free(thing_name);
 
-#if CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE
     /* Enforce codesign certificate presence when signature verification is enabled */
     esp_rmaker_credential_t codesign_cert;
     err = esp_rmaker_credentials_get_codesign_cert(&codesign_cert);
@@ -357,7 +357,7 @@ esp_rmaker_error_t ota_job_state_init(const ota_job_config_t *ota_job_config)
         return err;
     }
     esp_rmaker_credentials_free_credential(&codesign_cert);
-#endif /* CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE */
 
     /* Initialize OTA status manager */
     err = ota_status_init(g_ota_state_ctx.thing_name, g_ota_state_ctx.thing_name_length);
@@ -401,9 +401,9 @@ esp_rmaker_error_t ota_job_state_init(const ota_job_config_t *ota_job_config)
     g_ota_state_ctx.image_download.validate_image_ref = ota_job_config->image_download.validate_image_ref;
     g_ota_state_ctx.image_download.priv = ota_job_config->image_download.priv;
     g_ota_state_ctx.filetype_handler_lookup = ota_job_config->filetype_handler_lookup;
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     g_ota_state_ctx.custom_job_cb = ota_job_config->custom_job_cb;
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
     g_ota_state_ctx.current_job.has_active_job = false;
     g_ota_state_ctx.current_job.filetype_handler = NULL;
@@ -623,11 +623,11 @@ void ota_job_state_run_once(void *priv_data)
     case OTA_JOB_STATE_JOB_DOC_RECEIVED:
         next_state = handle_state_job_doc_received(event_data, &should_free_event);
         break;
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     case OTA_JOB_STATE_CUSTOM_JOB_EXECUTION:
         next_state = handle_state_custom_job_execution(event_data, &should_free_event);
         break;
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
     case OTA_JOB_STATE_JOB_EXECUTION:
         next_state = handle_state_job_execution(event_data, &should_free_event);
         break;
@@ -1093,7 +1093,7 @@ static esp_rmaker_error_t parse_custom_fields_from_job_doc(const char *job_doc, 
     }
 
     /* Optional: Get download window */
-#if CONFIG_RMNG_OTA_TIME_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT
     custom_fields->download_window = (ota_job_download_window_t) {
         .daily = {
             .start = -1,
@@ -1137,7 +1137,7 @@ static esp_rmaker_error_t parse_custom_fields_from_job_doc(const char *job_doc, 
             custom_fields->download_window.daily.end = strtol(daily_end, NULL, 10);
         }
     }
-#endif /* CONFIG_RMNG_OTA_TIME_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT */
     return ESP_RMAKER_OK;
 }
 
@@ -1347,13 +1347,13 @@ static const char *get_next_job_id_from_queue(void)
     return g_ota_job_id_queue.job_ids[g_ota_job_id_queue.index.next++];
 }
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 static void flush_job_id_queue(void)
 {
     g_ota_job_id_queue.index.next = 0;
     g_ota_job_id_queue.index.size = 0;
 }
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 /* State handlers */
 
@@ -2109,7 +2109,7 @@ static ota_job_state_t handle_state_job_doc_received(const ota_job_event_data_t 
         }
     }
 
-#if CONFIG_RMNG_OTA_TIME_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT
     /* Ignore if download window exists and is not valid */
     if (has_download_window(&custom_fields.download_window)) {
         int32_t delay_time = get_download_window_delay_time(&custom_fields.download_window);
@@ -2118,7 +2118,7 @@ static ota_job_state_t handle_state_job_doc_received(const ota_job_event_data_t 
             goto handle_state_job_doc_received_end;
         }
     }
-#endif /* CONFIG_RMNG_OTA_TIME_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT */
 
     /* Ignore if this job's firmware version is lower than the best current job found so far */
     if (g_ota_state_ctx.current_job.has_pending_job && fw_ver_job_doc_num < g_ota_state_ctx.current_job.fw_version) {
@@ -2148,7 +2148,7 @@ static ota_job_state_t handle_state_job_doc_received(const ota_job_event_data_t 
         }
     }
 
-#if CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE
     /* Make sure signature exists */
     if (fields.signature == NULL || fields.signatureLen == 0) {
         OSAL_LOGE(TAG, "OTA signature verification enabled but job document has no signature");
@@ -2166,7 +2166,7 @@ static ota_job_state_t handle_state_job_doc_received(const ota_job_event_data_t 
         goto handle_state_job_doc_received_reject;
     }
     free(signature);
-#endif /* CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE */
 
     /* Set OTA data from job document */
     err = set_ota_data_from_job_doc(&fields, &custom_fields);
@@ -2184,7 +2184,7 @@ static ota_job_state_t handle_state_job_doc_received(const ota_job_event_data_t 
     goto handle_state_job_doc_received_end;
 
 handle_state_job_doc_received_invalid_format:
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     if (g_ota_state_ctx.custom_job_cb != NULL) {
         /* Execute custom job immediately; flush the job ID queue and copy job ID */
         memcpy(&g_ota_state_ctx.current_job.job_id, job_id, job_id_len);
@@ -2210,7 +2210,7 @@ handle_state_job_doc_received_invalid_format:
     }
 
     /* With no callback, proceed to report the job document as invalid format */
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 handle_state_job_doc_received_reject:
     err = ota_status_set_initial_expected_version(job_id, job_id_len, execution_version_num);
     if (err != ESP_RMAKER_OK) {
@@ -2242,7 +2242,7 @@ handle_state_job_doc_received_end:
     return next_state;
 }
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 static ota_job_state_t handle_state_custom_job_execution(const ota_job_event_data_t *event_data, bool *should_free_event)
 {
     if (!event_data) {
@@ -2352,7 +2352,7 @@ handle_state_custom_job_execution_report:;
     }
     return OTA_JOB_STATE_CUSTOM_JOB_EXECUTION;
 }
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 static ota_job_state_t handle_state_job_execution(const ota_job_event_data_t *event_data, bool *should_free_event)
 {
@@ -2607,12 +2607,12 @@ static ota_job_state_t handle_state_post_download(const ota_job_event_data_t *ev
         }
 
         if (g_ota_state_ctx.current_job.should_reboot) {
-#if CONFIG_RMNG_OTA_DISABLE_AUTO_REBOOT
+#if CONFIG_ESP_RMAKER_NEO_OTA_DISABLE_AUTO_REBOOT
             osal_event_post(RMAKER_OTA_EVENT, RMAKER_OTA_EVENT_REQ_FOR_REBOOT,
                             NULL, 0, OSAL_MAX_DELAY);
-#else /* !CONFIG_RMNG_OTA_DISABLE_AUTO_REBOOT */
+#else /* !CONFIG_ESP_RMAKER_NEO_OTA_DISABLE_AUTO_REBOOT */
             osal_sysctrl_reboot();
-#endif /* !CONFIG_RMNG_OTA_DISABLE_AUTO_REBOOT */
+#endif /* !CONFIG_ESP_RMAKER_NEO_OTA_DISABLE_AUTO_REBOOT */
         } else if (g_ota_state_ctx.current_job.final_status_reported) {
             /* Job is complete, transition to IDLE */
             OSAL_LOGI(TAG, "POST_DOWNLOAD: Job is complete, no reboot requested, transitioning to IDLE");
@@ -3196,7 +3196,7 @@ static void mqtt_on_update_rejected(const char *topic, size_t topic_len,
 }
 
 /* Download window operations */
-#if CONFIG_RMNG_OTA_TIME_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT
 static bool has_download_window(const ota_job_download_window_t *download_window)
 {
     return download_window->validity.start != 0 && download_window->validity.end != 0;
@@ -3272,7 +3272,7 @@ static int32_t get_download_window_delay_time(const ota_job_download_window_t *d
     }
     return delay_min;
 }
-#endif /* CONFIG_RMNG_OTA_TIME_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT */
 
 /* Helper functions */
 
@@ -3336,10 +3336,10 @@ static const char *ota_job_state_to_string(ota_job_state_t state)
         return "JOB_DOC_RECEIVED";
     case OTA_JOB_STATE_JOB_EXECUTION:
         return "JOB_EXECUTION";
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     case OTA_JOB_STATE_CUSTOM_JOB_EXECUTION:
         return "CUSTOM_JOB_EXECUTION";
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
     case OTA_JOB_STATE_POST_DOWNLOAD:
         return "POST_DOWNLOAD";
     case OTA_JOB_STATE_ERROR:
@@ -3396,7 +3396,7 @@ static const char *ota_job_event_to_string(ota_job_event_t event)
         return "IMAGE_DOWNLOAD_FAILED_MD5_INVALID";
     case OTA_JOB_EVENT_IMAGE_DOWNLOAD_FAILED_UNKNOWN_ERROR:
         return "IMAGE_DOWNLOAD_FAILED_UNKNOWN_ERROR";
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     case OTA_JOB_EVENT_CUSTOM_JOB_PROGRESS:
         return "CUSTOM_JOB_PROGRESS";
     case OTA_JOB_EVENT_CUSTOM_JOB_SUCCEEDED:
@@ -3405,7 +3405,7 @@ static const char *ota_job_event_to_string(ota_job_event_t event)
         return "CUSTOM_JOB_FAILED";
     case OTA_JOB_EVENT_CUSTOM_JOB_REJECTED:
         return "CUSTOM_JOB_REJECTED";
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
     default:
         return "UNKNOWN_EVENT";
     }

@@ -18,20 +18,20 @@
  * Ensure this does not exceed the MQTT buffer size.
  * @note This final size also cannot be smaller than 256 bytes, otherwise the AWS IoT Core will reject the request.
  */
-#ifdef CONFIG_RMNG_OTA_MQTT_DATA_TYPE_CBOR
+#ifdef CONFIG_ESP_RMAKER_NEO_MQTT_OTA_DATA_TYPE_CBOR
 // CBOR will add ~30 bytes overhead to the block size
-#define mqttFileDownloader_CONFIG_BLOCK_SIZE  (CONFIG_RMNG_OTA_MQTT_BLOCK_SIZE - 30)
+#define mqttFileDownloader_CONFIG_BLOCK_SIZE  (CONFIG_ESP_RMAKER_NEO_MQTT_OTA_BLOCK_SIZE - 30)
 #if mqttFileDownloader_CONFIG_BLOCK_SIZE < 256
 #error "Minimum config block size (CBOR): 286 bytes"
 #endif
-#elif CONFIG_RMNG_OTA_MQTT_DATA_TYPE_JSON
+#elif CONFIG_ESP_RMAKER_NEO_MQTT_OTA_DATA_TYPE_JSON
 // JSON will add ~35% overhead to the block size (block is base64 encoded)
-#define mqttFileDownloader_CONFIG_BLOCK_SIZE  (CONFIG_RMNG_OTA_MQTT_BLOCK_SIZE * 100 / 135)
+#define mqttFileDownloader_CONFIG_BLOCK_SIZE  (CONFIG_ESP_RMAKER_NEO_MQTT_OTA_BLOCK_SIZE * 100 / 135)
 #if mqttFileDownloader_CONFIG_BLOCK_SIZE < 256
 #error "Minimum config block size (JSON): 346 bytes"
 #endif
 #else
-#error "Invalid data type configuration: RMNG_OTA_MQTT_DATA_TYPE"
+#error "Invalid data type configuration: ESP_RMAKER_NEO_MQTT_OTA_DATA_TYPE"
 #endif
 
 #endif /* MQTT_FILE_DOWNLOADER_CONFIG_H */

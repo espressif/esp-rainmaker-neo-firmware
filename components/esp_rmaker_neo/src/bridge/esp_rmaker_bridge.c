@@ -53,7 +53,7 @@ static const char *TAG = "rmng_br_core";
 /**
  * @brief One slot in the bridge child pool.
  *
- * The pool is sized at compile time by ``CONFIG_RMNG_BRIDGE_MAX_CHILDREN``.
+ * The pool is sized at compile time by ``CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN``.
  * Each slot statically owns both the child handle (so its address is
  * stable forever) and the topic ctx that downstream subsystems hold
  * by pointer. The ``in_use`` flag is the slot's lifecycle bit and is
@@ -72,7 +72,7 @@ struct __bridge_child_slot {
 /* Allocated once at ``bridge_internal_init`` (prefers SPIRAM via
  * OSAL_CALLOC_EXTRAM) and freed at ``bridge_internal_deinit``. Held
  * as a heap pointer rather than a static array because at large
- * CONFIG_RMNG_BRIDGE_MAX_CHILDREN the per-slot embedded node makes this
+ * CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN the per-slot embedded node makes this
  * the dominant static-DRAM consumer, overflowing internal RAM. The array
  * is allocated exactly once for the bridge's lifetime, so slot addresses
  * (``&slot.child`` / ``&node.topic_ctx``) stay stable for as long as
@@ -117,7 +117,7 @@ static bool __has_disconnected = false;
 /** Guard for the child pool and per-child mutable fields. */
 static osal_semaphore_handle_t __children_mutex = NULL;
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
 /** Single registered per-child event observer + its private cookie.
  *  Today only the remote-layer bridge handler registers here. */
 static bridge_internal_child_event_cb_t __child_event_cb = NULL;
@@ -193,7 +193,7 @@ bool bridge_internal_valid_suffix(const char *s)
 
 static struct esp_rmaker_bridge_child *__find_by_local_id_locked(const char *bridge_local_id)
 {
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         struct __bridge_child_slot *s = &__child_pool[i];
         if (!s->in_use) {
             continue;
@@ -207,7 +207,7 @@ static struct esp_rmaker_bridge_child *__find_by_local_id_locked(const char *bri
 
 static struct esp_rmaker_bridge_child *__find_by_thing_name_locked(const char *thing_name)
 {
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         struct __bridge_child_slot *s = &__child_pool[i];
         if (!s->in_use) {
             continue;
@@ -224,7 +224,7 @@ static struct esp_rmaker_bridge_child *__find_by_nvs_key_locked(const char *nvs_
     if (!__child_pool) {
         return NULL;
     }
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         struct __bridge_child_slot *s = &__child_pool[i];
         if (!s->in_use) {
             continue;
@@ -239,14 +239,14 @@ static struct esp_rmaker_bridge_child *__find_by_nvs_key_locked(const char *nvs_
 static struct esp_rmaker_bridge_child *__alloc_child_locked(const char *child_suffix, const char *bridge_local_id)
 {
     struct __bridge_child_slot *slot = NULL;
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         if (!__child_pool[i].in_use) {
             slot = &__child_pool[i];
             break;
         }
     }
     if (!slot) {
-        OSAL_LOGE(TAG, "Bridge child pool exhausted (%d slots)", CONFIG_RMNG_BRIDGE_MAX_CHILDREN);
+        OSAL_LOGE(TAG, "Bridge child pool exhausted (%d slots)", CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN);
         return NULL;
     }
 
@@ -339,7 +339,7 @@ void bridge_internal_for_each_ready_child(bridge_internal_child_visitor_t visito
         return;
     }
     __lock();
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         struct __bridge_child_slot *s = &__child_pool[i];
         if (!s->in_use) {
             continue;
@@ -399,7 +399,7 @@ esp_rmaker_bridge_child_handle_t bridge_internal_child_from_node(const esp_rmake
         return NULL;
     }
     /* Slot-embedded nodes live inside __child_pool; reject anything outside. */
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         if ((const _esp_rmaker_node_t *)node == &__child_pool[i].node) {
             return __child_pool[i].in_use ? &__child_pool[i].child : NULL;
         }
@@ -413,7 +413,7 @@ esp_rmaker_bridge_child_handle_t bridge_internal_child_from_ctx(const esp_rmaker
         return NULL;
     }
     /* Slot ctx pointers now live inside each slot's embedded node. */
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         if (&__child_pool[i].node.topic_ctx == ctx) {
             return __child_pool[i].in_use ? &__child_pool[i].child : NULL;
         }
@@ -427,7 +427,7 @@ void bridge_internal_for_each_ready_node(esp_rmaker_node_visitor_t visitor, void
         return;
     }
     __lock();
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         struct __bridge_child_slot *s = &__child_pool[i];
         if (!s->in_use) {
             continue;
@@ -830,10 +830,10 @@ esp_rmaker_error_t bridge_internal_init(void)
      * a dangling NULL. A re-init reuses the existing allocation. */
     if (!__child_pool) {
         __child_pool = (struct __bridge_child_slot *)OSAL_CALLOC_EXTRAM(
-                           CONFIG_RMNG_BRIDGE_MAX_CHILDREN, sizeof(struct __bridge_child_slot));
+                           CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN, sizeof(struct __bridge_child_slot));
         if (!__child_pool) {
             OSAL_LOGE(TAG, "Failed to allocate bridge child pool (%d slots)",
-                      CONFIG_RMNG_BRIDGE_MAX_CHILDREN);
+                      CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN);
             osal_semaphore_delete(__children_mutex);
             __children_mutex = NULL;
             return ESP_RMAKER_NO_MEM;
@@ -898,7 +898,7 @@ esp_rmaker_error_t bridge_internal_deinit(void)
     /* Free all live child slots first. The mutex is still alive at this
      * point so the existing free path is safe. */
     __lock();
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         if (__child_pool[i].in_use) {
             __free_child_locked(&__child_pool[i].child);
         }
@@ -906,7 +906,7 @@ esp_rmaker_error_t bridge_internal_deinit(void)
     /* Destroy each slot's per-node lock. Created lazily on first add by
      * _esp_rmaker_node_init and preserved across reuse; this is the only
      * place they are torn down. NULL for slots that were never used. */
-    for (size_t i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         if (__child_pool[i].node.lock) {
             osal_semaphore_delete(__child_pool[i].node.lock);
             __child_pool[i].node.lock = NULL;
@@ -1116,7 +1116,7 @@ esp_rmaker_error_t esp_rmaker_bridge_child_commit_devices(esp_rmaker_bridge_chil
  * builds use the header's macro stubs (mirrors the ``event_flags.h``
  * stub strategy), so callers compile uniformly with zero overhead. */
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
 
 void bridge_internal_register_event_observer(bridge_internal_child_event_cb_t cb, void *priv)
 {
@@ -1137,7 +1137,7 @@ void bridge_internal_dispatch_child_event(esp_rmaker_bridge_child_handle_t child
     }
 }
 
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
 /* Internal accessors for bridge_to_cloud.c **********************************/
 

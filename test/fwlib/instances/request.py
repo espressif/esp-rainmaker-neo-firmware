@@ -41,7 +41,7 @@ from .posix import (
 REQUEST_FIRMWARE_INSTANCE_TYPE_HOST_CTRL_DEFAULT = "host_ctrl_default"
 REQUEST_FIRMWARE_INSTANCE_TYPE_HOST_CTRL_NO_BASIC_INGEST = "host_ctrl_no_basic_ingest"
 # Local control split into SEC1 / SEC2 build variants so itests can cover both
-# security versions (see ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_{1,2} in Kconfig).
+# security versions (see ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_{1,2} in Kconfig).
 REQUEST_FIRMWARE_INSTANCE_TYPE_HOST_CTRL_LOCAL_CTRL_SEC1 = "host_ctrl_local_ctrl_sec1"
 REQUEST_FIRMWARE_INSTANCE_TYPE_HOST_CTRL_LOCAL_CTRL_SEC2 = "host_ctrl_local_ctrl_sec2"
 REQUEST_FIRMWARE_INSTANCE_TYPE_HOST_CTRL_LC_CHAL_RESP_SEC1 = (

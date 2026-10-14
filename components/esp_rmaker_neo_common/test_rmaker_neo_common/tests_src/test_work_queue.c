@@ -19,7 +19,7 @@
 static const char *TAG = "test_work_queue";
 
 #include "sdkconfig.h"
-#define TEST_WORK_QUEUE_TASKS_TO_ADD CONFIG_RMAKER_WORK_QUEUE_TASK_QUEUE_SIZE /* Follow maximum queue size */
+#define TEST_WORK_QUEUE_TASKS_TO_ADD CONFIG_ESP_RMAKER_NEO_WORK_QUEUE_TASK_QUEUE_SIZE /* Follow maximum queue size */
 #define TEST_WORK_QUEUE_FINISHED_FLAG 0x01
 #define TEST_WORK_QUEUE_HANG_TASK_RUNNING_FLAG 0x02
 

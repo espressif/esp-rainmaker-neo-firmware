@@ -42,7 +42,7 @@ void test_progress_init_null_ctx_returns_error(void)
 void test_progress_init_sets_zero_received_and_correct_checkpoint(void)
 {
     image_progress_ctx_t ctx;
-    /* 1000 bytes, CONFIG_RMNG_OTA_PROGRESS_CHECKPOINTS == 10 -> inc = 100 */
+    /* 1000 bytes, CONFIG_ESP_RMAKER_NEO_OTA_PROGRESS_CHECKPOINTS == 10 -> inc = 100 */
     TEST_ASSERT_EQUAL(ESP_RMAKER_OK, image_progress_init(&ctx, 1000));
     TEST_ASSERT_EQUAL_UINT32(0, ctx.bytes_received);
     TEST_ASSERT_GREATER_THAN_UINT32(0, ctx.checkpoint.inc);

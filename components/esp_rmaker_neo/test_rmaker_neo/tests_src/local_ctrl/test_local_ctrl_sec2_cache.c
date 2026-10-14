@@ -28,7 +28,7 @@
 #include "constants/esp_rmaker_nvs_common.h"
 #include "osal_storage.h"
 
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
 
 /* Stand-ins for a stored PoP and one an application would push at runtime. */
 #define TEST_SEC2_NVS_POP    "0123456789"
@@ -146,4 +146,4 @@ void test_local_ctrl_sec2_resolve_rejects_invalid_args(void)
                           TEST_SEC2_NVS_POP, false, false, &salt, &verifier, NULL));
 }
 
-#endif /* CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2 */
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2 */

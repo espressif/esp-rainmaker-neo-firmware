@@ -73,7 +73,7 @@ extern void bridge_handle_ack_failure_remove_by_local_id(const char *bridge_loca
  * ::RMAKER_EVENT_BRIDGE_CHILD_ADD_FAILED /
  * ::RMAKER_EVENT_BRIDGE_CHILD_REMOVE_FAILED with structured payloads.
  *
- * Sized at compile time to ``1 + CONFIG_RMNG_BRIDGE_MAX_CHILDREN``:
+ * Sized at compile time to ``1 + CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN``:
  * worst case is one inflight op per slot.
  *
  * Entries older than ::__PEND_EXPIRY_S are swept on the next register
@@ -102,8 +102,8 @@ typedef struct {
     time_t inserted_s;
 } __pending_entry_t;
 
-#ifdef CONFIG_RMNG_BRIDGE_MAX_CHILDREN
-#define __PEND_MAX (1 + CONFIG_RMNG_BRIDGE_MAX_CHILDREN)
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN
+#define __PEND_MAX (1 + CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN)
 #else
 #define __PEND_MAX 4
 #endif
@@ -111,7 +111,7 @@ typedef struct {
 #define __PEND_EXPIRY_S 60
 
 /* Allocated once in bridge_to_cloud_init (prefers SPIRAM) and never freed -
- * lives for the process lifetime. At large CONFIG_RMNG_BRIDGE_MAX_CHILDREN
+ * lives for the process lifetime. At large CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN
  * each ~340-byte entry x __PEND_MAX makes this a sizeable static-DRAM
  * consumer; heap-allocating keeps it out of internal RAM. Allocated
  * *before* the mutex, so ``__pending_mutex != NULL`` implies

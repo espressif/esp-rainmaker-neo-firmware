@@ -132,13 +132,13 @@ esp_rmaker_error_t esp_rmaker_system_service_disable(void);
  */
 esp_rmaker_error_t esp_rmaker_local_ctrl_set_pop(const char *pop);
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
 /**
  * @brief Set the TCP port for the local control HTTP server before the service is enabled.
  *
  * Intended for POSIX device-sim and automated tests: the host assigns a free port per instance
  * and sends it over the remote protocol before services are added. If not called,
- * CONFIG_ESP_RMAKER_LOCAL_CTRL_HTTP_PORT is used.
+ * CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT is used.
  *
  * @note The port is applied when the service starts. If the local endpoints service is
  *       already running, this stops it first so the new port takes effect on the next
@@ -152,7 +152,7 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_set_pop(const char *pop);
  *         esp_rmaker_local_ctrl_service_disable() if a running service could not be stopped
  */
 esp_rmaker_error_t esp_rmaker_local_ctrl_set_http_port_from_host_ctrl(int port);
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
 /**
  * @brief Enable Local Control Service

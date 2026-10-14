@@ -51,11 +51,11 @@ void test_mqtt_topics_basic(void)
 
     len = esp_rmaker_mqtt_topic_to_cloud(&esp_rmaker_topic_ctx_self, buf, sizeof(buf));
     TEST_ASSERT_TRUE(len > 0);
-#if CONFIG_ESP_RMAKER_MQTT_USE_BASIC_INGEST
+#if CONFIG_ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
     snprintf(expected, sizeof(expected), "$aws/rules/node_to_cloud_rule/rainmaker/nodes/%s/to_cloud", thing);
 #else
     snprintf(expected, sizeof(expected), "rainmaker/nodes/%s/to_cloud", thing);
-#endif /* CONFIG_ESP_RMAKER_MQTT_USE_BASIC_INGEST */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS */
     TEST_ASSERT_EQUAL_STRING(expected, buf);
 
     len = esp_rmaker_mqtt_topic_from_cloud(buf, sizeof(buf));
@@ -75,20 +75,20 @@ void test_mqtt_topics_basic(void)
 
     len = esp_rmaker_mqtt_topic_notify(buf, sizeof(buf));
     TEST_ASSERT_TRUE(len > 0);
-#if CONFIG_ESP_RMAKER_MQTT_USE_BASIC_INGEST
+#if CONFIG_ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
     snprintf(expected, sizeof(expected), "$aws/rules/node_notify_rule/rainmaker/nodes/%s/notify/grp-s1-s2", thing);
 #else
     snprintf(expected, sizeof(expected), "rainmaker/nodes/%s/notify/grp-s1-s2", thing);
-#endif /* CONFIG_ESP_RMAKER_MQTT_USE_BASIC_INGEST */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS */
     TEST_ASSERT_EQUAL_STRING(expected, buf);
 
     len = esp_rmaker_mqtt_topic_timeseries_report(&esp_rmaker_topic_ctx_self, buf, sizeof(buf));
     TEST_ASSERT_TRUE(len > 0);
-#if CONFIG_ESP_RMAKER_MQTT_USE_BASIC_INGEST
+#if CONFIG_ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
     snprintf(expected, sizeof(expected), "$aws/rules/node_ts_rule/rainmaker/nodes/%s/ts/grp-s1-s2", thing);
 #else
     snprintf(expected, sizeof(expected), "rainmaker/nodes/%s/ts/grp-s1-s2", thing);
-#endif /* CONFIG_ESP_RMAKER_MQTT_USE_BASIC_INGEST */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS */
     TEST_ASSERT_EQUAL_STRING(expected, buf);
 
     len = esp_rmaker_mqtt_topic_params_named_shadow_delete(&esp_rmaker_topic_ctx_self, buf, sizeof(buf));

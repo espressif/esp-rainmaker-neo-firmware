@@ -20,7 +20,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include "esp_rmaker_bridge.h"
 #include "bridge/bridge_internal.h"
@@ -227,7 +227,7 @@ void test_bridge_accessors_slot_pool_exhaustion(void)
     char lid[16];
     char tn[24];
     size_t seeded_count = 0;
-    for (size_t i = 0; i < (size_t)CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (size_t i = 0; i < (size_t)CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         snprintf(suffix, sizeof(suffix), "S%zu", i);
         snprintf(lid, sizeof(lid), "lid_%zu", i);
         snprintf(tn, sizeof(tn), "test--%zu", i);
@@ -235,7 +235,7 @@ void test_bridge_accessors_slot_pool_exhaustion(void)
             seeded_count++;
         }
     }
-    TEST_ASSERT_EQUAL_size_t((size_t)CONFIG_RMNG_BRIDGE_MAX_CHILDREN, seeded_count);
+    TEST_ASSERT_EQUAL_size_t((size_t)CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN, seeded_count);
 
     /* One-past-the-end fails (pool exhausted). */
     TEST_ASSERT_NULL(bridge_internal_test_seed_child("X", "lid_overflow", "test--X"));
@@ -378,4 +378,4 @@ void test_bridge_suffix_validator_extended(void)
     TEST_ASSERT_FALSE(bridge_internal_valid_suffix("012345678901234567890123456789012")); /* 33 */
 }
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

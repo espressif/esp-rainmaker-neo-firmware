@@ -17,8 +17,8 @@ The node initialization follows a specific order with dependencies. Steps 1--4 a
 11. **Notification Manager**: Initialize notification publishing
 12. **Timeseries Manager**: Initialize timeseries data collection
 13. **Work Queue**: Initialize work queue for asynchronous tasks
-14. **Bridge subsystem**: Only when `CONFIG_RMNG_BRIDGE_ENABLED` is set
-15. **MQTT**: Select the MQTT implementation (wrapped by the budgeting shim when `CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING` is set), build the connection parameters from the credentials store, and initialize the client
+14. **Bridge subsystem**: Only when `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE` is set
+15. **MQTT**: Select the MQTT implementation (wrapped by the budgeting shim when `CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING` is set), build the connection parameters from the credentials store, and initialize the client
 16. **Services**: Initialize the schedule and automation services
 17. **Start task**: Queue the start task as the first work-queue task, then post the "init done" event
 
@@ -46,7 +46,7 @@ Everything from the MQTT connection onwards happens in the start task, on the wo
 - Cloud manager must be initialized
 - Subscriptions to `from_cloud` topic must complete
 
-On the first MQTT connection the SDK queues the cloud-setup task and (with `CONFIG_RMNG_HOST_CTRL`) the indexed-shadow subscribe task on the work queue, in that order. Because the work queue is serial, the indexed-shadow subscribe runs only after the whole cloud-setup task has finished, and the `setNodeConfig` drain — kicked from the end of cloud setup — is queued behind both. Cloud setup ends once the `get*` bundle has been *published*; it does not block on the responses, so the named-shadow and params subscriptions (driven by the `getGroupInfo` response) may land after `setNodeConfig`.
+On the first MQTT connection the SDK queues the cloud-setup task and (with `CONFIG_ESP_RMAKER_NEO_HOST_CTRL`) the indexed-shadow subscribe task on the work queue, in that order. Because the work queue is serial, the indexed-shadow subscribe runs only after the whole cloud-setup task has finished, and the `setNodeConfig` drain — kicked from the end of cloud setup — is queued behind both. Cloud setup ends once the `get*` bundle has been *published*; it does not block on the responses, so the named-shadow and params subscriptions (driven by the `getGroupInfo` response) may land after `setNodeConfig`.
 
 ## Failure Points
 
@@ -95,7 +95,7 @@ sequenceDiagram
     node ->> broker: [to_cloud] Request events getGroupInfo, getAlexaEn, getGVAEn, getSchedVer, getTriggerVer (+ getTimeSync if clock not yet valid)
     Note over node: Cloud setup completes at the request *send* — it does not wait for the responses
 
-    opt If CONFIG_RMNG_HOST_CTRL
+    opt If CONFIG_ESP_RMAKER_NEO_HOST_CTRL
         node ->> broker: Subscribe to indexed shadow get/accepted topic
     end
 
@@ -108,7 +108,7 @@ sequenceDiagram
 
     broker ->> node: [from_cloud] Return event information requested
     node ->> node: Construct named shadow name from group information
-    opt If CONFIG_RMNG_HOST_CTRL
+    opt If CONFIG_ESP_RMAKER_NEO_HOST_CTRL
         node ->> broker: Subscribe to named shadow get/accepted topic
     end
     node ->> broker: Subscribe to params topic (using thing name and shadow name)

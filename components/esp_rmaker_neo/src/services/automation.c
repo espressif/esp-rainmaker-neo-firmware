@@ -51,7 +51,7 @@
 /* Configuration */
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "bridge/bridge_internal.h"
 #include "bridge/bridge_child_triggers_nvs.h"
 #include "bridge/bridge_child_nvs.h"
@@ -513,7 +513,7 @@ static esp_rmaker_error_t __persist_trigger_blob(const esp_rmaker_node_t *node, 
     if (esp_rmaker_node_is_self(node)) {
         return esp_rmaker_local_config_set_trigger_details(blob, blob_len);
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
     return child ? bridge_child_triggers_nvs_set(child, blob, blob_len) : ESP_RMAKER_NOT_FOUND;
 #else
@@ -530,7 +530,7 @@ static void __invalidate_trigger_version(const esp_rmaker_node_t *node)
         esp_rmaker_local_config_set_trigger_ver(-1);
         return;
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
     if (child) {
         bridge_child_nvs_set_trigger_ver(child, -1);
@@ -696,7 +696,7 @@ static void __update_trigger_details_work_queue_task(void *arg_in)
      * waiters never act on a not-yet-installed trigger list. */
     if (esp_rmaker_node_is_self(node)) {
         esp_rmaker_event_flags_set_trigger_details_received();
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     } else {
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
         if (child) {
@@ -827,7 +827,7 @@ esp_rmaker_error_t esp_rmaker_automation_service_reload_for_node(const esp_rmake
     if (esp_rmaker_node_is_self(node)) {
         blob = esp_rmaker_local_config_get_trigger_details(&blob_len);
     } else {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
         if (child) {
             blob = bridge_child_triggers_nvs_get(child, &blob_len);
@@ -858,7 +858,7 @@ esp_rmaker_error_t esp_rmaker_automation_service_reload_for_node(const esp_rmake
      * dispatches this so ``BridgeChildRemote.wait_on_trigger_details`` can
      * gate on NVS-rehydrated triggers becoming live. */
     if (err == ESP_RMAKER_OK && !esp_rmaker_node_is_self(node)) {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
         if (child) {
             bridge_internal_dispatch_child_event(child, BRIDGE_CHILD_EVENT_TRIGGER_DETAILS_RECEIVED);
