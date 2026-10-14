@@ -14,7 +14,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include "bridge/bridge_child_nvs.h"
 #include "bridge/bridge_internal.h"
@@ -322,4 +322,4 @@ void test_bridge_child_nvs_invalid_arg(void)
     __teardown();
 }
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

@@ -2,7 +2,7 @@ menu "coreMQTT"
 
     config MQTT_AGENT_COMMAND_POOL_SIZE
         int "Agent Command Pool Size"
-        default RMNG_BRIDGE_MAX_CHILDREN if RMNG_BRIDGE_ENABLED
+        default ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN if ESP_RMAKER_NEO_BRIDGE_ENABLE
         default 10
         help
             Size of the agent command pool.

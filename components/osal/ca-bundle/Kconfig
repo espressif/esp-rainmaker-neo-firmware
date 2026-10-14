@@ -1,4 +1,4 @@
-menu "CA Bundle (POSIX)"
+menu "OSAL CA Bundle (POSIX)"
 
     config OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE
         bool "Add custom certificates to the certificate bundle"

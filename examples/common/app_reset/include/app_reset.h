@@ -11,7 +11,7 @@
  * Holding the button past two configurable thresholds triggers a network reset
  * (`CONFIG_APP_RESET_NETWORK_TIME_MS`, default 5 s) and then a factory reset
  * (`CONFIG_APP_RESET_FACTORY_TIME_MS`, default 10 s). Both are **enabled by default** --
- * see `CONFIG_APP_RESET_ENABLED` and the component README.
+ * see `CONFIG_APP_RESET_ENABLE` and the component README.
  *
  * This is the RMNG counterpart of esp-rainmaker's `espressif/rmaker_app_reset`. It cannot
  * be replaced by that component: upstream calls esp_rainmaker's `esp_rmaker_wifi_reset()`
@@ -48,7 +48,7 @@ extern "C" {
  * network-reset routine with RMNG so the SDK (and the `reset-network` console command) can
  * trigger it without knowing the application's specifics.
  *
- * Does nothing and returns OSAL_ERR_OK when `CONFIG_APP_RESET_ENABLED` is disabled, so a
+ * Does nothing and returns OSAL_ERR_OK when `CONFIG_APP_RESET_ENABLE` is disabled, so a
  * caller need not guard the call.
  *
  * ESP-IDF only: there is no physical button on the host.
@@ -65,7 +65,7 @@ osal_err_t app_reset_button_register(button_handle_t btn_handle);
  *
  * A caller with its own long-press action should consult this and skip that action when it
  * returns true: the user is holding for a reset, not asking for the long-press behaviour.
- * Always false on POSIX, and false when `CONFIG_APP_RESET_ENABLED` is disabled.
+ * Always false on POSIX, and false when `CONFIG_APP_RESET_ENABLE` is disabled.
  *
  * @return true if a network or factory reset hold is in progress.
  */

@@ -26,10 +26,10 @@
 /* Node model includes */
 #include "node_internal.h"
 #include "timeseries.h"
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "bridge/bridge_internal.h"
 #endif
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "node_config_pending.h"
 #endif
 
@@ -61,10 +61,10 @@
 #include "esp_rmaker_factory_part.h"
 #include "sdkconfig.h"
 
-#if CONFIG_ESP_RMAKER_ASSISTED_CLAIM
+#if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
 /* Assisted claiming includes */
 #include "claim/impl.h"
-#endif /* CONFIG_ESP_RMAKER_ASSISTED_CLAIM */
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
 
 /* Cloud includes */
 #include "network/cloud/manager.h"
@@ -77,13 +77,13 @@
 #include "network/notify.h"
 #include "network/shadows.h"
 #include "constants/network.h"
-#if CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER
+#if CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
 #include "osal_mqtt_prototypes.h"
 #include "osal_mqtt_events.h"
 #else
 #include "osal_mqtt_impl.h"
-#endif /* !CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER */
-#ifdef CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING
+#endif /* !CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER */
+#ifdef CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
 #include "network/mqtt_budget.h"
 #endif
 
@@ -130,12 +130,12 @@ static const char *TAG = "rmng_core";
  */
 #define RMAKER_CORE_NODE_CONFIG_REPORT_BASE_DELAY_MS 1000
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
 /**
  * @brief Base delay for the indexed shadow subscribe task.
  */
 #define RMAKER_CORE_INDEXED_SHADOW_SUBSCRIBE_BASE_DELAY_MS 1000
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
 /* Structure definitions *******************************************************/
 
@@ -154,20 +154,20 @@ typedef struct {
         bool core_mqtt_impl_inited: 1; /**< esp_rmaker_mqtt_impl.init completed */
     } trackers;
     uint8_t sub_flags; /**< Subscribed flags, see esp_rmaker_sub_flags_t */
-#if CONFIG_ESP_RMAKER_ASSISTED_CLAIM
+#if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
     /** Assisted-claiming context, non-NULL between esp_rmaker_pre_prov_init() and
      * esp_rmaker_pre_prov_deinit() when the node still needs to be claimed. */
     esp_rmaker_claim_data_t *claim_data;
-#endif /* CONFIG_ESP_RMAKER_ASSISTED_CLAIM */
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
     struct {
         retry_manager_context_t cloud_setup; /**< The retry manager context for the cloud setup task */
         retry_manager_context_t node_config; /**< The retry manager context for the node configuration reporting task */
 #if TIME_SYNC_DECOUPLED_FLOW
         retry_manager_context_t time_sync; /**< Flat-cadence poll for time sync; arms schedules on success (decoupled flow only) */
 #endif
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
         retry_manager_context_t indexed_shadow_subscribe; /**< The retry manager context for the indexed shadow subscribe task */
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
     } retry_contexts; /**< Retry manager contexts for the various retry algorithms */
     const esp_rmaker_node_t *node; /**< Node handle */
     osal_mqtt_conn_params_t *mqtt_conn_params; /**< MQTT connection parameters */
@@ -298,14 +298,14 @@ static esp_rmaker_error_t esp_rmaker_node_config_report_work_fn(void *unused);
 static esp_rmaker_error_t esp_rmaker_time_sync_work_fn(void *unused);
 #endif
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
 /**
  * @brief Work function to subscribe to the indexed shadow.
  * - Subscribes to the indexed shadow.
  * @return ESP_RMAKER_OK on success, otherwise error code.
  */
 static esp_rmaker_error_t esp_rmaker_indexed_shadow_subscribe_work_fn(void *unused);
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
 /**
  * @brief Register a node.
@@ -345,7 +345,7 @@ static void __esp_rmaker_mqtt_connection_handler(void *event_handler_arg, osal_e
 
         esp_rmaker_event_flags_clear_online();
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         /* Drop inflight markers in the node-config pending list: acks
          * for the prior MQTT session are abandoned, so on reconnect
          * the retry context refires every still-pending ctx. */
@@ -387,7 +387,7 @@ static void __esp_rmaker_mqtt_cloud_on_complete_event_handler(void *event_handle
                 retry_manager_stop_context(&priv_data.retry_contexts.node_config);
             }
             break;
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         case MQTT_CHANNEL_SUB_CLOUD_MANAGER_BRIDGE_CHILD_CLOUD_INFO:
             /* Fire-and-forget: a per-child cloud-info publish failure
              * does not trigger the self-only cloud-setup retry. The
@@ -403,7 +403,7 @@ static void __esp_rmaker_mqtt_cloud_on_complete_event_handler(void *event_handle
             break;
         }
         break;
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
     case MQTT_CHANNEL_MAIN_SHADOWS:
         switch ((mqtt_channel_sub_shadows_t) channel.sub) {
         case MQTT_CHANNEL_SUB_INDEXED_SHADOW_SUBSCRIBE:
@@ -419,7 +419,7 @@ static void __esp_rmaker_mqtt_cloud_on_complete_event_handler(void *event_handle
             break;
         }
         break;
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
     default:
         break;
     }
@@ -601,7 +601,7 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
         goto fail;
     }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     /* Initialise the bridge subsystem. */
     OSAL_LOGD(TAG, "Initializing bridge subsystem...");
     ret = bridge_internal_init();
@@ -613,7 +613,7 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
 
     /* Initialise MQTT */
     OSAL_LOGI(TAG, "Initializing MQTT...");
-#if CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER
+#if CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
     osal_mqtt_impl_setup_t mqtt_setup_fn = config->mqtt_setup_fn;
     if (!mqtt_setup_fn) {
         OSAL_LOGE(TAG, "MQTT setup function is not provided, even though custom MQTT client provider is enabled");
@@ -622,14 +622,14 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
     }
 #else
     osal_mqtt_impl_setup_t mqtt_setup_fn = osal_mqtt_impl_setup;
-#endif /* CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER */
-#ifdef CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING
+#endif /* CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER */
+#ifdef CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
     // Use the budgetted implementation
     osal_err_t mqtt_err = mqtt_budget_impl_setup(mqtt_setup_fn, &esp_rmaker_mqtt_impl);
 #else
     // Use the default implementation
     osal_err_t mqtt_err = mqtt_setup_fn(&esp_rmaker_mqtt_impl);
-#endif /* CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING */
     if (mqtt_err != OSAL_ERR_OK) {
         OSAL_LOGE(TAG, "Failed to set up MQTT implementation: %d", mqtt_err);
         ret = ESP_RMAKER_FAIL;
@@ -715,7 +715,7 @@ static esp_rmaker_error_t esp_rmaker_deinit(void)
     }
     priv_data.trackers.start_task_in_queue = false;
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     /* Tear the bridge subsystem down first. Each child slot's free path
      * resets its embedded node, which in turn drops per-node schedule
      * handles via ::esp_rmaker_schedule_service_unload_node - so this must happen
@@ -749,11 +749,11 @@ static esp_rmaker_error_t esp_rmaker_deinit(void)
         }
         priv_data.trackers.core_mqtt_impl_inited = false;
     }
-#ifdef CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING
+#ifdef CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
     if (priv_data.trackers.core_mqtt_setup_done) {
         mqtt_budget_impl_deinit(&esp_rmaker_mqtt_impl);
     }
-#endif /* CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING */
     if (priv_data.mqtt_conn_params) {
         esp_rmaker_credentials_free_mqtt_conn_params(priv_data.mqtt_conn_params);
         priv_data.mqtt_conn_params = NULL;
@@ -848,11 +848,11 @@ static void esp_rmaker_on_first_mqtt_connection(void)
      * success path (see esp_rmaker_cloud_setup_work_fn) - only after
      * the cloud subscribe is genuinely complete. */
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
     /* Start subscribing to the indexed shadow (for use with remote control) */
     OSAL_LOGD(TAG, "Subscribing to the indexed shadow...");
     retry_manager_execute_context(&priv_data.retry_contexts.indexed_shadow_subscribe);
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 }
 
 static void esp_rmaker_start_task(void *unused)
@@ -930,14 +930,14 @@ static void esp_rmaker_start_task(void *unused)
 
     /* Connect to MQTT */
     OSAL_LOGD(TAG, "Connecting to MQTT broker...");
-#ifdef CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING
+#ifdef CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
     // Start the MQTT budget reviver
     mqtt_err = mqtt_budget_impl_start_reviver();
     if (mqtt_err != OSAL_ERR_OK) {
         OSAL_LOGE(TAG, "Failed to start MQTT budget reviver");
         goto start_task_fail;
     }
-#endif /* CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING */
     mqtt_err = esp_rmaker_mqtt_impl.connect();
     if (mqtt_err != OSAL_ERR_OK) {
         OSAL_LOGE(TAG, "Failed to start MQTT connection task");
@@ -986,9 +986,9 @@ static void esp_rmaker_stop_task(void *unused)
 #if TIME_SYNC_DECOUPLED_FLOW
     retry_manager_stop_context(&priv_data.retry_contexts.time_sync); // Time-sync poll (decoupled flow)
 #endif
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
     retry_manager_stop_context(&priv_data.retry_contexts.indexed_shadow_subscribe); // Indexed shadow subscribe retry
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
     /* Unregister the MQTT on complete event handler (not critical) */
     rmaker_err = event_loop_unregister_mqtt_on_complete_handler(__esp_rmaker_mqtt_cloud_on_complete_event_handler);
@@ -1036,7 +1036,7 @@ static void esp_rmaker_stop_task(void *unused)
         // goto stop_task_fail;
     }
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
     /* Unsubscribe from the indexed shadow (not critical) */
     OSAL_LOGD(TAG, "Unsubscribing from the indexed shadow...");
     rmaker_err = esp_rmaker_indexed_shadow_unsubscribe_get_accepted(RMAKER_NETWORK_SUBSCRIPTION_TIMEOUT_MS_CRITICAL);
@@ -1044,14 +1044,14 @@ static void esp_rmaker_stop_task(void *unused)
         OSAL_LOGE(TAG, "Failed to unsubscribe from the indexed shadow");
         // goto stop_task_fail;
     }
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
     /* Disconnect from MQTT */
     OSAL_LOGD(TAG, "Disconnecting from MQTT broker...");
-#ifdef CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING
+#ifdef CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
     // Stop the MQTT budget reviver
     mqtt_budget_impl_stop_reviver();
-#endif /* CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING */
     mqtt_err = esp_rmaker_mqtt_impl.disconnect();
     if (mqtt_err != OSAL_ERR_OK) {
         OSAL_LOGE(TAG, "Failed to disconnect from MQTT");
@@ -1096,10 +1096,10 @@ static void esp_rmaker_on_reconnect_task(void *unused)
 {
     /* Attempt to get cloud information using a retry manager */
     retry_manager_execute_context(&priv_data.retry_contexts.cloud_setup);
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
     /* Attempt to subscribe to the indexed shadow (for use with remote control) */
     retry_manager_execute_context(&priv_data.retry_contexts.indexed_shadow_subscribe);
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 }
 
 static esp_rmaker_error_t esp_rmaker_get_cloud_info(void)
@@ -1205,7 +1205,7 @@ esp_rmaker_cloud_setup_work_fn_end:
 
 static esp_rmaker_error_t esp_rmaker_node_config_report_work_fn(void *unused)
 {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     /* Drain self + every pending child ctx in one tick. The pending
      * module dedups via per-ctx checksum compare and clears entries
      * on clean ack. */
@@ -1235,12 +1235,12 @@ static esp_rmaker_error_t esp_rmaker_time_sync_work_fn(void *unused)
 }
 #endif
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
 static esp_rmaker_error_t esp_rmaker_indexed_shadow_subscribe_work_fn(void *unused)
 {
     return esp_rmaker_indexed_shadow_subscribe_get_accepted(RMAKER_NETWORK_SUBSCRIPTION_TIMEOUT_MS_CRITICAL);
 }
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
 static esp_rmaker_error_t esp_rmaker_register_node(const esp_rmaker_node_t *node)
 {
@@ -1317,7 +1317,7 @@ esp_rmaker_error_t esp_rmaker_pre_prov_init(void)
         return chal_resp_err;
     }
 
-#if CONFIG_ESP_RMAKER_ASSISTED_CLAIM
+#if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
     /* Initialise assisted claiming, but only if the node has no certificate yet. Once a
      * node is claimed the claiming code stays dormant: no key generation, no endpoint and
      * nothing to wait for in esp_rmaker_pre_prov_deinit().
@@ -1337,7 +1337,7 @@ esp_rmaker_error_t esp_rmaker_pre_prov_init(void)
             return ESP_RMAKER_FAIL;
         }
     }
-#endif /* CONFIG_ESP_RMAKER_ASSISTED_CLAIM */
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
 
     priv_data.trackers.is_init_pre_prov = true;
     return ESP_RMAKER_OK;
@@ -1355,7 +1355,7 @@ esp_rmaker_error_t esp_rmaker_pre_prov_deinit(void)
      * resources for the rest of the boot. The first error is remembered and returned. */
     esp_rmaker_error_t first_err = ESP_RMAKER_OK;
 
-#if CONFIG_ESP_RMAKER_ASSISTED_CLAIM
+#if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
     /* Wait for claiming to finish before tearing anything down: claiming writes to the
      * factory partition, so it needs that still open, and the credentials it stores must be
      * in place before esp_rmaker_node_init() reads them. */
@@ -1367,7 +1367,7 @@ esp_rmaker_error_t esp_rmaker_pre_prov_deinit(void)
             first_err = claim_err;
         }
     }
-#endif /* CONFIG_ESP_RMAKER_ASSISTED_CLAIM */
+#endif /* CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM */
 
     /* De-initialize challenge response */
     esp_rmaker_error_t chal_resp_err = esp_rmaker_chal_resp_deinit();
@@ -1464,11 +1464,11 @@ esp_rmaker_node_t *esp_rmaker_node_init(const esp_rmaker_config_t *config, const
 #if TIME_SYNC_DECOUPLED_FLOW
     /* Setup time-sync poll retry context (decoupled flow only). Flat cadence:
      * exp_factor 1, no jitter, current == max == the configured interval,
-     * so every reschedule fires at exactly CONFIG_RMNG_TIME_SYNC_POLL_INTERVAL_S.
+     * so every reschedule fires at exactly CONFIG_ESP_RMAKER_NEO_TIME_SYNC_POLL_INTERVAL_S.
      * The work fn returns FAIL until synced (retries forever) then OK to
      * stop. */
     {
-        const uint64_t __ts_poll_ms = (uint64_t)CONFIG_RMNG_TIME_SYNC_POLL_INTERVAL_S * 1000ULL;
+        const uint64_t __ts_poll_ms = (uint64_t)CONFIG_ESP_RMAKER_NEO_TIME_SYNC_POLL_INTERVAL_S * 1000ULL;
         priv_data.retry_contexts.time_sync = (retry_manager_context_t) {
             .backoff = {
                 .base_delay_ms = __ts_poll_ms,
@@ -1492,7 +1492,7 @@ esp_rmaker_node_t *esp_rmaker_node_init(const esp_rmaker_config_t *config, const
     }
 #endif /* TIME_SYNC_DECOUPLED_FLOW */
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
     /* Setup indexed shadow subscribe retry context */
     priv_data.retry_contexts.indexed_shadow_subscribe = (retry_manager_context_t) {
         .backoff = {
@@ -1508,9 +1508,9 @@ esp_rmaker_node_t *esp_rmaker_node_init(const esp_rmaker_config_t *config, const
             .on_failure = NULL,
         },
     };
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     /* Initialise the node-config pending list eagerly so the very first
      * retry tick has the self ctx seeded. */
     err = node_config_pending_init();
@@ -1625,7 +1625,7 @@ void esp_rmaker_node_for_each(esp_rmaker_node_visitor_t visitor, void *priv)
     if (priv_data.node) {
         (void)visitor(priv_data.node, priv);
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     bridge_internal_for_each_ready_node(visitor, priv);
 #endif
 }
@@ -1641,7 +1641,7 @@ bool esp_rmaker_node_is_in_subgroup(const esp_rmaker_node_t *node, const char *s
         group_info_str = esp_rmaker_local_config_get_group_info_str();
         free_after = (group_info_str != NULL);
     } else {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
         if (child) {
             group_info_str = (char *)bridge_internal_child_group_info_str(child);

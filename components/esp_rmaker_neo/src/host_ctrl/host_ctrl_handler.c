@@ -59,7 +59,7 @@
 #include "osal_timesync.h"
 #include "osal_time_control.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "bridge_handlers.h"
 #endif
 
@@ -1550,7 +1550,7 @@ void __esp_rmaker_host_ctrl_handle_buffer(uint8_t *buffer, size_t buffer_length)
         }
         break;
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     case RMAKER_HOST_CTRL_COMMAND_CHAR_BRIDGE: {
         if (payload_length < 1) {
             OSAL_LOGE(TAG, "Bridge command missing sub-command char");

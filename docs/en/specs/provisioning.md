@@ -24,8 +24,8 @@ During network provisioning, the node exposes a `ch_resp` protocomm endpoint for
 - **Availability**: The same `ch_resp` endpoint handler is reachable through three mutually exclusive transports, selected at build time:
 
   - the **provisioning** protocomm endpoint, during network provisioning;
-  - the **local endpoints** HTTP service with the full local-control endpoint set, when `CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE` is set (see [Local Control](services/optional.md#local-control));
-  - the same **local endpoints** HTTP service with only the `ch_resp` endpoint, when `CONFIG_ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE` is set — for nodes that are already on the network and never run provisioning.
+  - the **local endpoints** HTTP service with the full local-control endpoint set, when `CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE` is set (see [Local Control](services/optional.md#local-control));
+  - the same **local endpoints** HTTP service with only the `ch_resp` endpoint, when `CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE` is set — for nodes that are already on the network and never run provisioning.
 
   The last two are the same protocomm HTTP instance — the two options only decide which endpoint set the application enables, and they are mutually exclusive at the Kconfig level. Neither may run while provisioning is active.
 
@@ -33,7 +33,7 @@ During network provisioning, the node exposes a `ch_resp` protocomm endpoint for
 
 ## Claim Endpoint
 
-When assisted claiming is enabled (`CONFIG_ESP_RMAKER_ASSISTED_CLAIM`) and the node has no
+When assisted claiming is enabled (`CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM`) and the node has no
 certificate yet, the node also exposes a `rmaker_claim` protocomm endpoint:
 
 - **Purpose**: Lets a node without pre-flashed cloud credentials obtain them at first setup.

@@ -1,54 +1,54 @@
-menu "platform-common Build Options (POSIX)"
+menu "OSAL Platform Build Options (POSIX)"
 
     menu "Log level (runtime)"
 
-        # Log level for POSIX
+        # Keeps the ESP-IDF option name: osal_log_level.h reads CONFIG_LOG_MAXIMUM_LEVEL on both platforms.
         config LOG_MAXIMUM_LEVEL
             int
             range 0 5
-            default 0 if PLATFORM_LOG_MAXIMUM_LEVEL_NONE
-            default 1 if PLATFORM_LOG_MAXIMUM_LEVEL_ERROR
-            default 2 if PLATFORM_LOG_MAXIMUM_LEVEL_WARN
-            default 3 if PLATFORM_LOG_MAXIMUM_LEVEL_INFO
-            default 4 if PLATFORM_LOG_MAXIMUM_LEVEL_DEBUG
-            default 5 if PLATFORM_LOG_MAXIMUM_LEVEL_VERBOSE
+            default 0 if OSAL_LOG_MAXIMUM_LEVEL_NONE
+            default 1 if OSAL_LOG_MAXIMUM_LEVEL_ERROR
+            default 2 if OSAL_LOG_MAXIMUM_LEVEL_WARN
+            default 3 if OSAL_LOG_MAXIMUM_LEVEL_INFO
+            default 4 if OSAL_LOG_MAXIMUM_LEVEL_DEBUG
+            default 5 if OSAL_LOG_MAXIMUM_LEVEL_VERBOSE
 
     endmenu
 
     menu "Log level (selection)"
 
-        choice PLATFORM_LOG_MAXIMUM_LEVEL
+        choice OSAL_LOG_MAXIMUM_LEVEL
             bool "Maximum log level"
-            default PLATFORM_LOG_MAXIMUM_LEVEL_INFO
+            default OSAL_LOG_MAXIMUM_LEVEL_INFO
             help
                 Maximum log level for POSIX builds.
 
-            config PLATFORM_LOG_MAXIMUM_LEVEL_NONE
+            config OSAL_LOG_MAXIMUM_LEVEL_NONE
                 bool "None"
                 help
                     Print no logs.
 
-            config PLATFORM_LOG_MAXIMUM_LEVEL_ERROR
+            config OSAL_LOG_MAXIMUM_LEVEL_ERROR
                 bool "Error"
                 help
                     Print at most error logs.
 
-            config PLATFORM_LOG_MAXIMUM_LEVEL_WARN
+            config OSAL_LOG_MAXIMUM_LEVEL_WARN
                 bool "Warning"
                 help
                     Print at most warning logs.
 
-            config PLATFORM_LOG_MAXIMUM_LEVEL_INFO
+            config OSAL_LOG_MAXIMUM_LEVEL_INFO
                 bool "Info"
                 help
                     Print at most info logs.
 
-            config PLATFORM_LOG_MAXIMUM_LEVEL_DEBUG
+            config OSAL_LOG_MAXIMUM_LEVEL_DEBUG
                 bool "Debug"
                 help
                     Print at most debug logs.
 
-            config PLATFORM_LOG_MAXIMUM_LEVEL_VERBOSE
+            config OSAL_LOG_MAXIMUM_LEVEL_VERBOSE
                 bool "Verbose"
                 help
                     Print at most verbose logs.
@@ -66,7 +66,7 @@ endmenu
 # references; the values are unused by the POSIX PTY implementation. The menus
 # are hidden (visible if n) and exist only to group the symbols.
 
-menu "ESP console fallback"
+menu "OSAL ESP Console Fallback"
     visible if n
 
     config ESP_CONSOLE_UART_BAUDRATE
@@ -75,7 +75,7 @@ menu "ESP console fallback"
 
 endmenu
 
-menu "GPIO env caps fallback"
+menu "OSAL GPIO Env Caps Fallback"
     visible if n
 
     config ENV_GPIO_RANGE_MIN

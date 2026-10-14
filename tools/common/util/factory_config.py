@@ -136,10 +136,10 @@ class FactoryConfig:
         Read the factory config from the sdkconfig.h file.
         """
         label_re = re.compile(
-            r'#define CONFIG_ESP_RMAKER_FACTORY_PARTITION_NAME\s+"([^"]*)"'
+            r'#define CONFIG_ESP_RMAKER_NEO_FACTORY_PARTITION_NAME\s+"([^"]*)"'
         )
         namespace_re = re.compile(
-            r'#define CONFIG_ESP_RMAKER_FACTORY_NAMESPACE\s+"([^"]*)"'
+            r'#define CONFIG_ESP_RMAKER_NEO_FACTORY_NAMESPACE\s+"([^"]*)"'
         )
         with open(sdkconfig_path, "r") as f:
             for line in f:

@@ -42,7 +42,7 @@ set(RMNG_TEST_PRIV_INCLUDE_DIRS
 )
 set(RMNG_TEST_PRIV_REQUIRES ${RMNG_NAME} ${RMNG_PRIV_REQUIRES})
 
-if (CONFIG_RMNG_BRIDGE_ENABLED)
+if (CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE)
     list(APPEND RMNG_TEST_SRCS "tests_src/test_bridge.c" "tests_src/test_bridge_child_nvs.c"
          "tests_src/test_bridge_accessors.c" "tests_src/test_node_config_pending.c"
     )

@@ -98,7 +98,7 @@ typedef esp_rmaker_error_t (*esp_rmaker_ota_cb_t) (esp_rmaker_ota_handle_t handl
 typedef esp_rmaker_error_t (*esp_rmaker_ota_validate_image_ref_t)(const char *image_ref,
         size_t image_ref_len);
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 /**
  * @brief Function prototype for Custom Job Callback
  *
@@ -122,7 +122,7 @@ typedef esp_rmaker_error_t (*esp_rmaker_ota_validate_image_ref_t)(const char *im
  * @return any other error code if the job document cannot be processed. A Failed status will be reported automatically.
  */
 typedef esp_rmaker_error_t (*esp_rmaker_ota_custom_job_cb_t)(const char *job_doc, size_t job_doc_len);
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 /** Outcome reported by the OTA diagnostics (rollback check) callback */
 typedef enum {
@@ -186,13 +186,13 @@ typedef esp_rmaker_ota_diag_status_t (*esp_rmaker_post_ota_diag_t)(esp_rmaker_ot
 
 /** ESP RainMaker Neo OTA Configuration */
 typedef struct {
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     /** Custom Job Callback.
      * The callback to be invoked when a custom job is available.
      * If kept NULL, the custom job execution will not be enabled.
      */
     esp_rmaker_ota_custom_job_cb_t custom_job_cb;
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
     /** Custom OTA Filetype handler lookup function.
      * The function to be used to lookup the OTA Filetype handler context for a custom filetype.
      * If kept NULL, custom filetype handling will not be enabled.
@@ -214,7 +214,7 @@ typedef struct {
     /** OTA Diagnostics Callback.
      * A post OTA diagnostic handler to be invoked if app rollback feature is enabled.
      * If kept NULL, the new firmware is marked valid on the first MQTT connection.
-     * If MQTT does not connect within CONFIG_RMNG_OTA_ROLLBACK_WAIT_PERIOD, a rollback occurs.
+     * If MQTT does not connect within CONFIG_ESP_RMAKER_NEO_OTA_ROLLBACK_WAIT_PERIOD, a rollback occurs.
      */
     esp_rmaker_post_ota_diag_t ota_diag;
     /** Private Data.
@@ -227,7 +227,7 @@ typedef struct {
 extern "C" {
 #endif
 
-#if CONFIG_RMNG_OTA_TRANSPORT_MQTT
+#if CONFIG_ESP_RMAKER_NEO_OTA_USE_MQTT
 /**
  * @brief MQTT OTA Callback
  *
@@ -289,7 +289,7 @@ esp_rmaker_error_t esp_rmaker_ota_enable(const esp_rmaker_ota_config_t *ota_conf
  */
 esp_rmaker_error_t esp_rmaker_ota_disable(void);
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 /**
  * @brief Report Custom Job Status
  *
@@ -309,7 +309,7 @@ esp_rmaker_error_t esp_rmaker_ota_disable(void);
  * @return error on failure
  */
 esp_rmaker_error_t esp_rmaker_ota_report_custom_job_status(ota_status_t status, const char *status_details_json, size_t status_details_json_len);
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 /**
  * @brief Report OTA Status

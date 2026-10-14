@@ -75,7 +75,7 @@ touches `osal/ota`.
 
 ## Image signature verification
 
-`CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE` (**default `n`**) checks the base64
+`CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE` (**default `n`**) checks the base64
 `file_signature` from the job document against the
 SHA-256 the filetype handler computed over the downloaded data, as a
 post-download step before the integration check. The verifying key is the
@@ -92,14 +92,14 @@ signature is rejected rather than attempted.
 
 Independently, the job's optional
 `file_md5` is checked end-to-end on completion and gates
-`CONFIG_RMNG_OTA_RESUME` (default `y`, best-effort: a failed resume falls back to
+`CONFIG_ESP_RMAKER_NEO_OTA_RESUME` (default `y`, best-effort: a failed resume falls back to
 a full download).
 
 ## Per-platform notes
 
-- **ESP-IDF**: `CONFIG_RMNG_OTA_FORCE_ENABLE_ROLLBACK` (default `y`) selects
+- **ESP-IDF**: `CONFIG_ESP_RMAKER_NEO_OTA_FORCE_ENABLE_ROLLBACK` (default `y`) selects
   `BOOTLOADER_APP_ROLLBACK_ENABLE` so the `ota_diag` callback can run before and
-  after MQTT connect; `CONFIG_RMNG_OTA_ROLLBACK_WAIT_PERIOD` bounds that wait.
+  after MQTT connect; `CONFIG_ESP_RMAKER_NEO_OTA_ROLLBACK_WAIT_PERIOD` bounds that wait.
   CBOR comes from the managed `espressif/cbor` component.
 - **POSIX**: OTA runs against `osal/ota`'s file-backed slots and mock bootloader,
   so the whole flow is exercisable on a host; tinyCBOR sources are imported from
@@ -122,10 +122,10 @@ advance it by hand.
 
 ## Other options and tests
 
-`CONFIG_RMNG_OTA_MQTT_BLOCK_SIZE` and
+`CONFIG_ESP_RMAKER_NEO_MQTT_OTA_BLOCK_SIZE` and
 `..._BLOCKS_PER_REQUEST` (bounded by the MQTT in-buffer and the work-queue size
-respectively), `CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT` (default `n`),
-`CONFIG_RMNG_OTA_TIME_SUPPORT`, `CONFIG_RMNG_OTA_DISABLE_AUTO_REBOOT`.
+respectively), `CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT` (default `n`),
+`CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT`, `CONFIG_ESP_RMAKER_NEO_OTA_DISABLE_AUTO_REBOOT`.
 `test_rmaker_neo_ota/` builds as the `rmng-ota-tests` ctest target on POSIX (when
 `TEST_RMNG_OTA=ON`) and as an ESP-IDF test component; coverage targets are
 `rmng_ota_coverage_test` then `rmng_ota_coverage_gen`.

@@ -50,7 +50,7 @@ typedef enum {
     RMAKER_OTA_EVENT_FETCH_REQUEST_IGNORED,
     /**
      * RainMaker Neo OTA download resumed from a previous partial download.
-     * Only fired when CONFIG_RMNG_OTA_RESUME=y and a matching persisted tracker was found.
+     * Only fired when CONFIG_ESP_RMAKER_NEO_OTA_RESUME=y and a matching persisted tracker was found.
      * - Event data: *uint32_t  (resume byte offset - bytes already present at the start of this attempt)
      */
     RMAKER_OTA_EVENT_RESUMED,

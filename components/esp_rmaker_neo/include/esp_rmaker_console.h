@@ -31,18 +31,18 @@ extern "C" {
  * component, on POSIX by the esp_console-posix shim (a stdin REPL).
  *
  * This entry point is always linkable. When the console is disabled
- * (CONFIG_RMNG_CONSOLE_ENABLED=n) it logs a warning and returns ESP_RMAKER_OK without starting
+ * (CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE=n) it logs a warning and returns ESP_RMAKER_OK without starting
  * anything, so callers need not guard the call.
  *
  * @return ESP_RMAKER_OK on success, or an error code on failure.
  *
  * @note If the application initializes the console itself, call esp_rmaker_register_commands()
  *       instead to register only the RainMaker Neo built-in commands. Unlike this function,
- *       esp_rmaker_register_commands() is only available when CONFIG_RMNG_CONSOLE_ENABLED=y.
+ *       esp_rmaker_register_commands() is only available when CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE=y.
  */
 esp_rmaker_error_t esp_rmaker_console_init(void);
 
-#if CONFIG_RMNG_CONSOLE_ENABLED
+#if CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE
 /**
  * @brief Register the RainMaker Neo SDK built-in console commands.
  *
@@ -50,7 +50,7 @@ esp_rmaker_error_t esp_rmaker_console_init(void);
  * been initialized. esp_rmaker_console_init() calls this implicitly.
  */
 void esp_rmaker_register_commands(void);
-#endif /* CONFIG_RMNG_CONSOLE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE */
 
 #ifdef __cplusplus
 }

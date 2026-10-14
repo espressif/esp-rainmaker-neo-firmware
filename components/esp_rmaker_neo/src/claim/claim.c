@@ -353,7 +353,7 @@ static esp_rmaker_error_t __handle_claim_init_response(esp_rmaker_claim_data_t *
     }
     OSAL_LOGI(TAG, "Assigned node ID: %s", node_id);
 
-    err = __run_in_worker_task(__generate_csr, claim_data, CONFIG_RMAKER_WORK_QUEUE_TASK_PRIORITY + 1);
+    err = __run_in_worker_task(__generate_csr, claim_data, CONFIG_ESP_RMAKER_NEO_WORK_QUEUE_TASK_PRIORITY + 1);
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to generate the CSR.");
         return err;

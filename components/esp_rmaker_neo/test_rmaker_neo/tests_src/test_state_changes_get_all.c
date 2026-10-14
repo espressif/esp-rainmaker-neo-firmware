@@ -22,7 +22,7 @@
 #include "network/state_changes.h"
 #include "network/mqtt_topics.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "esp_rmaker_bridge.h"
 #include "bridge/bridge_internal.h"
 #endif
@@ -101,7 +101,7 @@ void test_get_all_self_ctx_returns_self_params_only(void)
     osal_event_loop_delete_default();
 }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 void test_get_all_filters_by_child_ctx(void)
 {
@@ -185,4 +185,4 @@ void test_get_all_unknown_ctx_returns_zero(void)
     osal_event_loop_delete_default();
 }
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

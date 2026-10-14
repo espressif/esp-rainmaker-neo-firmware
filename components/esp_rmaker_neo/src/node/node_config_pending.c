@@ -44,7 +44,7 @@ static const char *TAG = "rmng_node_cfg_pend";
 /* Worst-case nodes we may need to snapshot per fire_all tick: self
  * plus every possible bridge child. Used to size the heap-free snapshot
  * buffer in ::node_config_pending_fire_all. */
-#define NCP_MAX_NODES (1 + CONFIG_RMNG_BRIDGE_MAX_CHILDREN)
+#define NCP_MAX_NODES (1 + CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN)
 
 static osal_semaphore_handle_t __mutex = NULL;
 static bool __initialized = false;

@@ -516,21 +516,21 @@ class FirmwareInstanceFactoryOta(FirmwareInstanceFactory):
         """
         if self.ota_type == self.OTA_TYPE_MQTT_CBOR:
             return {
-                "RMNG_OTA_TRANSPORT_MQTT": "y",
-                "RMNG_OTA_MQTT_DATA_TYPE_CBOR": "y",
-                "RMNG_OTA_SIGNATURE_VERIFY_ENABLE": "y",
+                "ESP_RMAKER_NEO_OTA_USE_MQTT": "y",
+                "ESP_RMAKER_NEO_MQTT_OTA_DATA_TYPE_CBOR": "y",
+                "ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE": "y",
             }
         elif self.ota_type == self.OTA_TYPE_MQTT_CBOR_NO_SIG_VERIFY:
             return {
-                "RMNG_OTA_TRANSPORT_MQTT": "y",
-                "RMNG_OTA_MQTT_DATA_TYPE_CBOR": "y",
-                "RMNG_OTA_SIGNATURE_VERIFY_ENABLE": "n",
+                "ESP_RMAKER_NEO_OTA_USE_MQTT": "y",
+                "ESP_RMAKER_NEO_MQTT_OTA_DATA_TYPE_CBOR": "y",
+                "ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE": "n",
             }
         elif self.ota_type == self.OTA_TYPE_MQTT_JSON:
             return {
-                "RMNG_OTA_TRANSPORT_MQTT": "y",
-                "RMNG_OTA_MQTT_DATA_TYPE_JSON": "y",
-                "RMNG_OTA_SIGNATURE_VERIFY_ENABLE": "y",
+                "ESP_RMAKER_NEO_OTA_USE_MQTT": "y",
+                "ESP_RMAKER_NEO_MQTT_OTA_DATA_TYPE_JSON": "y",
+                "ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE": "y",
             }
         else:
             raise ValueError(f"Invalid OTA type: {self.ota_type}")
@@ -559,8 +559,8 @@ class FirmwareInstanceFactoryHostCtrl(FirmwareInstanceFactory):
     # unique port per build; POSIX parallel runs can override per instance when supported.
     _DEFAULT_LOCAL_CTRL_HTTP_PORT = 49152
     # Local control security version Kconfig choice options (mutually exclusive).
-    _LOCAL_CTRL_SEC_VERSION_1_KCONFIG = "ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1"
-    _LOCAL_CTRL_SEC_VERSION_2_KCONFIG = "ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2"
+    _LOCAL_CTRL_SEC_VERSION_1_KCONFIG = "ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_1"
+    _LOCAL_CTRL_SEC_VERSION_2_KCONFIG = "ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2"
     REQUEST_TYPES = Literal[
         REQUEST_TYPE_DEFAULT,
         REQUEST_TYPE_NO_BASIC_INGEST,
@@ -602,17 +602,17 @@ class FirmwareInstanceFactoryHostCtrl(FirmwareInstanceFactory):
         port = self._DEFAULT_LOCAL_CTRL_HTTP_PORT
         if self.request_type == self.REQUEST_TYPE_DEFAULT:
             return {
-                "ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_HTTP_PORT": port,
-                "ESP_RMAKER_MQTT_USE_BASIC_INGEST": "y",
+                "ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT": port,
+                "ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS": "y",
             }
         elif self.request_type == self.REQUEST_TYPE_NO_BASIC_INGEST:
             return {
-                "ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_HTTP_PORT": port,
-                "ESP_RMAKER_MQTT_USE_BASIC_INGEST": "n",
+                "ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT": port,
+                "ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS": "n",
             }
         elif self.request_type in (
             self.REQUEST_TYPE_LOCAL_CTRL_SEC1,
@@ -622,10 +622,10 @@ class FirmwareInstanceFactoryHostCtrl(FirmwareInstanceFactory):
                 1 if self.request_type == self.REQUEST_TYPE_LOCAL_CTRL_SEC1 else 2
             )
             return {
-                "ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_HTTP_PORT": port,
-                "ESP_RMAKER_MQTT_USE_BASIC_INGEST": "y",
+                "ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT": port,
+                "ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS": "y",
                 **self._local_ctrl_sec_version_kconfig(sec_version),
             }
         elif self.request_type in (
@@ -638,10 +638,10 @@ class FirmwareInstanceFactoryHostCtrl(FirmwareInstanceFactory):
                 else 2
             )
             return {
-                "ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE": "y",
-                "ESP_RMAKER_LOCAL_CTRL_HTTP_PORT": port,
-                "ESP_RMAKER_MQTT_USE_BASIC_INGEST": "y",
+                "ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE": "y",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT": port,
+                "ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS": "y",
                 **self._local_ctrl_sec_version_kconfig(sec_version),
             }
         elif self.request_type == self.REQUEST_TYPE_ON_NETWORK_CHAL_RESP:
@@ -650,21 +650,21 @@ class FirmwareInstanceFactoryHostCtrl(FirmwareInstanceFactory):
             # the manufacturing PoP a real device carries, so this exercises the shipping
             # configuration rather than a weakened one.
             return {
-                "ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE": "y",
-                "ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_HTTP_PORT": port,
-                "ESP_RMAKER_MQTT_USE_BASIC_INGEST": "y",
+                "ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE": "y",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT": port,
+                "ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS": "y",
             }
         elif self.request_type == self.REQUEST_TYPE_BRIDGE:
             return {
-                "ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
-                "ESP_RMAKER_LOCAL_CTRL_HTTP_PORT": port,
-                "ESP_RMAKER_MQTT_USE_BASIC_INGEST": "y",
-                "RMNG_BRIDGE_ENABLED": "y",
+                "ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE": "n",
+                "ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT": port,
+                "ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS": "y",
+                "ESP_RMAKER_NEO_BRIDGE_ENABLE": "y",
                 # Maximum support required.
-                "RMNG_BRIDGE_MAX_CHILDREN": 400,
-                "RMAKER_WORK_QUEUE_TASK_QUEUE_SIZE": 800,
+                "ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN": 400,
+                "ESP_RMAKER_NEO_WORK_QUEUE_TASK_QUEUE_SIZE": 800,
             }
         else:
             raise ValueError(f"Invalid request type: {self.request_type}")

@@ -17,7 +17,7 @@
 #include "network/state_changes.h"
 #include "network/mqtt_topics.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "node_config_pending.h"
 #endif
 
@@ -235,7 +235,7 @@ void _esp_rmaker_node_reset(_esp_rmaker_node_t *node)
     /* Flush per-manager embedded state before we tear down node-owned
      * heap (devices/attrs/tags/info). Safe to call on a node that was
      * never touched by these managers - both are idempotent. */
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     node_config_pending_remove((const esp_rmaker_node_t *)node);
 #endif
     esp_rmaker_state_drop_node((const esp_rmaker_node_t *)node);

@@ -94,7 +94,7 @@ else ()
     # Force-enable custom-job branch in the test TU only so we can exercise the alternative memcpy/null-term path in
     # handle_state_job_doc_received. The test TU is the sole compiler of ota_jobs.c (REMOVE_ITEM above); other lib TUs
     # are unaffected.
-    target_compile_definitions(${RMNG_OTA_TEST_NAME} PRIVATE CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT=1)
+    target_compile_definitions(${RMNG_OTA_TEST_NAME} PRIVATE CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT=1)
 
     add_test(NAME ${RMNG_OTA_TEST_NAME} COMMAND ${RMNG_OTA_TEST_NAME})
 

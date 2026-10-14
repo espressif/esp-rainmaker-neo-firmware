@@ -215,7 +215,7 @@ Security 0 is not supported.
 - Challenge-response for on-network user-node association shares the same protocomm
   instance and session; it is an independently enable-able endpoint set, not a separate
   service. See the endpoint protocol spec for the four enabled/disabled combinations.
-- The HTTP port defaults to `CONFIG_ESP_RMAKER_LOCAL_CTRL_HTTP_PORT`.
+- The HTTP port defaults to `CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT`.
 - The PoP is generated once and persisted, unless the application sets its own with
   `esp_rmaker_local_ctrl_set_pop()` before enabling the service — which is how a device
   reuses the PoP printed on it (see the guides on factory provisioning).

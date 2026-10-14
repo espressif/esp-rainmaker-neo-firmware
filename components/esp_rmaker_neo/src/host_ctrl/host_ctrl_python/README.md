@@ -32,7 +32,7 @@ Schema:
   - `timezone`: enable timezone service
   - `latency`: enable latency service
   - `local_ctrl`: enable local control service
-  - `on_network_chal_resp`: enable on-network challenge response (must have `CONFIG_ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE=y`)
+  - `on_network_chal_resp`: enable on-network challenge response (must have `CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE=y`)
 - `tags`: object of tag objects
   - `<tag name>`: `<tag value>`
 

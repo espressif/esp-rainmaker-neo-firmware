@@ -1,22 +1,22 @@
-menu "RMNG Configuration"
+menu "ESP RainMaker Neo Configuration"
 
-    menu "RMNG Build Options"
+    menu "Build Options"
 
-        config RMNG_HOST_CTRL
+        config ESP_RMAKER_NEO_HOST_CTRL
             bool "Enable remote control"
             default n
-            select RMNG_HEAP_MONITORING
+            select ESP_RMAKER_NEO_HEAP_MONITORING
             select OSAL_INCLUDE_EXT_IO
             select OSAL_USING_VIRTUAL_SCHEDULER
             help
                 If set to true, then the serial remote control sources are included.
 
-        config RMNG_TESTING
-            bool "Enable RMNG testing"
+        config ESP_RMAKER_NEO_TESTING
+            bool "Enable testing"
             default n
             select OSAL_USING_VIRTUAL_SCHEDULER
             help
-                If set to true, then RMNG testing is enabled.
+                If set to true, then ESP RainMaker Neo testing is enabled.
 
                 On ESP-IDF builds, this enables the unit tests to be built properly.
                 On normal CMake builds, this forces unit tests to be built.
@@ -25,21 +25,21 @@ menu "RMNG Configuration"
                 ``test/apps/posix/CMakeLists.txt`` and
                 ``test/apps/esp-idf/CMakeLists.txt``.
 
-        config RMNG_HEAP_MONITORING
+        config ESP_RMAKER_NEO_HEAP_MONITORING
             bool "Enable heap monitoring"
             default n
             select OSAL_INCLUDE_HEAP_MONITOR
             help
-                If set to true, then heap monitoring is enabled for RMNG.
+                If set to true, then heap monitoring is enabled for ESP RainMaker Neo.
 
-        config RMNG_CUSTOM_MQTT_CLIENT_PROVIDER
+        config ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
             bool "Use custom MQTT client provider"
             default n
             help
                 If set to true, then you must provide a custom MQTT client provider implementation via the
                 initialization configuration.
 
-        config RMNG_BRIDGE_ENABLED
+        config ESP_RMAKER_NEO_BRIDGE_ENABLE
             bool "Enable bridge support"
             default n
             help
@@ -50,33 +50,37 @@ menu "RMNG Configuration"
 
                 Default is disabled. Enable only on firmware images intended to act as a bridge.
 
-        config RMNG_BRIDGE_MAX_CHILDREN
+        config ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN
             int "Maximum number of bridged children"
-            depends on RMNG_BRIDGE_ENABLED
+            depends on ESP_RMAKER_NEO_BRIDGE_ENABLE
             range 1 400
             default 128
             help
                 Static slot pool size for bridged children. Each slot holds a fixed child handle;
                 adding a child returns an error once the pool is exhausted.
 
-        config RMNG_CONSOLE_ENABLED
-            bool "Enable RMNG serial console"
+        config ESP_RMAKER_NEO_CONSOLE_ENABLE
+            bool "Enable serial console"
             default y
-            depends on !(RMNG_HOST_CTRL && ESP_CONSOLE_UART_DEFAULT)
+            depends on !(ESP_RMAKER_NEO_HOST_CTRL && ESP_CONSOLE_UART_DEFAULT)
+            select ESP_RMAKER_CONSOLE_ENABLED
             help
-                If set to true, the RMNG serial console is built. esp_rmaker_console_init() sets up the
-                serial console (REPL) and registers the common RainMaker commands plus the RMNG built-in
-                commands. Disable if the application provides its own console.
+                If set to true, the ESP RainMaker Neo serial console is built. esp_rmaker_console_init() sets
+                up the serial console (REPL) and registers the common RainMaker commands plus
+                the ESP RainMaker Neo built-in commands. Disable if the application provides its own console.
 
-                Not available when RMNG_HOST_CTRL is enabled and the ESP-IDF console uses the default
+                Selects ESP_RMAKER_CONSOLE_ENABLED, the REPL in the espressif/rmaker_console
+                component that this console is built on.
+
+                Not available when ESP_RMAKER_NEO_HOST_CTRL is enabled and the ESP-IDF console uses the default
                 UART (UART0): the remote control multiplexes the same UART0 monitor stream, so a
                 console REPL on UART0 would clash. Use a different console interface (USB Serial/JTAG
                 or a custom UART) to enable both.
 
-        config RMNG_CONSOLE_PARAM_CMDS_ENABLED
+        config ESP_RMAKER_NEO_CONSOLE_PARAM_CMDS_ENABLE
             bool "Enable parameter console commands (set-param, update-param, get-param)"
-            depends on RMNG_CONSOLE_ENABLED
-            default y
+            depends on ESP_RMAKER_NEO_CONSOLE_ENABLE
+            default n
             help
                 Enable console commands for interacting with device parameters:
                 - set-param: Set parameter value with callback invocation
@@ -85,9 +89,9 @@ menu "RMNG Configuration"
 
     endmenu
 
-    menu "ESP RainMaker State Reporting"
+    menu "State Reporting"
 
-        config RMAKER_STATE_REPORT_DELAY_MS
+        config ESP_RMAKER_NEO_STATE_REPORT_DELAY_MS
             int "State update report delay (ms)"
             default 500
             help
@@ -98,9 +102,9 @@ menu "RMNG Configuration"
 
     endmenu
 
-    menu "ESP RainMaker Timeseries"
+    menu "Timeseries"
 
-        config RMAKER_TIMESERIES_PUBLISH_INITIAL_DELAY_MS
+        config ESP_RMAKER_NEO_TIMESERIES_PUBLISH_INITIAL_DELAY_MS
             int "Timeseries publish initial delay (ms)"
             default 100
             range 10 1000
@@ -108,15 +112,15 @@ menu "RMNG Configuration"
                 Initial delay for the timeseries publish.
                 This is the initial delay in between timeseries data publishes.
 
-        config RMAKER_TIMESERIES_PUBLISH_MAX_DELAY_MS
+        config ESP_RMAKER_NEO_TIMESERIES_PUBLISH_MAX_DELAY_MS
             int "Timeseries publish max delay (ms)"
             default 300000
-            range RMAKER_TIMESERIES_PUBLISH_INITIAL_DELAY_MS 300000
+            range ESP_RMAKER_NEO_TIMESERIES_PUBLISH_INITIAL_DELAY_MS 300000
             help
                 This is the maximum delay in between timeseries data publishes.
                 If a publish fails, then the delay is exponentially increased up to this value.
 
-        config RMAKER_TIMESERIES_DATA_QUEUE_LENGTH
+        config ESP_RMAKER_NEO_TIMESERIES_DATA_QUEUE_LENGTH
             int "Timeseries data queue length"
             default 100
             range 10 1000
@@ -130,9 +134,9 @@ menu "RMNG Configuration"
 
     endmenu
 
-    menu "ESP RainMaker Scheduling"
+    menu "Scheduling"
 
-        config RMAKER_SCHEDULING_MAX_SCHEDULES
+        config ESP_RMAKER_NEO_SCHEDULING_MAX_SCHEDULES
             int "Maximum schedules"
             default 10
             range 1 50
@@ -142,9 +146,9 @@ menu "RMNG Configuration"
 
     endmenu
 
-    menu "ESP RainMaker MQTT Configuration"
+    menu "MQTT"
 
-        config ESP_RMAKER_MQTT_USE_PERSISTENT_SESSION
+        config ESP_RMAKER_NEO_MQTT_USE_PERSISTENT_SESSION
             bool "Use MQTT persistent session"
             default n
             help
@@ -156,10 +160,10 @@ menu "RMNG Configuration"
                 and the cleanSession flag.
 
                 NOTE: if this is disabled, it is recommended NOT to enable OSAL_MQTT_RESUBSCRIBE_ON_CLEAN_SESSION.
-                RMNG manages its own subscription state, and will not rely on the broker to maintain it.
+                ESP RainMaker Neo manages its own subscription state, and will not rely on the broker to maintain it.
                 Enabling the option will likely lead to redundant subscription messages being sent.
 
-        config ESP_RMAKER_MQTT_USE_BASIC_INGEST
+        config ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
             bool "Use basic ingest topics"
             default y
             help
@@ -167,10 +171,10 @@ menu "RMNG Configuration"
                 The message is directly ingested by the cloud, and no messages are received by subscribers.
                 This costs less than normal MQTT publishes, and should be used whenever possible.
 
-        config ESP_RMAKER_MQTT_ENABLE_BUDGETING
+        config ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
             bool "Enable MQTT budgeting"
-            default n if RMNG_OTA_TRANSPORT_MQTT
-            default n if RMNG_BRIDGE_ENABLED
+            default n if ESP_RMAKER_NEO_OTA_USE_MQTT
+            default n if ESP_RMAKER_NEO_BRIDGE_ENABLE
             default y
             help
                 Enable MQTT budgeting, which will control the number of MQTT messages sent by the node.
@@ -178,46 +182,47 @@ menu "RMNG Configuration"
                 budgeting.)
                 (Note: This should be disabled if bridge is enabled, since the bridge will easily exhaust the budget.)
 
-        config ESP_RMAKER_MQTT_DEFAULT_BUDGET
+        config ESP_RMAKER_NEO_MQTT_DEFAULT_BUDGET
             int "Default MQTT Budget"
-            depends on ESP_RMAKER_MQTT_ENABLE_BUDGETING
+            depends on ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
             default 100
-            range 64 ESP_RMAKER_MQTT_MAX_BUDGET
+            range 64 ESP_RMAKER_NEO_MQTT_MAX_BUDGET
             help
                 Default MQTT budget. Budget will reduce on sending an MQTT message and increase based on
-                ESP_RMAKER_MQTT_BUDGET_REVIVE_PERIOD. If no budget is available, MQTT message will be dropped.
+                ESP_RMAKER_NEO_MQTT_BUDGET_REVIVE_PERIOD. If no budget is available, MQTT message will be dropped.
 
-        config ESP_RMAKER_MQTT_MAX_BUDGET
+        config ESP_RMAKER_NEO_MQTT_MAX_BUDGET
             int "Max MQTT Budget"
-            depends on ESP_RMAKER_MQTT_ENABLE_BUDGETING
+            depends on ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
             default 1024
             range 64 2048
             help
                 Maximum budget that the node can have. No additional budget will be allocated if this count is reached.
 
-        config ESP_RMAKER_MQTT_BUDGET_REVIVE_PERIOD
+        config ESP_RMAKER_NEO_MQTT_BUDGET_REVIVE_PERIOD
             int "MQTT Budget revive period"
-            depends on ESP_RMAKER_MQTT_ENABLE_BUDGETING
+            depends on ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
             default 5
             range 5 600
             help
-                Period in seconds after which the MQTT budget should revive (by ESP_RMAKER_MQTT_BUDGET_REVIVE_COUNT).
+                Period in seconds after which the MQTT budget should revive
+                (by ESP_RMAKER_NEO_MQTT_BUDGET_REVIVE_COUNT).
                 This is used to limit the messages being sent by the node.
 
-        config ESP_RMAKER_MQTT_BUDGET_REVIVE_COUNT
+        config ESP_RMAKER_NEO_MQTT_BUDGET_REVIVE_COUNT
             int "MQTT Budget revive count"
-            depends on ESP_RMAKER_MQTT_ENABLE_BUDGETING
+            depends on ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
             default 1
             range 1 16
             help
                 The count by which the budget will be increased periodically based on
-                ESP_RMAKER_MQTT_BUDGET_REVIVE_PERIOD.
+                ESP_RMAKER_NEO_MQTT_BUDGET_REVIVE_PERIOD.
 
     endmenu
 
-    menu "ESP RainMaker Local Control and On-Network Challenge Response"
+    menu "Local Control and On-Network Challenge Response"
 
-        config ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE
+        config ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE
             bool "Start challenge-response-only local service (on-network association)"
             default n
             help
@@ -227,15 +232,15 @@ menu "RMNG Configuration"
                 user-node association on nodes that do not expose local control.
 
                 Both endpoint sets are served by the same protocomm HTTP instance;
-                this option and ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE only decide
+                this option and ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE only decide
                 what the application enables at runtime.
 
-        config ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE
+        config ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE
             bool "Enable Challenge-Response endpoint in Local Control"
             # Selecting both is ambiguous: the examples' ON_NETWORK branch wins, so local
             # control never starts and this option's hook on RMAKER_EVENT_LOCAL_CTRL_STARTED
             # never fires.
-            depends on !ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE
+            depends on !ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE
             default y if !IDF_CMAKE
             default n
             help
@@ -250,13 +255,13 @@ menu "RMNG Configuration"
                 the provisioning-time challenge-response endpoint is never registered and this
                 is the only route to user-node association.
 
-        choice ESP_RMAKER_LOCAL_CTRL_SEC_VERSION
+        choice ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY
             bool "Security version"
-            default ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+            default ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
             help
                 Security version for the local control service.
 
-            config ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1
+            config ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_1
                 bool "Security version 1"
                 select ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_1
                 help
@@ -264,7 +269,7 @@ menu "RMNG Configuration"
                     the NVS partition.
                     The PoP is then available as a read-only parameter in the local control service.
 
-            config ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+            config ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
                 bool "Security version 2 (SRP6a, recommended)"
                 select ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_2
                 help
@@ -274,9 +279,9 @@ menu "RMNG Configuration"
 
         endchoice
 
-        config ESP_RMAKER_LOCAL_CTRL_SEC1_POP
+        config ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP
             bool "Require a PoP with security 1"
-            depends on ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1
+            depends on ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_1
             default y
             help
                 When disabled, security 1 runs without a proof of possession (the version
@@ -286,19 +291,19 @@ menu "RMNG Configuration"
         # answer to "does the selected security scheme use a PoP?".
         #
         # Security 2 always needs one (it is the SRP6a password); security 1
-        # only when ESP_RMAKER_LOCAL_CTRL_SEC1_POP is set. Three places need
+        # only when ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP is set. Three places need
         # that answer — the PoP length option below, the PoP fields in the
         # service state, and the PoP generation/NVS code — so it is derived
         # once here instead of repeating the condition (and risking drift)
         # in Kconfig and in C.
-        config ESP_RMAKER_LOCAL_CTRL_POP_IN_USE
+        config ESP_RMAKER_NEO_LOCAL_CTRL_POP_IN_USE
             bool
-            default y if ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
-            default y if ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1 && ESP_RMAKER_LOCAL_CTRL_SEC1_POP
+            default y if ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
+            default y if ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_1 && ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP
             default n
 
-        config ESP_RMAKER_LOCAL_CTRL_POP_LENGTH
-            depends on ESP_RMAKER_LOCAL_CTRL_POP_IN_USE
+        config ESP_RMAKER_NEO_LOCAL_CTRL_POP_LENGTH
+            depends on ESP_RMAKER_NEO_LOCAL_CTRL_POP_IN_USE
             int "PoP length (characters)"
             default 8
             range 8 32
@@ -314,14 +319,14 @@ menu "RMNG Configuration"
                 Odd values are rounded up to a whole random byte, so 9 yields the same
                 entropy as 10.
 
-        config ESP_RMAKER_LOCAL_CTRL_HTTP_PORT
+        config ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT
             int "HTTP Server port"
             default 8080
             range 1 65535
             help
                 HTTP port for the (local control / on-network challenge-response) service.
 
-        config ESP_RMAKER_LOCAL_CTRL_STACK_SIZE
+        config ESP_RMAKER_NEO_LOCAL_CTRL_STACK_SIZE
             int "HTTP Server task stack size"
             default 6344
             range 4096 8192
@@ -330,13 +335,13 @@ menu "RMNG Configuration"
 
     endmenu
 
-    menu "ESP RainMaker Claiming"
+    menu "Claiming"
 
-        config ESP_RMAKER_ASSISTED_CLAIM
+        config ESP_RMAKER_NEO_ASSISTED_CLAIM
             bool "Enable assisted claiming"
             depends on BT_ENABLED
             default y
-            select RMAKER_CRYPTO_CSR_GENERATION
+            select ESP_RMAKER_NEO_CLAIM_CSR_SUPPORT
             help
                 How the node obtains its cloud credentials (private key, certificate and
                 node ID).
@@ -355,16 +360,16 @@ menu "RMNG Configuration"
 
     endmenu
 
-    menu "RMNG Remote Control Configurations"
-        depends on RMNG_HOST_CTRL
+    menu "Host Control"
+        depends on ESP_RMAKER_NEO_HOST_CTRL
 
-        config RMNG_HOST_CTRL_TASK_STACK_DEPTH
+        config ESP_RMAKER_NEO_HOST_CTRL_TASK_STACK_DEPTH
             int "Task stack depth"
             default 8192
             help
                 Stack depth of the remote control task.
 
-        config RMNG_HOST_CTRL_TASK_PRIORITY
+        config ESP_RMAKER_NEO_HOST_CTRL_TASK_PRIORITY
             int "Task priority"
             default 1
             help
@@ -372,9 +377,9 @@ menu "RMNG Configuration"
 
     endmenu
 
-    menu "RMNG Timing"
+    menu "Timing"
 
-        config RMNG_TIME_SYNC_POLL_INTERVAL_S
+        config ESP_RMAKER_NEO_TIME_SYNC_POLL_INTERVAL_S
             int "Time-sync poll interval (seconds)"
             default 2
             help

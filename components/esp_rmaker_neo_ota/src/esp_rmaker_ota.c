@@ -146,9 +146,9 @@ static void esp_rmaker_ota_enable_work_queue_task(void *ota_config_arg)
             .priv = ota_config->priv,
         },
         .filetype_handler_lookup = ota_config->custom_filetype_handler_lookup,
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
         .custom_job_cb = ota_config->custom_job_cb,
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
     };
     free(ota_config);
     esp_rmaker_error_t err = ota_job_state_init(&ota_job_config);
@@ -239,7 +239,7 @@ static void esp_rmaker_ota_handle_reboot(const esp_rmaker_ota_config_t *ota_conf
         /* Start rollback timeout handler; without it, a reboot still rolls back an unverified image */
         if (g_rollback_timeout_handler == NULL) {
             rmaker_ota_timeout_handler_config_t rollback_timeout_handler_config = {
-                .timeout_ms = CONFIG_RMNG_OTA_ROLLBACK_WAIT_PERIOD * 1000,
+                .timeout_ms = CONFIG_ESP_RMAKER_NEO_OTA_ROLLBACK_WAIT_PERIOD * 1000,
                 .callback = esp_rmaker_ota_rollback_timeout_callback,
                 .priv_data = NULL,
             };
@@ -251,7 +251,7 @@ static void esp_rmaker_ota_handle_reboot(const esp_rmaker_ota_config_t *ota_conf
         if (err != ESP_RMAKER_OK) {
             OSAL_LOGW(TAG, "Failed to start rollback timeout handler: %d, only a reboot will roll back if OTA is not marked as valid", err);
         } else {
-            OSAL_LOGI(TAG, "Rollback will occur in %" PRIu32 " seconds if OTA is not marked as valid", (uint32_t)CONFIG_RMNG_OTA_ROLLBACK_WAIT_PERIOD);
+            OSAL_LOGI(TAG, "Rollback will occur in %" PRIu32 " seconds if OTA is not marked as valid", (uint32_t)CONFIG_ESP_RMAKER_NEO_OTA_ROLLBACK_WAIT_PERIOD);
         }
 
         /* Register event handler for MQTT connected event */
@@ -404,7 +404,7 @@ esp_rmaker_error_t esp_rmaker_ota_disable(void)
     return ESP_RMAKER_OK;
 }
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 esp_rmaker_error_t esp_rmaker_ota_report_custom_job_status(ota_status_t status, const char *status_details_json, size_t status_details_json_len)
 {
     ota_job_event_t event_id;
@@ -437,7 +437,7 @@ esp_rmaker_error_t esp_rmaker_ota_report_custom_job_status(ota_status_t status, 
     };
     return ota_job_state_post_event(&event_data);
 }
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 esp_rmaker_error_t esp_rmaker_ota_report_status(esp_rmaker_ota_handle_t ota_handle,
         ota_status_t status, const esp_rmaker_ota_status_details_t *status_details)
@@ -495,7 +495,7 @@ esp_rmaker_error_t esp_rmaker_ota_report_status(esp_rmaker_ota_handle_t ota_hand
 
 esp_rmaker_error_t esp_rmaker_ota_default_cb(esp_rmaker_ota_handle_t handle, esp_rmaker_ota_data_t *ota_data, const esp_rmaker_ota_ft_ctx_t *ft_handler)
 {
-#if CONFIG_RMNG_OTA_TRANSPORT_MQTT
+#if CONFIG_ESP_RMAKER_NEO_OTA_USE_MQTT
     return esp_rmaker_ota_mqtt_cb(handle, ota_data, ft_handler);
 #else
     OSAL_LOGE(TAG, "Invalid OTA transport");
@@ -505,7 +505,7 @@ esp_rmaker_error_t esp_rmaker_ota_default_cb(esp_rmaker_ota_handle_t handle, esp
 
 esp_rmaker_error_t esp_rmaker_ota_default_validate_image_ref(const char *image_ref, size_t image_ref_len)
 {
-#if CONFIG_RMNG_OTA_TRANSPORT_MQTT
+#if CONFIG_ESP_RMAKER_NEO_OTA_USE_MQTT
     return esp_rmaker_ota_mqtt_validate_image_ref(image_ref, image_ref_len);
 #else
     (void)image_ref;

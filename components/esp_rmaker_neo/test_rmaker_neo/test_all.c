@@ -65,7 +65,7 @@ int test_rmng_all_tests_unity(void)
     RUN_TEST(test_local_ctrl_get_params_malformed_frame_rejected);
     RUN_TEST(test_local_ctrl_set_params_invalid_json_keeps_session);
     RUN_TEST(test_local_ctrl_set_params_valid_json_succeeds);
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
     RUN_TEST(test_local_ctrl_sec2_custom_pop_does_not_poison_cache);
     RUN_TEST(test_local_ctrl_sec2_generated_pop_is_cached);
     RUN_TEST(test_local_ctrl_sec2_resolve_rejects_invalid_args);
@@ -214,7 +214,7 @@ int test_rmng_all_tests_unity(void)
     RUN_TEST(test_schedules_drop_node_releases_handles);
     RUN_TEST(test_schedules_erase_node_releases_handles);
     RUN_TEST(test_schedules_drop_and_erase_null_node_safe);
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #endif
 
     /* Automation *******************************************************************/
@@ -260,7 +260,7 @@ int test_rmng_all_tests_unity(void)
     RUN_TEST(test_state_update_id_compare_orders_by_address);
     RUN_TEST(test_get_all_rejects_null_ctx);
     RUN_TEST(test_get_all_self_ctx_returns_self_params_only);
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     RUN_TEST(test_get_all_filters_by_child_ctx);
     RUN_TEST(test_get_all_unknown_ctx_returns_zero);
 #endif
@@ -268,7 +268,7 @@ int test_rmng_all_tests_unity(void)
     /* Subgroup-aware dispatch filter *******************************************/
     RUN_TEST(test_node_is_in_subgroup_rejects_invalid_args);
     RUN_TEST(test_node_is_in_subgroup_self_membership);
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     RUN_TEST(test_node_is_in_subgroup_bridge_child_membership);
 #endif
 
@@ -285,7 +285,7 @@ int test_rmng_all_tests_unity(void)
     RUN_TEST(test_core_sign_challenge_invalid_args);
     RUN_TEST(test_core_error_paths);
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     /* Bridge *********************************************************************/
     RUN_TEST(test_bridge_topic_group_control_subgroup_wildcard);
     RUN_TEST(test_bridge_topic_bridges_to_cloud);

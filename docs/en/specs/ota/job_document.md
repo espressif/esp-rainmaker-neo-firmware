@@ -100,7 +100,7 @@ This section maintains compatibility with the AWS IoT FreeRTOS OTA agent and fol
   - String
   - Only when signature verification is enabled
   - Base64 signature for the file (algorithm-specific field name). Required, and
-    must be valid base64, when ``CONFIG_RMNG_OTA_SIGNATURE_VERIFY_ENABLE`` is set
+    must be valid base64, when ``CONFIG_ESP_RMAKER_NEO_OTA_SIGNATURE_VERIFY_ENABLE`` is set
     (default **off**); ignored otherwise.
 ```
 
@@ -172,7 +172,7 @@ This section contains ESP RainMaker Neo-specific configuration and metadata:
   - Object
   - No
   - Time window restrictions for the update. Parsed only when
-    ``CONFIG_RMNG_OTA_TIME_SUPPORT`` is set (default on); otherwise ignored
+    ``CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT`` is set (default on); otherwise ignored
     entirely.
 ```
 
@@ -302,7 +302,7 @@ Filetype handlers that do not track versions (`get_version = NULL` on the filety
 
 ### Auto-resume
 
-When the job document declares `file_md5` (and `CONFIG_RMNG_OTA_RESUME` is enabled, default `y`), a download interrupted by reboot/power-loss/connectivity issues resumes from where it left off instead of restarting from byte 0. The partially-written bytes already sit in the inactive app partition; the device only needs to know they belong to *this* image and how much it already has.
+When the job document declares `file_md5` (and `CONFIG_ESP_RMAKER_NEO_OTA_RESUME` is enabled, default `y`), a download interrupted by reboot/power-loss/connectivity issues resumes from where it left off instead of restarting from byte 0. The partially-written bytes already sit in the inactive app partition; the device only needs to know they belong to *this* image and how much it already has.
 
 - **Image identity.** `file_md5` is the identity token. The device persists a small descriptor (md5, file size, and MQTT block size) to NVS alongside the progress tracker. On a re-fetched in-progress job it resumes **only** when the descriptor matches the current job exactly. A different image (different md5/size) or a changed MQTT block size forces a fresh full download.
 - **Progress tracker.** MQTT persists a received-block bitmap (updated on each batch boundary to bound NVS wear).
@@ -322,7 +322,7 @@ A custom non-OTA job document is defined as a job document **missing any require
 
 ### Handlers
 
-If custom job document handling is enabled (`CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT=y`), then:
+If custom job document handling is enabled (`CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT=y`), then:
 
 - The user provides a **custom job document callback** in the OTA configuration.
 - The user uses the **custom job status reporting API** to report job statuses.

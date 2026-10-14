@@ -42,7 +42,7 @@ same service with `cap=["ch_resp"]`.
 ## Session and version endpoints
 
 The service owns its protocomm instance. Session security is protocomm SEC1
-(with or without PoP, per `ESP_RMAKER_LOCAL_CTRL_SEC1_POP`) or SEC2 (SRP6a
+(with or without PoP, per `ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP`) or SEC2 (SRP6a
 with username `wifiprov`) — Kconfig-selected; security 0 is not supported.
 Established on:
 

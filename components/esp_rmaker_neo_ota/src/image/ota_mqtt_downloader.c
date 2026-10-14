@@ -136,7 +136,7 @@ typedef struct {
     bool sub_intended;
 
     /* Auto-resume state */
-    bool resume_enabled;                       /* file_md5 present + RMNG_OTA_RESUME: persist/clear the tracker */
+    bool resume_enabled;                       /* file_md5 present + ESP_RMAKER_NEO_OTA_RESUME: persist/clear the tracker */
     bool resume_pending;                       /* a matching tracker was found: open the partition via resume */
     esp_rmaker_ota_resume_desc_t resume_desc;  /* descriptor persisted alongside the bitmap */
 } mqtt_downloader_ctx_t;
@@ -146,17 +146,17 @@ typedef struct {
 /**
  * @brief Maximum retries = floor(total blocks / this divide factor)
  */
-#define MQTT_DOWNLOADER_MAX_RETRIES_DIVIDE_FACTOR CONFIG_RMNG_OTA_MAX_RETRIES_DIVIDE_FACTOR
+#define MQTT_DOWNLOADER_MAX_RETRIES_DIVIDE_FACTOR CONFIG_ESP_RMAKER_NEO_OTA_MAX_RETRIES_DIVIDE_FACTOR
 
 /**
  * @brief Number of blocks to request per request
  */
-#define MQTT_DOWNLOADER_BLOCKS_PER_REQUEST CONFIG_RMNG_OTA_MQTT_BLOCKS_PER_REQUEST
+#define MQTT_DOWNLOADER_BLOCKS_PER_REQUEST CONFIG_ESP_RMAKER_NEO_MQTT_OTA_NO_OF_BLOCKS
 
 /**
  * @brief Timeout for block requests in milliseconds
  */
-#define MQTT_DOWNLOADER_BLOCK_REQUEST_TIMEOUT_MS (uint32_t)CONFIG_RMNG_OTA_REQUEST_TIMEOUT_MS
+#define MQTT_DOWNLOADER_BLOCK_REQUEST_TIMEOUT_MS (uint32_t)CONFIG_ESP_RMAKER_NEO_OTA_REQUEST_TIMEOUT_MS
 
 /**
  * @brief Block size to use for MQTT downloader
@@ -171,12 +171,12 @@ typedef struct {
 /**
  * @brief Data type to use for MQTT downloader
  */
-#if CONFIG_RMNG_OTA_MQTT_DATA_TYPE_CBOR
+#if CONFIG_ESP_RMAKER_NEO_MQTT_OTA_DATA_TYPE_CBOR
 #define MQTT_DOWNLOADER_DATA_TYPE DATA_TYPE_CBOR
-#elif CONFIG_RMNG_OTA_MQTT_DATA_TYPE_JSON
+#elif CONFIG_ESP_RMAKER_NEO_MQTT_OTA_DATA_TYPE_JSON
 #define MQTT_DOWNLOADER_DATA_TYPE DATA_TYPE_JSON
 #else
-#error "Invalid data type configuration: RMNG_OTA_MQTT_DATA_TYPE"
+#error "Invalid data type configuration: ESP_RMAKER_NEO_MQTT_OTA_DATA_TYPE"
 #endif
 
 /**
@@ -427,7 +427,7 @@ static esp_rmaker_error_t unsubscribe_from_stream_topics(void);
  */
 static void cleanup_downloader(void);
 
-#if CONFIG_RMNG_OTA_RESUME
+#if CONFIG_ESP_RMAKER_NEO_OTA_RESUME
 /* --- Auto-resume (forward declarations) ------------------------------------- */
 static void resume_attempt(void);
 static void resume_persist(void);
@@ -907,7 +907,7 @@ static esp_rmaker_error_t block_request_on_success(void)
     }
     block_request_unlock(block_request_ctx);
 
-#if CONFIG_RMNG_OTA_RESUME
+#if CONFIG_ESP_RMAKER_NEO_OTA_RESUME
     /* Batch boundary: persist the bitmap so an interrupted download can resume here.
      * Only on batch completion (not per block) to bound NVS wear. */
     resume_persist();
@@ -1103,7 +1103,7 @@ static void write_chunk_to_image_handler_work_queue_task(void *payload_obj_arg)
         /* Write data to partition */
         image_handler_ctx_t *image_handler_ctx = &image_ctx->image_handler_ctx;
         bool resume_pending = false;
-#if CONFIG_RMNG_OTA_RESUME
+#if CONFIG_ESP_RMAKER_NEO_OTA_RESUME
         resume_pending = ctx->resume_pending;
 #endif
         if (image_handler_ctx->handle == NULL && image_handler_begin(ctx->ota_data->file_signature, ctx->ota_data->filesize, ctx->ft_handler, ctx->ota_data->fw_version, ctx->ota_data->file_md5, resume_pending, 0, image_handler_ctx) != ESP_RMAKER_OK) {
@@ -1320,7 +1320,7 @@ static void unregister_mqtt_event_handlers(void)
 
 /* --- Auto-resume ------------------------------------------------------------- */
 
-#if CONFIG_RMNG_OTA_RESUME
+#if CONFIG_ESP_RMAKER_NEO_OTA_RESUME
 /**
  * @brief Build the resume descriptor for the current MQTT job.
  */
@@ -1431,7 +1431,7 @@ static void resume_persist(void)
                   (unsigned)(bitmap->block_count - bitmap->unprocessed_block_count), (unsigned)bitmap->block_count, ctx->resume_desc.md5_hex);
     }
 }
-#endif /* CONFIG_RMNG_OTA_RESUME */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_RESUME */
 
 /* Public function definitions **********************************************/
 
@@ -1540,7 +1540,7 @@ esp_rmaker_error_t esp_rmaker_ota_mqtt_cb(esp_rmaker_ota_handle_t handle, esp_rm
         goto esp_rmaker_ota_mqtt_cb_fail;
     }
 
-#if CONFIG_RMNG_OTA_RESUME
+#if CONFIG_ESP_RMAKER_NEO_OTA_RESUME
     /* Best-effort: overlay any persisted progress so received blocks are not re-requested. */
     resume_attempt();
 #endif
@@ -1551,7 +1551,7 @@ esp_rmaker_error_t esp_rmaker_ota_mqtt_cb(esp_rmaker_ota_handle_t handle, esp_rm
         goto esp_rmaker_ota_mqtt_cb_fail;
     }
 
-#if CONFIG_RMNG_OTA_RESUME
+#if CONFIG_ESP_RMAKER_NEO_OTA_RESUME
     /* On resume, account already-received blocks so progress reflects true completion
      * instead of restarting from 0%. */
     if (g_mqtt_downloader_ctx.resume_pending) {

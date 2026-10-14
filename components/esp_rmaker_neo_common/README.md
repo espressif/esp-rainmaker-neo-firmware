@@ -35,8 +35,8 @@ point is a mistake dependents make.
 
 `esp_rmaker_credentials_get_*()` is the read path. Every read goes through a
 table of provider function pointers whose defaults read the factory NVS
-partition (`CONFIG_ESP_RMAKER_FACTORY_PARTITION_NAME`, default `fctry`, in
-namespace `CONFIG_ESP_RMAKER_FACTORY_NAMESPACE`, default `rmaker_creds`). The
+partition (`CONFIG_ESP_RMAKER_NEO_FACTORY_PARTITION_NAME`, default `fctry`, in
+namespace `CONFIG_ESP_RMAKER_NEO_FACTORY_NAMESPACE`, default `rmaker_creds`). The
 partition handle is opened lazily on first read, so calling
 `esp_rmaker_factory_part_init()` up front is optional. See
 [factory NVS generation](../../tools/factory_nvs_gen/README.md) for generating
@@ -52,10 +52,10 @@ implementations must return heap-allocated data — the caller releases it with
 Certificates and keys are validated as they are loaded: the certificate is
 parsed with mbedTLS, and a raw 32-byte NIST P-256 key is converted to DER
 first. The validation can be skipped with
-`CONFIG_RMAKER_MQTT_SKIP_CREDENTIALS_CHECK`, which is only selectable when
-`CONFIG_RMNG_CUSTOM_MQTT_CLIENT_PROVIDER` (owned by `esp_rmaker_neo`) is set.
+`CONFIG_ESP_RMAKER_NEO_MQTT_SKIP_CREDENTIALS_CHECK`, which is only selectable when
+`CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER` (owned by `esp_rmaker_neo`) is set.
 `esp_rmaker_credentials_get_mqtt_conn_params()` assembles the osal MQTT
-connection parameters; the port comes from the `ESP_RMAKER_MQTT_PORT` choice,
+connection parameters; the port comes from the `ESP_RMAKER_NEO_MQTT_PORT` choice,
 which defaults to 443 and then also requests the `x-amzn-mqtt-ca` ALPN protocol
 (8883 requests none).
 

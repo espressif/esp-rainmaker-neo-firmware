@@ -101,7 +101,7 @@ static esp_rmaker_device_t *__local_ctrl_service_create(esp_rmaker_local_ctrl_se
      * and take "is a PoP required" from the "no_pop" capability on the version
      * endpoint. So a security-1-without-PoP build reports an empty string here, which
      * is harmless - do not "fix" this into a POP_IN_USE guard. */
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_1 || CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_1 || CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
     /* Add the PoP parameter */
     esp_rmaker_param_t *pop_param = esp_rmaker_param_create(RMAKER_SERVICES_LOCAL_CTRL_POP_PARAM_ID, ESP_RMAKER_PARAM_LOCAL_CONTROL_POP, esp_rmaker_str(pop), PROP_FLAG_READ);
     if (!pop_param) {
@@ -115,7 +115,7 @@ static esp_rmaker_device_t *__local_ctrl_service_create(esp_rmaker_local_ctrl_se
 #endif
 
     /* Add Username parameter if security version is 2 */
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
     esp_rmaker_param_t *username_param = esp_rmaker_param_create(RMAKER_SERVICES_LOCAL_CTRL_USERNAME_PARAM_ID, ESP_RMAKER_PARAM_LOCAL_CONTROL_USERNAME, esp_rmaker_str(username), PROP_FLAG_READ);
     if (!username_param) {
         OSAL_LOGE(TAG, "Failed to create Username parameter");

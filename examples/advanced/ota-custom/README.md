@@ -8,7 +8,7 @@ OTA extension points via a sample "mock" implementation:
 - A **custom-filetype handler** for non-firmware OTA filetypes (`mock`,
   `mock_no_ver`), plumbed in via `esp_rmaker_ota_config_t::custom_filetype_handler_lookup`.
 - A **custom job callback** for non-OTA jobs, plumbed in via
-  `esp_rmaker_ota_config_t::custom_job_cb` (enabled with `CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT`).
+  `esp_rmaker_ota_config_t::custom_job_cb` (enabled with `CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT`).
 
 ## Behaviour — status LED
 

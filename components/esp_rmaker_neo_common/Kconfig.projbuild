@@ -1,29 +1,29 @@
-menu "RMNG Common Component Configuration"
+menu "ESP RainMaker Neo Common Component Configuration"
 
-    menu "ESP RainMaker Networking"
+    menu "Networking"
 
-        choice ESP_RMAKER_MQTT_PORT
+        choice ESP_RMAKER_NEO_MQTT_PORT
             bool "MQTT Port"
-            default ESP_RMAKER_MQTT_PORT_443
+            default ESP_RMAKER_NEO_MQTT_PORT_443
             help
                 ESP RainMaker MQTT Broker can be connected to either on Port 8883 or port 443.
                 Port 443 is recommended as it is generally not blocked by any firewalls,
                 since it is standard HTTPS port.
 
-            config ESP_RMAKER_MQTT_PORT_443
+            config ESP_RMAKER_NEO_MQTT_PORT_443
                 bool "443"
-            config ESP_RMAKER_MQTT_PORT_8883
+            config ESP_RMAKER_NEO_MQTT_PORT_8883
                 bool "8883"
         endchoice
 
     endmenu
 
-    menu "ESP RainMaker Work Queue"
+    menu "Work Queue"
 
-        config RMAKER_WORK_QUEUE_TASK_QUEUE_SIZE
+        config ESP_RMAKER_NEO_WORK_QUEUE_TASK_QUEUE_SIZE
             int "Task queue size"
             default 64
-            default 256 if RMNG_BRIDGE_ENABLED
+            default 256 if ESP_RMAKER_NEO_BRIDGE_ENABLE
             range 10 10240
             help
                 Maximum number of tasks the work queue can hold.
@@ -33,7 +33,7 @@ menu "RMNG Common Component Configuration"
                 twice the number of maximum number of bridged children.
                 For example, if you have 128 bridged children, you should set this to 256.
 
-        config RMAKER_WORK_QUEUE_TASK_STACK_SIZE
+        config ESP_RMAKER_NEO_WORK_QUEUE_TASK_STACK
             int "Stack size"
             default 8192 if SPIRAM
             default 4608
@@ -48,7 +48,7 @@ menu "RMNG Common Component Configuration"
                 heap_caps_malloc_prefer (a deeper call chain than plain
                 internal malloc).
 
-        config RMAKER_WORK_QUEUE_TASK_PRIORITY
+        config ESP_RMAKER_NEO_WORK_QUEUE_TASK_PRIORITY
             int "Task priority"
             default 10
             help
@@ -56,15 +56,15 @@ menu "RMNG Common Component Configuration"
 
     endmenu
 
-    menu "ESP RainMaker Factory Partition"
+    menu "Factory Partition"
 
-        config ESP_RMAKER_FACTORY_PARTITION_NAME
+        config ESP_RMAKER_NEO_FACTORY_PARTITION_NAME
             string "Factory partition label"
             default "fctry"
             help
                 Label of the factory partition.
 
-        config ESP_RMAKER_FACTORY_NAMESPACE
+        config ESP_RMAKER_NEO_FACTORY_NAMESPACE
             string "Factory partition namespace"
             default "rmaker_creds"
             help
@@ -72,9 +72,9 @@ menu "RMNG Common Component Configuration"
 
     endmenu
 
-    menu "ESP RainMaker Crypto"
+    menu "Crypto"
 
-        config RMAKER_CRYPTO_CSR_GENERATION
+        config ESP_RMAKER_NEO_CLAIM_CSR_SUPPORT
             bool
             select MBEDTLS_X509_CREATE_C
             help
@@ -82,7 +82,7 @@ menu "RMNG Common Component Configuration"
                 in the mbedTLS options they need.
 
                 Capability flag, not user-selectable. It is selected by whatever needs
-                those helpers, which today means claiming, under "RMNG Configuration".
+                those helpers, which today means claiming, under "ESP RainMaker Neo Configuration".
                 Declared here, next to the code that implements it, so that esp_rmaker_neo_common
                 never reads a symbol defined by a component that depends on it.
 
@@ -99,10 +99,10 @@ menu "RMNG Common Component Configuration"
 
     endmenu
 
-    menu "ESP RainMaker MQTT Credentials"
+    menu "MQTT Credentials"
 
-        config RMAKER_MQTT_SKIP_CREDENTIALS_CHECK
-            depends on RMNG_CUSTOM_MQTT_CLIENT_PROVIDER
+        config ESP_RMAKER_NEO_MQTT_SKIP_CREDENTIALS_CHECK
+            depends on ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
             bool "Skip credentials check"
             default n
             help

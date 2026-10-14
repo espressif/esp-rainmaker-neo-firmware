@@ -64,7 +64,7 @@ void test_bridge_topic_bridges_to_cloud(void)
 
     int len = esp_rmaker_mqtt_topic_bridges_to_cloud(buf, sizeof(buf));
     TEST_ASSERT_GREATER_THAN(0, len);
-#if CONFIG_ESP_RMAKER_MQTT_USE_BASIC_INGEST
+#if CONFIG_ESP_RMAKER_NEO_MQTT_USE_BASIC_INGEST_TOPICS
     snprintf(expected, sizeof(expected), "$aws/rules/bridge_to_cloud_rule/rainmaker/bridges/%s/to_cloud", thing);
 #else
     snprintf(expected, sizeof(expected), "rainmaker/bridges/%s/to_cloud", thing);

@@ -14,7 +14,7 @@ Throughout the firmware, "time is synced" is a **wall-clock validity** test, not
 Startup behavior depends on whether mbedTLS validates the server certificate's validity dates (`CONFIG_MBEDTLS_HAVE_TIME_DATE`):
 
 - **Synchronous flow** (`CONFIG_MBEDTLS_HAVE_TIME_DATE` set): a valid wall clock is a hard prerequisite for the MQTT TLS handshake, so startup blocks (indefinitely, polling every 2 s) before the MQTT connection until the clock syncs. The cloud `getTimeSync` coarse-set cannot help here — it arrives over MQTT, which cannot connect without a valid clock. Schedules arm inline once time is valid.
-- **Decoupled flow** (`CONFIG_MBEDTLS_HAVE_TIME_DATE` unset): startup never blocks on time. MQTT and all non-wall-clock work proceed immediately. A flat-cadence poll (every `CONFIG_RMNG_TIME_SYNC_POLL_INTERVAL_S` seconds, default 2, no backoff and no jitter) observes synchronization later and arms deferred schedules then; wall-clock-sensitive work (timeseries timestamps, schedule arming) is deferred or dropped until the clock is valid. The poll stops as soon as it observes a valid clock.
+- **Decoupled flow** (`CONFIG_MBEDTLS_HAVE_TIME_DATE` unset): startup never blocks on time. MQTT and all non-wall-clock work proceed immediately. A flat-cadence poll (every `CONFIG_ESP_RMAKER_NEO_TIME_SYNC_POLL_INTERVAL_S` seconds, default 2, no backoff and no jitter) observes synchronization later and arms deferred schedules then; wall-clock-sensitive work (timeseries timestamps, schedule arming) is deferred or dropped until the clock is valid. The poll stops as soon as it observes a valid clock.
 
 Both flows poll regardless of whether this SDK initialized SNTP (`enable_time_sync`) — that flag only decides SNTP ownership, not whether the clock can become valid.
 

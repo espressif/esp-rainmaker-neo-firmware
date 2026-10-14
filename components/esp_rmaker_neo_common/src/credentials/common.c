@@ -51,12 +51,12 @@
  */
 static const char *TAG = "rmng_credentials";
 
-#if CONFIG_ESP_RMAKER_MQTT_PORT_443
+#if CONFIG_ESP_RMAKER_NEO_MQTT_PORT_443
 /**
  * @brief ALPN protocols for port 443.
  */
 static const char *__alpn_protocols[] = { "x-amzn-mqtt-ca", NULL };
-#endif /* CONFIG_ESP_RMAKER_MQTT_PORT_443 */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_PORT_443 */
 
 /* Variables **********************************************************************/
 
@@ -87,7 +87,7 @@ static esp_rmaker_error_t __get_valid_key(esp_rmaker_credentials_provider_creden
 
 /* Private function definitions ****************************************************/
 
-#if CONFIG_RMAKER_MQTT_SKIP_CREDENTIALS_CHECK
+#if CONFIG_ESP_RMAKER_NEO_MQTT_SKIP_CREDENTIALS_CHECK
 static esp_rmaker_error_t __get_valid_cert(esp_rmaker_credentials_provider_credential_t provider, esp_rmaker_credential_t *p_cert)
 {
     if (!provider || !p_cert) {
@@ -182,7 +182,7 @@ static esp_rmaker_error_t __get_valid_key(esp_rmaker_credentials_provider_creden
     p_key->len = der_len;
     return ESP_RMAKER_OK;
 }
-#endif /* CONFIG_RMAKER_MQTT_SKIP_CREDENTIALS_CHECK */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_SKIP_CREDENTIALS_CHECK */
 
 /* Public function definitions ****************************************************/
 
@@ -248,15 +248,15 @@ esp_rmaker_error_t esp_rmaker_credentials_get_mqtt_conn_params(osal_mqtt_conn_pa
         OSAL_LOGE(TAG, "Failed to get MQTT host: %d", err);
         goto esp_rmaker_credentials_get_mqtt_conn_params_fail;
     }
-#if CONFIG_ESP_RMAKER_MQTT_PORT_443
+#if CONFIG_ESP_RMAKER_NEO_MQTT_PORT_443
     conn_params->port = 443;
     conn_params->alpn_protocols = __alpn_protocols;
-#elif CONFIG_ESP_RMAKER_MQTT_PORT_8883
+#elif CONFIG_ESP_RMAKER_NEO_MQTT_PORT_8883
     conn_params->port = 8883;
     conn_params->alpn_protocols = NULL;
 #else
 #error "Invalid MQTT port configuration"
-#endif /* CONFIG_ESP_RMAKER_MQTT_PORT_443 */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_PORT_443 */
     err = __credentials_providers.client_id(&conn_params->client_id);
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to get client ID: %d", err);
@@ -289,11 +289,11 @@ esp_rmaker_error_t esp_rmaker_credentials_get_mqtt_conn_params(osal_mqtt_conn_pa
     }
 
     /* Set the clean session flag */
-#if CONFIG_ESP_RMAKER_MQTT_USE_PERSISTENT_SESSION
+#if CONFIG_ESP_RMAKER_NEO_MQTT_USE_PERSISTENT_SESSION
     conn_params->clean_session = false;
 #else
     conn_params->clean_session = true;
-#endif /* CONFIG_ESP_RMAKER_MQTT_USE_PERSISTENT_SESSION */
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_USE_PERSISTENT_SESSION */
 
     /* Set the LWT settings */
     conn_params->lwt.enabled = false;

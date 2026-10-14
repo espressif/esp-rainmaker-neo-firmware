@@ -56,7 +56,7 @@
 /* Event flags includes */
 #include "event_flags.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "bridge/bridge_internal.h"
 #include "bridge/bridge_child_nvs.h"
 #include "node_config_pending.h"
@@ -189,7 +189,7 @@ static esp_rmaker_error_t __resolve_node_id(const esp_rmaker_node_t *node, char 
     if (esp_rmaker_node_is_self(node)) {
         return esp_rmaker_credentials_get_thing_name(out_node_id);
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
     if (!child || !child->thing_name) {
         OSAL_LOGE(TAG, "Child node has no thing_name (not yet ack'd)");
@@ -316,7 +316,7 @@ static void __persist_and_mark_ncfg_ver(const esp_rmaker_node_t *node, const uin
             OSAL_LOGI(TAG, "Self Node Configuration checksum stored in NVS.");
         }
     } else {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
         if (child) {
             esp_rmaker_error_t err = bridge_child_nvs_set_node_config(child, hash_new);
@@ -342,7 +342,7 @@ static void __report_node_config_cb(esp_rmaker_cloud_event_set_response_t *p_res
                   p_response->error_message ? p_response->error_message : "Unknown error");
         /* Leave the entry in the pending list with inflight cleared;
          * the retry context will refire. */
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         node_config_pending_clear_inflight(node);
 #endif
         free(priv);
@@ -365,7 +365,7 @@ static void __report_node_config_cb(esp_rmaker_cloud_event_set_response_t *p_res
         free(current_cfg);
         if (err == ESP_RMAKER_OK && memcmp(hash_current, priv->hash, RMAKER_CHECKSUM_LEN) != 0) {
             OSAL_LOGW(TAG, "Node config mutated mid-publish; republishing on next retry tick.");
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
             node_config_pending_clear_inflight(node);
 #endif
             free(priv);
@@ -375,14 +375,14 @@ static void __report_node_config_cb(esp_rmaker_cloud_event_set_response_t *p_res
 
     /* Clean ack: persist + drop from pending. */
     __persist_and_mark_ncfg_ver(node, priv->hash);
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     node_config_pending_remove(node);
 #endif
 
     if (esp_rmaker_node_is_self(node)) {
         esp_rmaker_event_flags_set_node_config_sent();
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     else {
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
         if (child) {
@@ -393,7 +393,7 @@ static void __report_node_config_cb(esp_rmaker_cloud_event_set_response_t *p_res
     free(priv);
 }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 /**
  * @brief Compare the freshly-computed checksum against the per-child
  *        stored checksum in the bridge NVS record.
@@ -421,7 +421,7 @@ static esp_rmaker_error_t __child_checksum_changed(esp_rmaker_bridge_child_handl
     *p_changed = (memcmp(rec.ncfg_checksum, hash_new, RMAKER_CHECKSUM_LEN) != 0);
     return ESP_RMAKER_OK;
 }
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 /**
  * @brief Common per-node report path: build JSON, hash, dedup-check, publish.
@@ -462,7 +462,7 @@ esp_rmaker_error_t esp_rmaker_internal_report_node_config_for_node(const esp_rma
             return ESP_RMAKER_FAIL;
         }
     } else {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
         if (!child) {
             free(node_config);
@@ -484,7 +484,7 @@ esp_rmaker_error_t esp_rmaker_internal_report_node_config_for_node(const esp_rma
         esp_rmaker_node_resolve_thing_name(node, __tname_unch, sizeof(__tname_unch));
         OSAL_LOGI(TAG, "Node Configuration unchanged for '%s'; skipping publish.", __tname_unch);
         free(node_config);
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         /* Already in-sync: drop from pending list. */
         node_config_pending_remove(node);
 #endif
@@ -530,9 +530,9 @@ esp_rmaker_error_t esp_rmaker_report_node_config(void)
     return esp_rmaker_internal_report_node_config_for_node(esp_rmaker_get_node());
 }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 esp_rmaker_error_t esp_rmaker_report_node_config_for_child(esp_rmaker_bridge_child_handle_t child)
 {
     return esp_rmaker_internal_report_node_config_for_node(bridge_internal_child_node(child));
 }
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

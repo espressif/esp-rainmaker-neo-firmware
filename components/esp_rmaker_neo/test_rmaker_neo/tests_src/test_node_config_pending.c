@@ -18,7 +18,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include "node_config_pending.h"
 #include "esp_rmaker_bridge.h"
@@ -120,4 +120,4 @@ void test_node_config_pending_clear_all_inflight_safe(void)
     __teardown();
 }
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

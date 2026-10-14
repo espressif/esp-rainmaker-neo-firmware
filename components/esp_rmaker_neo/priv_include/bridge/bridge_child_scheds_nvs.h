@@ -19,7 +19,7 @@
  * action a fired schedule must apply would not survive a reboot. Replaying
  * the original JSON on boot reproduces both.
  *
- * Only present when ``CONFIG_RMNG_BRIDGE_ENABLED``.
+ * Only present when ``CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE``.
  */
 
 #ifndef __BRIDGE_CHILD_SCHEDS_NVS_H__
@@ -27,7 +27,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include "esp_rmaker_bridge.h"
 #include "esp_rmaker_error_types.h"
@@ -64,6 +64,6 @@ esp_rmaker_error_t bridge_child_scheds_nvs_erase(esp_rmaker_bridge_child_handle_
 }
 #endif
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 #endif /* __BRIDGE_CHILD_SCHEDS_NVS_H__ */

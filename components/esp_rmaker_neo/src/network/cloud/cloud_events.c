@@ -50,7 +50,7 @@
 #include "services/automation.h"
 
 /* Bridge includes (per-ctx version state lives on the child slot) */
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "bridge/bridge_internal.h"
 #include "bridge/bridge_child_nvs.h"
 #endif
@@ -185,7 +185,7 @@ static __version_progress_view_t __resolve_progress_view(const esp_rmaker_topic_
         v.pending_version = &p->pending_version;
         return v;
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_ctx(ctx);
     if (!child) {
         return v;
@@ -222,7 +222,7 @@ static int __version_persisted_get(const esp_rmaker_topic_ctx_t *ctx, __version_
                           : RMAKER_NVS_LOCAL_CONFIG_KEY_TRIGGER_VER;
         return esp_rmaker_local_config_get_version(key);
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_ctx(ctx);
     if (!child) {
         return -1;
@@ -247,7 +247,7 @@ static void __version_persisted_set(const esp_rmaker_topic_ctx_t *ctx, __version
         esp_rmaker_local_config_set_version(key, version);
         return;
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_ctx(ctx);
     if (!child) {
         return;
@@ -424,7 +424,7 @@ static void __getGroupInfo_self(esp_rmaker_cloud_events_tracker_t *p_events_trac
     }
 }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 /* Child handler. Children share the bridge's MQTT connection - no
  * unsubscribe / state stop_listening / force_reconnect concerns. Just:
  *   1. Compare old (in-memory) group_info_str against new.
@@ -487,7 +487,7 @@ static void __getGroupInfo_child(esp_rmaker_cloud_events_tracker_t *p_events_tra
      * handler) that the child's group info has been updated. */
     bridge_internal_dispatch_child_event(child, BRIDGE_CHILD_EVENT_GROUP_INFO);
 }
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 void esp_rmaker_cloud_event_response_getGroupInfo(esp_rmaker_cloud_events_tracker_t *p_events_tracker, const char *primary, char subgroups[][RMAKER_CLOUD_GROUP_INFO_SUBGROUP_BUFFER_SIZE], size_t num_subgroups)
 {
@@ -501,7 +501,7 @@ void esp_rmaker_cloud_event_response_getGroupInfo(esp_rmaker_cloud_events_tracke
     if (ctx == &esp_rmaker_topic_ctx_self) {
         __getGroupInfo_self(p_events_tracker, primary, group_info_str);
     } else {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_ctx(ctx);
         if (child) {
             __getGroupInfo_child(p_events_tracker, child, group_info_str);
@@ -633,7 +633,7 @@ void esp_rmaker_cloud_event_response_getSchedDetails(esp_rmaker_cloud_events_tra
     if (ctx == &esp_rmaker_topic_ctx_self) {
         sched_node = esp_rmaker_get_node();
     } else {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_ctx(ctx);
         sched_node = child ? bridge_internal_child_node(child) : NULL;
 #endif
@@ -688,7 +688,7 @@ void esp_rmaker_cloud_event_response_getTriggerDetails(esp_rmaker_cloud_events_t
     if (ctx == &esp_rmaker_topic_ctx_self) {
         node = esp_rmaker_get_node();
     } else {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_ctx(ctx);
         node = child ? bridge_internal_child_node(child) : NULL;
 #endif
@@ -710,7 +710,7 @@ esp_rmaker_error_t esp_rmaker_cloud_event_setNodeConfig(esp_rmaker_cloud_event_t
     return ESP_RMAKER_OK;
 }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 esp_rmaker_error_t esp_rmaker_cloud_event_addChild(esp_rmaker_cloud_event_t *p_event, char *request_payload_json)
 {
@@ -728,4 +728,4 @@ esp_rmaker_error_t esp_rmaker_cloud_event_removeChild(esp_rmaker_cloud_event_t *
     return ESP_RMAKER_OK;
 }
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

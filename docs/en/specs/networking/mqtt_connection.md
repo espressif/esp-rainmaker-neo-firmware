@@ -14,8 +14,8 @@ The node connects to the MQTT broker using:
 - **Client ID**: The thing name (node ID)
 - **Authentication**: Mutual TLS (mTLS) using device certificates
 - **Transport**: TLS over TCP
-- **Broker Port**: `443` with the `x-amzn-mqtt-ca` ALPN protocol by default (`CONFIG_ESP_RMAKER_MQTT_PORT_443`), or `8883` without ALPN (`CONFIG_ESP_RMAKER_MQTT_PORT_8883`)
-- **Clean Session**: A build-time setting, the same on every connection — `cleanSession = false` when `CONFIG_ESP_RMAKER_MQTT_USE_PERSISTENT_SESSION` is set, otherwise `cleanSession = true` (the default).
+- **Broker Port**: `443` with the `x-amzn-mqtt-ca` ALPN protocol by default (`CONFIG_ESP_RMAKER_NEO_MQTT_PORT_443`), or `8883` without ALPN (`CONFIG_ESP_RMAKER_NEO_MQTT_PORT_8883`)
+- **Clean Session**: A build-time setting, the same on every connection — `cleanSession = false` when `CONFIG_ESP_RMAKER_NEO_MQTT_USE_PERSISTENT_SESSION` is set, otherwise `cleanSession = true` (the default).
 - **Last Will and Testament**: Not used. The node never publishes an offline message; `online = false` is set by the cloud (see [State Management](../state_management.md))
 - **QoS**: node uses **QoS1** for all MQTT operations
 
@@ -65,7 +65,7 @@ sequenceDiagram
 
 ### Clean Session vs Persistent Session
 
-- **Default (clean session)**: With `CONFIG_ESP_RMAKER_MQTT_USE_PERSISTENT_SESSION` unset, every connection uses `cleanSession = true`. The broker keeps nothing across reconnects, and the SDK drives its own re-subscription from the reconnection task.
+- **Default (clean session)**: With `CONFIG_ESP_RMAKER_NEO_MQTT_USE_PERSISTENT_SESSION` unset, every connection uses `cleanSession = true`. The broker keeps nothing across reconnects, and the SDK drives its own re-subscription from the reconnection task.
 - **Persistent session**: With the option set, every connection uses `cleanSession = false`, allowing the broker to maintain subscription state and QoS 1 message state across reconnections. Note that cached messages can then arrive at unexpected times.
 
 ### Session Restoration
@@ -77,10 +77,10 @@ sequenceDiagram
 The topics re-established after a reset are:
 
 - [from_cloud topic](mqtt_topics.md#from-cloud-subscribe)
-- [Named shadow get/accepted topic](mqtt_topics.md#named-shadow-get-publish-and-get-accepted-subscribe) (only with `CONFIG_RMNG_HOST_CTRL`)
+- [Named shadow get/accepted topic](mqtt_topics.md#named-shadow-get-publish-and-get-accepted-subscribe) (only with `CONFIG_ESP_RMAKER_NEO_HOST_CTRL`)
 - [Parameters to Node topic](mqtt_topics.md#parameters-to-node-subscribe)
 - [Group control topics](mqtt_topics.md#group-control-topics)
-- [Indexed shadow get/accepted topic](mqtt_topics.md#indexed-shadow-get-publish-and-get-accepted-subscribe) (only with `CONFIG_RMNG_HOST_CTRL`)
+- [Indexed shadow get/accepted topic](mqtt_topics.md#indexed-shadow-get-publish-and-get-accepted-subscribe) (only with `CONFIG_ESP_RMAKER_NEO_HOST_CTRL`)
 
 ## Keep-Alive and Connection Health
 
@@ -96,13 +96,13 @@ After a successful reconnection, the node executes a reconnection task (`esp_rma
 - Subscribes to the `from_cloud` topic if the node is not already subscribed
 - Requests cloud information (group info, Alexa status, GVA status, schedule version, trigger version, and server time when the clock is not yet valid)
 - Kicks the node-configuration drain, so a changed configuration is republished
-- With `CONFIG_RMNG_HOST_CTRL`, also re-runs the indexed shadow subscribe context
+- With `CONFIG_ESP_RMAKER_NEO_HOST_CTRL`, also re-runs the indexed shadow subscribe context
 
 The params and group control subscriptions are not re-issued directly by this task; they are re-established from the `getGroupInfo` response handler.
 
 ## MQTT Budgeting
 
-MQTT budgeting is a rate limiting mechanism that controls the frequency of MQTT message publishing to prevent message flooding and respect cloud service limits. It is enabled by default (`CONFIG_ESP_RMAKER_MQTT_ENABLE_BUDGETING`), except in builds that do OTA over MQTT or that enable the bridge — both would exhaust the budget. When enabled, the budgeting shim wraps the platform MQTT implementation's publish function.
+MQTT budgeting is a rate limiting mechanism that controls the frequency of MQTT message publishing to prevent message flooding and respect cloud service limits. It is enabled by default (`CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING`), except in builds that do OTA over MQTT or that enable the bridge — both would exhaust the budget. When enabled, the budgeting shim wraps the platform MQTT implementation's publish function.
 
 ### How It Works
 
@@ -122,19 +122,19 @@ MQTT budgeting is a rate limiting mechanism that controls the frequency of MQTT 
   - Meaning
   - Default (range)
 
-* - ``CONFIG_ESP_RMAKER_MQTT_DEFAULT_BUDGET``
+* - ``CONFIG_ESP_RMAKER_NEO_MQTT_DEFAULT_BUDGET``
   - Initial budget value when budgeting is enabled
   - 100 (64 -- max budget)
 
-* - ``CONFIG_ESP_RMAKER_MQTT_MAX_BUDGET``
+* - ``CONFIG_ESP_RMAKER_NEO_MQTT_MAX_BUDGET``
   - Upper limit for the budget counter
   - 1024 (64 -- 2048)
 
-* - ``CONFIG_ESP_RMAKER_MQTT_BUDGET_REVIVE_PERIOD``
+* - ``CONFIG_ESP_RMAKER_NEO_MQTT_BUDGET_REVIVE_PERIOD``
   - Seconds between budget revivals
   - 5 (5 -- 600)
 
-* - ``CONFIG_ESP_RMAKER_MQTT_BUDGET_REVIVE_COUNT``
+* - ``CONFIG_ESP_RMAKER_NEO_MQTT_BUDGET_REVIVE_COUNT``
   - Amount added to the budget on each revival
   - 1 (1 -- 16)
 ```

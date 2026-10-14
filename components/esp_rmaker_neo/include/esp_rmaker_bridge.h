@@ -30,7 +30,7 @@
  * applied to the same virtual devices by the SDK's normal param-write
  * dispatch - no per-child callback is exposed.
  *
- * All entry points in this header require ``CONFIG_RMNG_BRIDGE_ENABLED=y``.
+ * All entry points in this header require ``CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE=y``.
  */
 
 #ifndef __ESP_RMAKER_BRIDGE_H__
@@ -38,7 +38,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 /* Includes *******************************************************/
 
@@ -244,6 +244,6 @@ esp_rmaker_error_t esp_rmaker_bridge_child_commit_devices(
 #endif
 
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 #endif /* __ESP_RMAKER_BRIDGE_H__ */

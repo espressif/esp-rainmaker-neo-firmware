@@ -26,8 +26,8 @@ One backend is compiled per build:
 
 | Build | Source | Backend |
 |---|---|---|
-| ESP-IDF, `CONFIG_OSAL_DISCOVERY_DISCOVERY_TYPE_MDNS` | [`src/mdns_esp.c`](src/mdns_esp.c) | IDF `espressif/mdns` |
-| ESP-IDF, `CONFIG_OSAL_DISCOVERY_DISCOVERY_TYPE_SRP` | [`src/srp_esp.c`](src/srp_esp.c) | OpenThread SRP client |
+| ESP-IDF, `CONFIG_OSAL_DISCOVERY_TYPE_MDNS` | [`src/mdns_esp.c`](src/mdns_esp.c) | IDF `espressif/mdns` |
+| ESP-IDF, `CONFIG_OSAL_DISCOVERY_TYPE_SRP` | [`src/srp_esp.c`](src/srp_esp.c) | OpenThread SRP client |
 | POSIX, Avahi found | [`src/mdns_avahi.c`](src/mdns_avahi.c) | `avahi-client` (via pkg-config) |
 | POSIX, `dns_sd.h` found | [`src/mdns_sd.c`](src/mdns_sd.c) | mDNSResponder |
 | POSIX, neither found | [`src/mdns_stub.c`](src/mdns_stub.c) | none |
@@ -48,5 +48,5 @@ Callers whose service stays reachable by IP treat the latter as non-fatal — se
 ## Build gating
 
 Always built — there is no `OSAL_INCLUDE_*` switch. On ESP-IDF the
-`OSAL_DISCOVERY_DISCOVERY_TYPE` Kconfig choice selects mDNS or SRP; the SRP
+`OSAL_DISCOVERY_TYPE` Kconfig choice selects mDNS or SRP; the SRP
 option requires `CONFIG_OPENTHREAD_ENABLED`.

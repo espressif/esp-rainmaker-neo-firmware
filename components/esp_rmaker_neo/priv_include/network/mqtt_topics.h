@@ -235,7 +235,7 @@ esp_rmaker_error_t esp_rmaker_mqtt_topic_parse_group_control_subgroup(
     const char *topic, size_t topic_len,
     char *sg_buf, size_t sg_buf_size);
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 /**
  * @brief Get the group control subgroup MQTT topic with a wildcard subgroup segment.
@@ -289,7 +289,7 @@ int esp_rmaker_mqtt_topic_bridges_children_from_cloud_filter(char *buffer, size_
  */
 int esp_rmaker_mqtt_topic_bridges_children_params_filter(char *buffer, size_t buffer_size);
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 /* --- Generic operations ---*/
 

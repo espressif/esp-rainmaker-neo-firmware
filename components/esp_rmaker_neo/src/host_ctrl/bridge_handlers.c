@@ -11,7 +11,7 @@
 
 #include "bridge_handlers.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include "osal_ext_io.h"
 
@@ -98,10 +98,10 @@ static void __init_once(void)
         /* Allocate the handle table first - keep the invariant that a live
          * mutex implies a live table. */
         __table = (__handle_entry_t *)OSAL_CALLOC_EXTRAM(
-                      CONFIG_RMNG_BRIDGE_MAX_CHILDREN, sizeof(__handle_entry_t));
+                      CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN, sizeof(__handle_entry_t));
         if (__table == NULL) {
             OSAL_LOGE(TAG, "Failed to allocate bridge host control handle table (%d slots)",
-                      CONFIG_RMNG_BRIDGE_MAX_CHILDREN);
+                      CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN);
             return;
         }
         __table_mutex = osal_semaphore_create_mutex();
@@ -139,7 +139,7 @@ static uint32_t __encode_handle(uint16_t gen, uint16_t slot)
 static bool __decode_handle(uint32_t handle, uint16_t *slot_out, uint16_t *gen_out)
 {
     uint16_t slot = (uint16_t)(handle & 0xFFFF);
-    if (slot >= CONFIG_RMNG_BRIDGE_MAX_CHILDREN) {
+    if (slot >= CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN) {
         return false;
     }
     *slot_out = slot;
@@ -177,7 +177,7 @@ static int __alloc_slot_locked(void)
     if (!__table) {
         return -1;
     }
-    for (int i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (int i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         if (!__table[i].used) {
             return i;
         }
@@ -187,7 +187,7 @@ static int __alloc_slot_locked(void)
 
 static void __free_slot_locked(int slot)
 {
-    if (slot < 0 || slot >= CONFIG_RMNG_BRIDGE_MAX_CHILDREN) {
+    if (slot < 0 || slot >= CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN) {
         return;
     }
     if (!__table) {
@@ -210,7 +210,7 @@ static int __find_slot_by_local_id_locked(const char *local_id)
     if (!__table) {
         return -1;
     }
-    for (int i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (int i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         __handle_entry_t *e = &__table[i];
         if (e->used && e->local_id && strcmp(e->local_id, local_id) == 0) {
             return i;
@@ -224,7 +224,7 @@ static int __find_slot_for_child_locked(esp_rmaker_bridge_child_handle_t child)
     if (!__table) {
         return -1;
     }
-    for (int i = 0; i < CONFIG_RMNG_BRIDGE_MAX_CHILDREN; i++) {
+    for (int i = 0; i < CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN; i++) {
         if (__table[i].used && __table[i].child == child) {
             return i;
         }
@@ -570,7 +570,7 @@ static void __handle_get_string_field(uint8_t *payload, size_t payload_length,
 /* list_children *************************************************************/
 
 /* Max entries returned in a single list_children page. Bounds the heap
- * payload buffer regardless of CONFIG_RMNG_BRIDGE_MAX_CHILDREN, so large
+ * payload buffer regardless of CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN, so large
  * child pools (e.g. 400) don't blow up a single response. Defined in the
  * shared host-control constants header so the Python wrapper pages with the same
  * value. The Python wrapper pages with start/count until a short read. */
@@ -661,7 +661,7 @@ static void __handle_list_children(uint8_t *payload, size_t payload_length)
 
     /* Worst case per entry: 10 (handle) + 1 (':') + ~64 (thing_name) + 1 (',') ~ 76.
      * Sized for a single page (__LIST_PAGE_MAX entries), not the whole pool,
-     * so the buffer stays small regardless of CONFIG_RMNG_BRIDGE_MAX_CHILDREN.
+     * so the buffer stays small regardless of CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN.
      * Heap-allocated (prefers SPIRAM) to keep it out of static DRAM. */
     const size_t buf_cap = (size_t)__LIST_PAGE_MAX * 86 + 1;
     char *buf = (char *)OSAL_MALLOC_EXTRAM(buf_cap);
@@ -976,4 +976,4 @@ void esp_rmaker_host_ctrl_bridge_handle(char sub_char, uint8_t *payload, size_t 
     }
 }
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

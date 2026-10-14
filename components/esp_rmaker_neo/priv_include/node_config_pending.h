@@ -24,7 +24,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include <stdbool.h>
 
@@ -80,6 +80,6 @@ esp_rmaker_error_t node_config_pending_fire_all(void);
 }
 #endif
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 #endif /* __NODE_CONFIG_PENDING_H__ */

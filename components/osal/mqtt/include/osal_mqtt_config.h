@@ -50,16 +50,6 @@
 #define configOSAL_MQTT_CORE_COMMAND_QUEUE_LENGTH                        ( CONFIG_OSAL_MQTT_CORE_COMMAND_QUEUE_LENGTH )
 
 /**
- * @brief The task stack size of the connection handling task.
- */
-#define configOSAL_MQTT_CORE_CONNECTION_TASK_STACK_SIZE                  ( CONFIG_OSAL_MQTT_CORE_CONNECTION_TASK_STACK_SIZE )
-
-/**
- * @brief The task priority of the connection handling task.
- */
-#define configOSAL_MQTT_CORE_CONNECTION_TASK_PRIORITY                    ( CONFIG_OSAL_MQTT_CORE_CONNECTION_TASK_PRIORITY )
-
-/**
  * @brief The timeout for receiving CONNACK after sending an MQTT CONNECT packet.
  *
  * Defined in milliseconds.

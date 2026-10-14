@@ -630,18 +630,18 @@ void test_fsm_job_doc_received_oversized_job_id_rejected(void)
 #endif
 }
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 static esp_rmaker_error_t test_custom_job_cb_noop(const char *doc, size_t len)
 {
     (void)doc;
     (void)len;
     return ESP_RMAKER_OK;
 }
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 void test_fsm_job_doc_received_shorter_job_id_terminated_correctly(void)
 {
-#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE || !CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE || !CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     TEST_IGNORE_MESSAGE("custom-job branch + wrap required to reach memcpy");
 #else
     event_pool_deinit();

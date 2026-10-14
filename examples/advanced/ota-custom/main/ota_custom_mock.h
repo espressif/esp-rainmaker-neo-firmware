@@ -12,7 +12,7 @@
  *  - A filetype handler for custom (non-firmware) OTA filetypes ("mock",
  *    "mock_no_ver"), plumbed in via esp_rmaker_ota_config_t::custom_filetype_handler_lookup.
  *  - A custom job callback for non-OTA jobs, plumbed in via
- *    esp_rmaker_ota_config_t::custom_job_cb (guarded by CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT).
+ *    esp_rmaker_ota_config_t::custom_job_cb (guarded by CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT).
  */
 
 #ifndef __OTA_CUSTOM_MOCK_H__
@@ -40,7 +40,7 @@ extern "C" {
  */
 const esp_rmaker_ota_ft_ctx_t *custom_mock_lookup(const char *filetype, size_t filetype_len);
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 /**
  * @brief Custom job callback.
  *
@@ -51,7 +51,7 @@ const esp_rmaker_ota_ft_ctx_t *custom_mock_lookup(const char *filetype, size_t f
  * @return any other error code if the job document cannot be processed.
  */
 esp_rmaker_error_t custom_mock_custom_job_cb(const char *job_doc, size_t job_doc_len);
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 #ifdef __cplusplus
 }

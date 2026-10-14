@@ -1,17 +1,17 @@
-menu "ESP RainMaker App Network Configuration"
+menu "ESP RainMaker Neo App Network Configuration"
     choice APP_NETWORK_PROTOCOL_TYPE
-        prompt "ESP RainMaker Network Type"
+        prompt "ESP RainMaker Neo Network Type"
         default APP_NETWORK_OVER_WIFI
         help
             Network protocol type over which the app will run.
 
         config APP_NETWORK_OVER_WIFI
             depends on ESP_WIFI_ENABLED
-            bool "ESP RainMaker over Wi-Fi"
+            bool "ESP RainMaker Neo over Wi-Fi"
 
         config APP_NETWORK_OVER_THREAD
             depends on OPENTHREAD_ENABLED
-            bool "ESP RainMaker over Thread"
+            bool "ESP RainMaker Neo over Thread"
     endchoice
 
     config APP_NETWORK_OVER_THREAD_IPV4_NETWORKING
@@ -54,10 +54,5 @@ menu "ESP RainMaker App Network Configuration"
                 Use no PoP.
 
     endchoice
-
-    config APP_NETWORK_FORCE_PROTOCOMM_SECURITY_VERSION_1
-        bool
-        default y
-        select ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_1
 
 endmenu

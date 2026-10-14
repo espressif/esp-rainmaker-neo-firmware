@@ -356,7 +356,7 @@ const esp_rmaker_ota_ft_ctx_t *custom_mock_lookup(const char *filetype, size_t f
     return NULL;
 }
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 
 /** Macro to get the length of a string constant. */
 #define CONST_STRLEN(str) (sizeof(str) - 1)
@@ -410,4 +410,4 @@ esp_rmaker_error_t custom_mock_custom_job_cb(const char *job_doc, size_t job_doc
 
     return ESP_RMAKER_OK;
 }
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */

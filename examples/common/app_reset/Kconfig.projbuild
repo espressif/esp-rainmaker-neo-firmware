@@ -1,6 +1,6 @@
-menu "ESP RainMaker App Reset Configuration"
+menu "ESP RainMaker Neo App Reset Configuration"
 
-    config APP_RESET_ENABLED
+    config APP_RESET_ENABLE
         bool "Enable button resets"
         default y
         help
@@ -9,7 +9,7 @@ menu "ESP RainMaker App Reset Configuration"
             perform a factory reset.
 
     menu "Button Reset Configuration"
-        depends on APP_RESET_ENABLED
+        depends on APP_RESET_ENABLE
 
         config APP_RESET_NETWORK_TIME_MS
             int "Network reset time (ms)"

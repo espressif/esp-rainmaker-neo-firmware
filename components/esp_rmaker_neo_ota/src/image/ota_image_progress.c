@@ -95,7 +95,7 @@ esp_rmaker_error_t image_progress_init(image_progress_ctx_t *p_ctx, uint32_t fil
         return ESP_RMAKER_INVALID_ARG;
     }
     p_ctx->bytes_received = 0;
-    uint32_t checkpoint_increment = filesize / CONFIG_RMNG_OTA_PROGRESS_CHECKPOINTS;
+    uint32_t checkpoint_increment = filesize / CONFIG_ESP_RMAKER_NEO_OTA_PROGRESS_CHECKPOINTS;
     p_ctx->checkpoint.next = checkpoint_increment;
     p_ctx->checkpoint.inc = checkpoint_increment;
     return ESP_RMAKER_OK;

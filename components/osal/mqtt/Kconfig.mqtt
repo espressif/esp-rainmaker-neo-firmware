@@ -1,4 +1,4 @@
-menu "MQTT Common Interface"
+menu "OSAL MQTT Interface"
 
     choice OSAL_MQTT_IMPL
         bool "MQTT Implementation"
@@ -49,7 +49,7 @@ menu "MQTT Common Interface"
 
     config OSAL_MQTT_AGENT_TASK_STACK_SIZE
         int "Agent task stack size"
-        default 8192 if RMNG_BRIDGE_ENABLED
+        default 8192 if ESP_RMAKER_NEO_BRIDGE_ENABLE
         default 4096
         help
             The stack size of the agent task.
@@ -81,7 +81,7 @@ menu "MQTT Common Interface"
         config OSAL_MQTT_CORE_NETWORK_BUFFER_SIZE
             int "Network buffer size"
             default 3072 if IDF_TARGET_ESP32C2
-            default 8192 if RMNG_BRIDGE_ENABLED
+            default 8192 if ESP_RMAKER_NEO_BRIDGE_ENABLE
             default 4096
             help
                 The size of the network buffer used by CoreMQTT.
@@ -138,7 +138,7 @@ menu "MQTT Common Interface"
         config OSAL_MQTT_ESP_NETWORK_BUFFER_SIZE_IN
             int "Network buffer size (in)"
             default 3072 if IDF_TARGET_ESP32C2
-            default 8192 if RMNG_BRIDGE_ENABLED
+            default 8192 if ESP_RMAKER_NEO_BRIDGE_ENABLE
             default 4096
             help
                 The size of the in network buffer used by esp-mqtt.
@@ -146,7 +146,7 @@ menu "MQTT Common Interface"
         config OSAL_MQTT_ESP_NETWORK_BUFFER_SIZE_OUT
             int "Network buffer size (out)"
             default 3072 if IDF_TARGET_ESP32C2
-            default 8192 if RMNG_BRIDGE_ENABLED
+            default 8192 if ESP_RMAKER_NEO_BRIDGE_ENABLE
             default 4096
             help
                 The size of the out network buffer used by esp-mqtt.

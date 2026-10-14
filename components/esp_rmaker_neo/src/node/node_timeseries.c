@@ -79,17 +79,17 @@ typedef struct {
 /**
  * @brief Length of the timeseries data queue.
  */
-#define __TIMESERIES_QUEUE_LENGTH CONFIG_RMAKER_TIMESERIES_DATA_QUEUE_LENGTH
+#define __TIMESERIES_QUEUE_LENGTH CONFIG_ESP_RMAKER_NEO_TIMESERIES_DATA_QUEUE_LENGTH
 
 /**
  * @brief Initial delay for the timeseries queue.
  */
-#define __TIMESERIES_PUBLISH_INITIAL_DELAY_MS CONFIG_RMAKER_TIMESERIES_PUBLISH_INITIAL_DELAY_MS
+#define __TIMESERIES_PUBLISH_INITIAL_DELAY_MS CONFIG_ESP_RMAKER_NEO_TIMESERIES_PUBLISH_INITIAL_DELAY_MS
 
 /**
  * @brief Maximum delay for the timeseries publish.
  */
-#define __TIMESERIES_PUBLISH_MAX_DELAY_MS CONFIG_RMAKER_TIMESERIES_PUBLISH_MAX_DELAY_MS
+#define __TIMESERIES_PUBLISH_MAX_DELAY_MS CONFIG_ESP_RMAKER_NEO_TIMESERIES_PUBLISH_MAX_DELAY_MS
 
 /**
  * @brief Exponential factor for the timeseries publish.
@@ -99,7 +99,7 @@ typedef struct {
 /**
  * @brief Maximum jitter for the timeseries publish.
  */
-#define __TIMESERIES_PUBLISH_MAX_JITTER_MS CONFIG_RMAKER_TIMESERIES_PUBLISH_INITIAL_DELAY_MS
+#define __TIMESERIES_PUBLISH_MAX_JITTER_MS CONFIG_ESP_RMAKER_NEO_TIMESERIES_PUBLISH_INITIAL_DELAY_MS
 
 /**
  * @brief Tag for logging.

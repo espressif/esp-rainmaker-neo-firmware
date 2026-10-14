@@ -146,7 +146,7 @@
 /* Constants includes */
 #include "constants/nvs.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "bridge/bridge_internal.h"
 #include "bridge/bridge_child_nvs.h"
 #include "bridge/bridge_child_scheds_nvs.h"
@@ -156,7 +156,7 @@
 
 /** Per-node schedule cap. Bounds the heap of a single node's handle array;
  *  parse loop truncates excess entries with a warning. */
-#define MAX_SCHEDULES_PER_NODE CONFIG_RMAKER_SCHEDULING_MAX_SCHEDULES
+#define MAX_SCHEDULES_PER_NODE CONFIG_ESP_RMAKER_NEO_SCHEDULING_MAX_SCHEDULES
 
 /** Schedule name length actually used (14 hex chars + NUL = 15, the NVS key
  *  cap on the platform). esp_schedule's own ``MAX_SCHEDULE_NAME_LEN`` is 16
@@ -654,7 +654,7 @@ static const esp_rmaker_node_t *__resolve_node(const char *node_key)
     if (!node_key || node_key[0] == '\0') {
         return esp_rmaker_get_node();
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_find_by_nvs_key(node_key);
     if (child) {
         return bridge_internal_child_node(child);
@@ -916,7 +916,7 @@ static esp_rmaker_error_t __persist_details(const esp_rmaker_node_t *node, const
     if (esp_rmaker_node_is_self(node)) {
         return esp_rmaker_local_config_set_sched_details(data);
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
     return child ? bridge_child_scheds_nvs_set(child, data) : ESP_RMAKER_NOT_FOUND;
 #else
@@ -932,7 +932,7 @@ static char *__load_details(const esp_rmaker_node_t *node)
     if (esp_rmaker_node_is_self(node)) {
         return esp_rmaker_local_config_get_sched_details();
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
     return child ? bridge_child_scheds_nvs_get(child) : NULL;
 #else
@@ -951,7 +951,7 @@ static void __erase_details(const esp_rmaker_node_t *node)
         (void)esp_rmaker_local_config_set_sched_details("[]");
         return;
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
     if (child) {
         (void)bridge_child_scheds_nvs_erase(child);
@@ -968,7 +968,7 @@ static void __invalidate_sched_version(const esp_rmaker_node_t *node)
         (void)esp_rmaker_local_config_set_sched_ver(-1);
         return;
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
     if (child) {
         (void)bridge_child_nvs_set_sched_ver(child, -1);
@@ -1414,7 +1414,7 @@ static esp_rmaker_error_t __build_schedule_details_for_node_locked(
      * child's fixed NVS key (or "" for self). ``local_id`` itself stays
      * in use below only for the (local_id ":" cloud_id) name derivation. */
     char node_key[RMAKER_NVS_KEY_LEN_MAX + 1] = {0};
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     if (local_id && local_id[0]) {
         if (bridge_internal_compute_nvs_key(local_id, node_key, sizeof(node_key)) != ESP_RMAKER_OK) {
             OSAL_LOGE(TAG, "Failed to derive owner NVS key for local_id='%s'", local_id);
@@ -1553,7 +1553,7 @@ static const char *__node_local_id(const esp_rmaker_node_t *node)
     if (!node || esp_rmaker_node_is_self(node)) {
         return NULL;
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
     if (child) {
         const char *lid = bridge_internal_child_local_id(child);
@@ -1571,7 +1571,7 @@ static void __signal_details_received(const esp_rmaker_node_t *node)
         esp_rmaker_event_flags_set_sched_details_received();
         return;
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
     if (child) {
         bridge_internal_dispatch_child_event(child, BRIDGE_CHILD_EVENT_SCHED_DETAILS_RECEIVED);
@@ -1881,7 +1881,7 @@ esp_rmaker_error_t esp_rmaker_schedule_service_update_details_for_node(const esp
     /* Snapshot the owning local_id once at queue time so we don't have to
      * re-walk the bridge pool inside the work task. NULL <=> self. */
     if (!esp_rmaker_node_is_self(node)) {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
         if (child) {
             const char *lid = bridge_internal_child_local_id(child);
@@ -1951,7 +1951,7 @@ void esp_rmaker_schedule_service_erase_node(const esp_rmaker_node_t *node)
     __erase_details(node);
 }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 void esp_rmaker_schedule_service_on_child_added(esp_rmaker_bridge_child_handle_t child)
 {
     /* Rebuild this child's schedules from its persisted details JSON now that

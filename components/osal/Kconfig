@@ -2,7 +2,7 @@
 # (platform/Kconfig.posix is POSIX-only and registered separately via kconfig_reg.cmake;
 # ESP-IDF must not see it.)
 
-menu "platform-common Build Options"
+menu "OSAL Platform Build Options"
 
     config OSAL_USING_VIRTUAL_SCHEDULER
         bool "Use virtual scheduler"
@@ -66,7 +66,7 @@ menu "platform-common Build Options"
 
 endmenu
 
-menu "timesync-common Configuration"
+menu "OSAL Timesync Configuration"
 
     config OSAL_TIMESYNC_DEFAULT_TZ
         string "Default timezone"
@@ -76,22 +76,22 @@ menu "timesync-common Configuration"
 
 endmenu
 
-menu "HTTP Common Interface"
+menu "OSAL HTTP Interface"
 
-    config HTTP_COMMON_FORCE_USE_CERTIFICATE_BUNDLE
+    config OSAL_HTTP_FORCE_USE_CERTIFICATE_BUNDLE
         bool
         default y
         select MBEDTLS_CERTIFICATE_BUNDLE if IDF_CMAKE
         help
             Force the use of the certificate bundle (ESP: esp_crt_bundle; POSIX: ca-bundle-posix).
 
-    config HTTP_COMMON_BUFFER_SIZE
+    config OSAL_HTTP_BUFFER_SIZE
         int "HTTP buffer size"
         default 4096
         help
             Buffer size for HTTP operations.
 
-    config HTTP_COMMON_TIMEOUT_MS
+    config OSAL_HTTP_TIMEOUT_MS
         int "HTTP timeout (ms)"
         default 30000
         help
@@ -99,19 +99,19 @@ menu "HTTP Common Interface"
 
 endmenu
 
-menu "Common Discovery Interface"
+menu "OSAL Discovery Interface"
 
-    choice OSAL_DISCOVERY_DISCOVERY_TYPE
+    choice OSAL_DISCOVERY_TYPE
         bool "Discovery type"
-        default OSAL_DISCOVERY_DISCOVERY_TYPE_SRP if OPENTHREAD_ENABLED
-        default OSAL_DISCOVERY_DISCOVERY_TYPE_MDNS
+        default OSAL_DISCOVERY_TYPE_SRP if OPENTHREAD_ENABLED
+        default OSAL_DISCOVERY_TYPE_MDNS
 
-        config OSAL_DISCOVERY_DISCOVERY_TYPE_MDNS
+        config OSAL_DISCOVERY_TYPE_MDNS
             bool "mDNS (Wi-Fi)"
             help
                 Advertise services via mDNS on Wi-Fi.
 
-        config OSAL_DISCOVERY_DISCOVERY_TYPE_SRP
+        config OSAL_DISCOVERY_TYPE_SRP
             bool "SRP (Thread)"
             depends on OPENTHREAD_ENABLED
             help
@@ -121,7 +121,7 @@ menu "Common Discovery Interface"
 
 endmenu
 
-menu "osal optional features"
+menu "OSAL Optional Features"
 
     config OSAL_INCLUDE_EXT_IO
         bool "Include ext-io (serial I/O driver)"
@@ -132,7 +132,6 @@ menu "osal optional features"
     config OSAL_INCLUDE_HEAP_MONITOR
         bool "Include heap monitor"
         default n
-        select HEAP_TRACING_ENABLE_STANDALONE
         select HEAP_PLACE_FUNCTION_INTO_FLASH
         help
             Build the osal heap-monitor area.

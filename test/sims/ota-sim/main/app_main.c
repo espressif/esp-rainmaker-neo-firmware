@@ -429,7 +429,7 @@ static void __ota_event_handler(void *event_handler_arg, osal_event_base_t event
     }
 }
 
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE
 /* Local-control challenge-response toggles with the local-control service. */
 static void __rmaker_event_handler(void *event_handler_arg, osal_event_base_t event_base,
                                    int32_t event_id, void *event_data)
@@ -448,7 +448,7 @@ static void __rmaker_event_handler(void *event_handler_arg, osal_event_base_t ev
         break;
     }
 }
-#endif /* CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE */
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE */
 
 #if !defined(ESP_PLATFORM)
 /* POSIX-only: the console reset-network command needs a callback. There are no
@@ -512,7 +512,7 @@ osal_err_t app_run(void)
     }
 
     /* Enable optional services. */
-#if CONFIG_ESP_RMAKER_ON_NETWORK_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE
     /* Challenge-response endpoint only (no local control endpoints) */
     esp_rmaker_chal_resp_service_enable();
 #else
@@ -529,7 +529,7 @@ osal_err_t app_run(void)
         return OSAL_ERR_FAIL;
     }
     osal_event_handler_register(RMAKER_OTA_EVENT, RMAKER_OTA_EVENT_BASE_ANY, __ota_event_handler, NULL);
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE
     osal_event_handler_register(RMAKER_EVENT, RMAKER_EVENT_BASE_ANY, __rmaker_event_handler, NULL);
 #endif
 

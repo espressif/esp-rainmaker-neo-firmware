@@ -14,7 +14,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include <stdint.h>
 #include <stddef.h>
@@ -40,6 +40,6 @@ void esp_rmaker_host_ctrl_bridge_handle(char sub_char, uint8_t *payload, size_t 
 }
 #endif
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 #endif /* __RMNG_HOST_CTRL_BRIDGE_HANDLERS_H__ */

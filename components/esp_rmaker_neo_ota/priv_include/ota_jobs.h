@@ -51,9 +51,9 @@ typedef enum {
     OTA_JOB_STATE_WAITING_FOR_JOB_DOC,
     OTA_JOB_STATE_JOB_DOC_RECEIVED,
     OTA_JOB_STATE_JOB_EXECUTION,
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     OTA_JOB_STATE_CUSTOM_JOB_EXECUTION,
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
     OTA_JOB_STATE_POST_DOWNLOAD,
     OTA_JOB_STATE_ERROR
 } ota_job_state_t;
@@ -84,13 +84,13 @@ typedef enum {
     OTA_JOB_EVENT_IMAGE_DOWNLOAD_FAILED_SIGNATURE_INVALID,
     OTA_JOB_EVENT_IMAGE_DOWNLOAD_FAILED_MD5_INVALID,
     OTA_JOB_EVENT_IMAGE_DOWNLOAD_FAILED_UNKNOWN_ERROR,
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     OTA_JOB_EVENT_CUSTOM_JOB_EXECUTION_REQUESTED,
     OTA_JOB_EVENT_CUSTOM_JOB_PROGRESS,
     OTA_JOB_EVENT_CUSTOM_JOB_SUCCEEDED,
     OTA_JOB_EVENT_CUSTOM_JOB_FAILED,
     OTA_JOB_EVENT_CUSTOM_JOB_REJECTED,
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
     OTA_JOB_EVENT_RECOVERY_REQUESTED,
 } ota_job_event_t;
 
@@ -106,13 +106,13 @@ typedef struct {
     } image_download;
     /** Filetype handler lookup function */
     esp_rmaker_ota_ft_lookup_handler_t filetype_handler_lookup;
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     /** Custom job callback */
     esp_rmaker_ota_custom_job_cb_t custom_job_cb;
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 } ota_job_config_t;
 
-#if CONFIG_RMNG_OTA_TIME_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT
 /**
  * @brief OTA job download window structure
  */
@@ -128,7 +128,7 @@ typedef struct {
         time_t end;
     } validity;
 } ota_job_download_window_t;
-#endif /* CONFIG_RMNG_OTA_TIME_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT */
 
 /**
  * @brief Job information structure
@@ -169,10 +169,10 @@ typedef struct {
     /** Metadata of the OTA image **/
     const char *metadata;
     size_t metadata_len;
-#if CONFIG_RMNG_OTA_TIME_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT
     /** Download window for the OTA image */
     ota_job_download_window_t download_window;
-#endif /* CONFIG_RMNG_OTA_TIME_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_TIME_SUPPORT */
 } ota_job_info_custom_fields_t;
 
 /**
@@ -208,10 +208,10 @@ typedef struct {
     } image_download;
     /** Filetype handler lookup function */
     esp_rmaker_ota_ft_lookup_handler_t filetype_handler_lookup;
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
     /** Custom job callback */
     esp_rmaker_ota_custom_job_cb_t custom_job_cb;
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
     char thing_name[THINGNAME_MAX_LENGTH + 1];
     uint16_t thing_name_length;

@@ -20,7 +20,7 @@
 #include "node_internal.h"
 #include "local_config.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "esp_rmaker_bridge.h"
 #include "bridge/bridge_internal.h"
 #endif
@@ -90,7 +90,7 @@ void test_node_is_in_subgroup_self_membership(void)
     osal_event_loop_delete_default();
 }
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 void test_node_is_in_subgroup_bridge_child_membership(void)
 {
@@ -140,4 +140,4 @@ void test_node_is_in_subgroup_bridge_child_membership(void)
     osal_event_loop_delete_default();
 }
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */

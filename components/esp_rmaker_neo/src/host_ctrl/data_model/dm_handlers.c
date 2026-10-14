@@ -317,12 +317,12 @@ static void __handle_add_services(uint8_t *buffer, size_t buffer_length)
             if (err == ESP_RMAKER_OK) {
                 __register_standard_service_disable_func(esp_rmaker_local_ctrl_service_disable);
             }
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE
             err = esp_rmaker_chal_resp_service_enable();
             if (esp_rmaker_chal_resp_service_is_enabled()) {
                 __register_standard_service_disable_func(esp_rmaker_chal_resp_service_disable);
             }
-#endif /* CONFIG_ESP_RMAKER_LOCAL_CTRL_CHAL_RESP_ENABLE */
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE */
             break;
         default:
             OSAL_LOGE(TAG, "Invalid service character: %c", *c_service);

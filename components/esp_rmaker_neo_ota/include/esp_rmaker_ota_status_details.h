@@ -151,10 +151,10 @@ typedef struct {
  * so its outcome can never be reported to the cloud. */
 #define ESP_RMAKER_OTA_REJECTED_REASON_JOB_UPDATE_UNRECOVERABLE "Job execution no longer accepts updates"
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 /** Invalid custom job document */
 #define ESP_RMAKER_OTA_REJECTED_REASON_INVALID_CUSTOM_JOB_DOCUMENT "Invalid custom job document"
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 /* Reasons for failure */
 
@@ -191,10 +191,10 @@ typedef struct {
 /** Unknown error */
 #define ESP_RMAKER_OTA_FAILED_REASON_UNKNOWN_ERROR "Unknown error"
 
-#if CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT
+#if CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
 /** Failed to process custom job document */
 #define ESP_RMAKER_OTA_FAILED_REASON_FAILED_TO_PROCESS_CUSTOM_JOB_DOCUMENT "Failed to process custom job document"
-#endif /* CONFIG_RMNG_OTA_CUSTOM_JOB_SUPPORT */
+#endif /* CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT */
 
 /* Public function declarations ****************************************************/
 

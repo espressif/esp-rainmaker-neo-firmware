@@ -9,7 +9,7 @@
  * @brief Internal contract between the bridge module and the rest of the
  *        RainMaker Neo core (cloud manager, state pipeline, data-model adapter).
  *
- * Only used when CONFIG_RMNG_BRIDGE_ENABLED. Other code paths must guard
+ * Only used when CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE. Other code paths must guard
  * any reference to symbols declared here.
  */
 
@@ -18,7 +18,7 @@
 
 #include "sdkconfig.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -65,7 +65,7 @@ typedef struct {
  * @brief Internal representation of a bridged child Thing.
  *
  * Embedded inside a fixed-size slot in the bridge module's child pool
- * (see ``CONFIG_RMNG_BRIDGE_MAX_CHILDREN``); the slot's "in use" flag
+ * (see ``CONFIG_ESP_RMAKER_NEO_BRIDGE_MAX_CHILDREN``); the slot's "in use" flag
  * doubles as the validity flag for the slot's topic ctx. The handle
  * address therefore lives for the program lifetime, even after the
  * child is removed - state and timeseries pipelines holding the ctx
@@ -381,7 +381,7 @@ typedef void (*bridge_internal_child_event_cb_t)(
     bridge_internal_child_event_kind_t kind,
     void *priv);
 
-#if CONFIG_RMNG_HOST_CTRL
+#if CONFIG_ESP_RMAKER_NEO_HOST_CTRL
 
 /**
  * @brief Register a single observer for per-child operational events.
@@ -397,12 +397,12 @@ void bridge_internal_dispatch_child_event(
     esp_rmaker_bridge_child_handle_t child,
     bridge_internal_child_event_kind_t kind);
 
-#else /* !CONFIG_RMNG_HOST_CTRL */
+#else /* !CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
 #define bridge_internal_register_event_observer(cb, priv) do { (void)(cb); (void)(priv); } while (0)
 #define bridge_internal_dispatch_child_event(child, kind) do { (void)(child); (void)(kind); } while (0)
 
-#endif /* CONFIG_RMNG_HOST_CTRL */
+#endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
 /* Test-only helpers ********************************************************
  *
@@ -482,6 +482,6 @@ int bridge_internal_parse_child_and_shadow_from_params_topic(
 }
 #endif
 
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
 
 #endif /* __BRIDGE_INTERNAL_H__ */

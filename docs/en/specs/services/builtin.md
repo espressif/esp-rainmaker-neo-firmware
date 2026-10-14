@@ -84,7 +84,7 @@ Migrating from classic ESP RainMaker scheduling: the four points above are the b
 
 #### Limits and rejection behaviour
 
-- At most `CONFIG_RMAKER_SCHEDULING_MAX_SCHEDULES` schedules are installed per node (default 10, range 1--50). Entries beyond that are **truncated with a warning**, not rejected as a set.
+- At most `CONFIG_ESP_RMAKER_NEO_SCHEDULING_MAX_SCHEDULES` schedules are installed per node (default 10, range 1--50). Entries beyond that are **truncated with a warning**, not rejected as a set.
 - A schedule with `"enabled": false` is skipped entirely — it is not installed and no timer is armed for it.
 - An unparsable schedule (missing/oversized `id`, bad trigger, bad validity, bad action) is skipped individually; the remaining schedules from the same payload are still installed.
 - Schedule *arming* requires a valid wall clock. Details are loaded and installed regardless; arming is deferred until the clock becomes valid (see [Time Synchronization](../time_sync.md)).

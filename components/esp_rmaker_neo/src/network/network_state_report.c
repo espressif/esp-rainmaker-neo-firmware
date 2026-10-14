@@ -80,7 +80,7 @@
 /* Automation service includes */
 #include "services/automation.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 /* Bridge child synthetic-source-of-truth lookup for full reports. */
 #include "bridge/bridge_internal.h"
 #include "bridge/bridge_child_nvs.h"
@@ -91,7 +91,7 @@
 /**
  * @brief Delay in milliseconds for reporting state changes.
  */
-#define STATE_REPORT_DELAY_MS CONFIG_RMAKER_STATE_REPORT_DELAY_MS
+#define STATE_REPORT_DELAY_MS CONFIG_ESP_RMAKER_NEO_STATE_REPORT_DELAY_MS
 
 /**
  * @brief Minimum size of an empty shadow payload.
@@ -376,7 +376,7 @@ static esp_rmaker_error_t __commit_pending_tag_checksums_visitor(const esp_rmake
         if (esp_rmaker_node_is_self(node)) {
             (void)esp_rmaker_checksum_store(n->tag_check.committed, RMAKER_NVS_CHECKSUM_KEY_NODE_TAGS);
         }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         else {
             esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node(node);
             if (child) {
@@ -411,7 +411,7 @@ static esp_rmaker_error_t __state_subscribe_work_fn(void *timeout_ms_arg)
     char *group_info_str = esp_rmaker_local_config_get_group_info_str();
     if (group_info_str != NULL) {
         if (esp_rmaker_local_config_parse_group_info_str(group_info_str, primary, sizeof(primary), subgroups, RMAKER_CLOUD_GROUP_INFO_SUBGROUP_MAX_COUNT, &num_subgroups) == ESP_RMAKER_OK && primary[0] != '\0') {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
             /* Bridge mode: a single wildcard subscription replaces the
              * per-subgroup reconciliation. Bounded sub count, independent
              * of subgroup membership of bridge or children. */
@@ -456,7 +456,7 @@ static esp_rmaker_error_t __state_subscribe_work_fn(void *timeout_ms_arg)
             OSAL_LOGE(TAG, "Failed to subscribe to group control broadcast: %d", status);
             return ESP_RMAKER_FAIL;
         }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         /* Bridge mode: one wildcard subscription over the subgroup
          * segment. The dispatcher (__state_change_handler_group_task)
          * parses <sg> off the inbound topic and filters fan-out via
@@ -487,7 +487,7 @@ static esp_rmaker_error_t __state_subscribe_work_fn(void *timeout_ms_arg)
                 return ESP_RMAKER_FAIL;
             }
         }
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
     }
 
     esp_rmaker_error_t err = esp_rmaker_network_wait_bits(RMAKER_NETWORK_EVENT_GROUP_BIT_SUBSCRIBED_TO_STATE_CHANGES, timeout_ms);
@@ -732,7 +732,7 @@ static void __publish_node_locked(const esp_rmaker_node_t *node_handle, uint8_t 
                 node->tag_check.committed_set = true;
             }
         }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         else {
             esp_rmaker_bridge_child_handle_t child = bridge_internal_child_from_node((const esp_rmaker_node_t *)node);
             bridge_child_nvs_record_t rec;
@@ -995,7 +995,7 @@ static esp_rmaker_error_t __populate_full_state_for_node(const esp_rmaker_node_t
         }
         esp_rmaker_node_unlock(node);
     }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
     else {
         bool online = false;
         uint8_t ncfg_hash[RMAKER_CHECKSUM_LEN];
@@ -1554,7 +1554,7 @@ esp_rmaker_error_t esp_rmaker_state_stop_listening(uint32_t timeout_ms)
     char *group_info_str = esp_rmaker_local_config_get_group_info_str();
     if (group_info_str != NULL) {
         if (esp_rmaker_local_config_parse_group_info_str(group_info_str, primary, sizeof(primary), subgroups, RMAKER_CLOUD_GROUP_INFO_SUBGROUP_MAX_COUNT, &num_subgroups) == ESP_RMAKER_OK && primary[0] != '\0') {
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
             /* Mirror the subscribe path: bridge mode uses one wildcard unsubscribe for
              * all subgroups, so the ack count is fixed regardless of num_subgroups. */
             pending += 2; /* broadcast + wildcard subgroups */
@@ -1600,7 +1600,7 @@ esp_rmaker_error_t esp_rmaker_state_stop_listening(uint32_t timeout_ms)
                 failed_any = true;
             }
         }
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
         len = esp_rmaker_mqtt_topic_group_control_subgroup_wildcard(topic, sizeof(topic), primary);
         if (len < 0 || (size_t)len >= sizeof(topic)) {
             OSAL_LOGE(TAG, "Failed to build group control subgroup wildcard MQTT topic");
@@ -1629,7 +1629,7 @@ esp_rmaker_error_t esp_rmaker_state_stop_listening(uint32_t timeout_ms)
                 }
             }
         }
-#endif /* CONFIG_RMNG_BRIDGE_ENABLED */
+#endif /* CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE */
     }
 
     if (failed_any) {

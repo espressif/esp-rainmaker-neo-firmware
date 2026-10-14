@@ -19,6 +19,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/../esp_rmaker_neo_ota/kconfig_reg.cmake)
 set(_children esp_rmaker_neo_common osal protocomm-posix esp_schedule esp_rmaker_neo_ota)
 kconfig_register(
     NAME esp_rmaker_neo
-    KCONFIGS ${CMAKE_CURRENT_LIST_DIR}/Kconfig
+    KCONFIGS ${CMAKE_CURRENT_LIST_DIR}/Kconfig.projbuild
     CHILDREN ${_children}
 )

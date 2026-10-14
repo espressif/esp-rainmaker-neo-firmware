@@ -21,7 +21,7 @@
 #include "esp_rmaker_error_types.h"
 #include "sdkconfig.h"
 
-#if CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +57,6 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_sec2_resolve_salt_verifier(
 }
 #endif
 
-#endif /* CONFIG_ESP_RMAKER_LOCAL_CTRL_SEC_VERSION_2 */
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2 */
 
 #endif /* __LOCAL_CTRL_SEC2_CACHE_H__ */

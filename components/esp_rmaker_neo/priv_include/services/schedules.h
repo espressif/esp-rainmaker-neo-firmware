@@ -42,7 +42,7 @@
 #include "sdkconfig.h"
 #include "time_sync_flow.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "esp_rmaker_bridge.h"
 #endif
 
@@ -153,7 +153,7 @@ void esp_rmaker_schedule_service_unload_node(const esp_rmaker_node_t *node);
  */
 void esp_rmaker_schedule_service_erase_node(const esp_rmaker_node_t *node);
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 /**
  * @brief Rebuild ``child``'s schedules from its persisted details JSON,
  *        now that the child slot is registered and its node resolvable.

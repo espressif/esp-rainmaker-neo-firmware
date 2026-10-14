@@ -2,7 +2,7 @@
 
 Test-only injection of socket failures: `connect` / `send` / `recv` fail on demand so firmware tests can assert what
 the SDK does next (reconnect backoff, retry, state reporting). Built only when host control is enabled
-(`CONFIG_RMNG_HOST_CTRL` on ESP-IDF, `-DRMNG_HOST_CTRL=ON` on POSIX) — see [`../README.md`](../README.md) for how this
+(`CONFIG_ESP_RMAKER_NEO_HOST_CTRL` on ESP-IDF, `-DRMNG_HOST_CTRL=ON` on POSIX) — see [`../README.md`](../README.md) for how this
 fits with the rest of the fault injection code.
 
 One entry point, [`include/socket_mocks.h`](include/socket_mocks.h):

@@ -14,7 +14,7 @@ if (ESP_PLATFORM)
 
     # The resets go through RMNG's system-control API and the network credential reset, neither of which appears in the
     # public header. Only needed when the feature is compiled in.
-    if (CONFIG_APP_RESET_ENABLED)
+    if (CONFIG_APP_RESET_ENABLE)
         idf_component_optional_requires(PRIVATE esp_rmaker_neo app_network)
     endif ()
 

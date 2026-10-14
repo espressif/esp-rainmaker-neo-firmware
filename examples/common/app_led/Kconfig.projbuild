@@ -1,4 +1,4 @@
-menu "ESP RainMaker App LED Configuration"
+menu "ESP RainMaker Neo App LED Configuration"
 
     choice APP_LED_TYPE
         prompt "LED type"

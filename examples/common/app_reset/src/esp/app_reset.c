@@ -15,7 +15,7 @@
 /* Config includes */
 #include "sdkconfig.h"
 
-#if CONFIG_APP_RESET_ENABLED
+#if CONFIG_APP_RESET_ENABLE
 /* Button includes */
 #include "iot_button.h"
 
@@ -79,13 +79,13 @@ static void __callback_reset_factory_execute(void *handle, void *arg)
     /* NULL -> use the network reset function registered below. */
     esp_rmaker_system_ctrl_factory_reset(0, RESET_REBOOT_S, NULL);
 }
-#endif /* CONFIG_APP_RESET_ENABLED */
+#endif /* CONFIG_APP_RESET_ENABLE */
 
 /* Public function definitions *************************************************/
 
 osal_err_t app_reset_button_register(button_handle_t btn_handle)
 {
-#if CONFIG_APP_RESET_ENABLED
+#if CONFIG_APP_RESET_ENABLE
     if (btn_handle == NULL) {
         OSAL_LOGE(TAG, "Button handle is NULL");
         return OSAL_ERR_INVALID_ARG;
@@ -115,14 +115,14 @@ osal_err_t app_reset_button_register(button_handle_t btn_handle)
 #else
     (void) btn_handle;
     return OSAL_ERR_OK;
-#endif /* CONFIG_APP_RESET_ENABLED */
+#endif /* CONFIG_APP_RESET_ENABLE */
 }
 
 bool app_reset_hold_in_progress(void)
 {
-#if CONFIG_APP_RESET_ENABLED
+#if CONFIG_APP_RESET_ENABLE
     return __entered_network_reset_indicate;
 #else
     return false;
-#endif /* CONFIG_APP_RESET_ENABLED */
+#endif /* CONFIG_APP_RESET_ENABLE */
 }

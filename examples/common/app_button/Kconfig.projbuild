@@ -1,4 +1,4 @@
-menu "ESP RainMaker App Button Configuration"
+menu "ESP RainMaker Neo App Button Configuration"
 
     config APP_BUTTON_GPIO_NUM
         int "GPIO pin"

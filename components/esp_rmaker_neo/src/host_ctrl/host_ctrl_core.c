@@ -40,14 +40,14 @@
 /* System internal includes */
 #include "system_ctrl_internal.h"
 
-#ifdef CONFIG_RMNG_BRIDGE_ENABLED
+#ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "esp_rmaker_bridge.h"
 #endif
 
 /* Preprocessor definitions ***************************************************/
 
-#define RMAKER_HOST_CTRL_TASK_STACK_DEPTH CONFIG_RMNG_HOST_CTRL_TASK_STACK_DEPTH
-#define RMAKER_HOST_CTRL_TASK_PRIORITY CONFIG_RMNG_HOST_CTRL_TASK_PRIORITY
+#define RMAKER_HOST_CTRL_TASK_STACK_DEPTH CONFIG_ESP_RMAKER_NEO_HOST_CTRL_TASK_STACK_DEPTH
+#define RMAKER_HOST_CTRL_TASK_PRIORITY CONFIG_ESP_RMAKER_NEO_HOST_CTRL_TASK_PRIORITY
 
 /* Private variables *********************************************************/
 
