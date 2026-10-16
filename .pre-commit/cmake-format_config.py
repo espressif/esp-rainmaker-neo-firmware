@@ -111,7 +111,6 @@ with section("parse"):
         "rmng_fetchcontent_reset": {"pargs": 1},
         "rmng_fetchcontent_source_ready": {"pargs": 3},
         "rmng_fetchcontent_stamp_write": {"pargs": 2},
-        "rmng_git_working_tree_current_commit": {"pargs": 2},
         "rmng_idf_components_import": {
             "kwargs": {
                 "DEPENDENCIES": "+",

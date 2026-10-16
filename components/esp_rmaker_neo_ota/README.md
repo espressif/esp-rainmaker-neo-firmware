@@ -109,16 +109,12 @@ a full download).
 
 The AWS `Jobs-for-AWS-IoT-embedded-sdk`, `coreJSON` and
 `aws-iot-core-mqtt-file-streams-embedded-c` sources are not vendored per
-library. Both platforms compile them out of one esp-aws-iot checkout that
-`cmake/esp_aws_iot.cmake` fetches with `FetchContent` (submodules included)
-into `third_party/esp-aws-iot`, which is **not committed**. `deps_make_available.cmake`
-just points at `libraries/<lib>/<lib>` inside it.
-
-The ref is `RMNG_ESP_AWS_IOT_GIT_REF` (cache variable, default a pinned commit
-SHA); `RMNG_ESP_AWS_IOT_REPOSITORY` overrides the remote. A full SHA is enforced
-on every configure — a checkout on another commit is re-fetched — while a
-branch/tag is treated as a moving ref and an existing tree is left alone, so
-advance it by hand.
+library. Both platforms compile them out of one esp-aws-iot tree that
+`cmake/esp_aws_iot.cmake` fetches as pinned archives (the esp-aws-iot commit plus
+one archive per library submodule) into `third_party/esp-aws-iot`, which is
+**not committed**. `deps_make_available.cmake` just points at
+`libraries/<lib>/<lib>` inside it. The pins are in
+`third_party/third_party_versions.cmake`; see `third_party/README.md` to move them.
 
 ## Other options and tests
 

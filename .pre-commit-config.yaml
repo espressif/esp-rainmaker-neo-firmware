@@ -120,3 +120,13 @@ repos:
         language: python
         pass_filenames: false
         files: '(idf_component\.yml|esp_rmaker_neo/versioning\.cmake)$'
+
+# Verify the esp-aws-iot archive pins against GitHub; needs network access.
+-   repo: local
+    hooks:
+    -   id: check-esp-aws-iot-pins
+        name: Check esp-aws-iot archive pins
+        entry: third_party/esp_aws_iot_pins.py --check
+        language: python
+        pass_filenames: false
+        files: '^third_party/(third_party_versions\.cmake|esp_aws_iot_pins\.py)$'
