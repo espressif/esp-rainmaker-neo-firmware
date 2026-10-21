@@ -8,6 +8,7 @@
 #include "osal_mem_alloc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "ticks_esp_priv.h"
 
 osal_queue_handle_t osal_queue_create(uint32_t queue_length, uint32_t item_size)
 {
@@ -57,7 +58,7 @@ osal_err_t osal_queue_send(
     osal_tick_type_t ticks_to_wait
 )
 {
-    if (xQueueSend(queue_handle, item_to_queue, ticks_to_wait) == pdPASS) {
+    if (xQueueSend(queue_handle, item_to_queue, osal_ticks_to_rtos(ticks_to_wait)) == pdPASS) {
         return OSAL_ERR_OK;
     } else {
         return OSAL_ERR_TIMEOUT;
@@ -70,7 +71,7 @@ osal_err_t osal_queue_receive(
     osal_tick_type_t ticks_to_wait
 )
 {
-    if (xQueueReceive(queue_handle, buffer, ticks_to_wait) == pdPASS) {
+    if (xQueueReceive(queue_handle, buffer, osal_ticks_to_rtos(ticks_to_wait)) == pdPASS) {
         return OSAL_ERR_OK;
     } else {
         return OSAL_ERR_TIMEOUT;
@@ -83,7 +84,7 @@ osal_err_t osal_queue_peek(
     osal_tick_type_t ticks_to_wait
 )
 {
-    if (xQueuePeek(queue_handle, buffer, ticks_to_wait) == pdPASS) {
+    if (xQueuePeek(queue_handle, buffer, osal_ticks_to_rtos(ticks_to_wait)) == pdPASS) {
         return OSAL_ERR_OK;
     } else {
         return OSAL_ERR_TIMEOUT;

@@ -7,6 +7,7 @@
 #include "osal_event_loop.h"
 #include "esp_event.h"
 #include "esp_err.h"
+#include "ticks_esp_priv.h"
 
 osal_err_t osal_event_loop_create_default(void)
 {
@@ -52,7 +53,7 @@ osal_err_t osal_event_handler_unregister(osal_event_base_t event_base, int32_t e
 
 osal_err_t osal_event_post(osal_event_base_t event_base, int32_t event_id, void *event_data, size_t event_data_size, osal_tick_type_t ticks_to_wait)
 {
-    esp_err_t esp_err = esp_event_post((esp_event_base_t) event_base, event_id, event_data, event_data_size, ticks_to_wait);
+    esp_err_t esp_err = esp_event_post((esp_event_base_t) event_base, event_id, event_data, event_data_size, osal_ticks_to_rtos(ticks_to_wait));
     if (esp_err != ESP_OK) {
         return OSAL_ERR_FAIL;
     }

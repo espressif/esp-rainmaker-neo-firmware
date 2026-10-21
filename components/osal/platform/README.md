@@ -43,8 +43,8 @@ Behavioural differences worth knowing:
   `pthread_create()` with default attributes; `stack_depth` and `priority` are
   only recorded as metadata (used by `osal_task_get_name()`).
 - **Ticks are milliseconds on POSIX** — the conversions in `ticks_posix.c` are
-  identity and `OSAL_MAX_DELAY` is `UINT32_MAX`; on ESP-IDF they go through the
-  FreeRTOS tick rate.
+  identity; on ESP-IDF they go through the FreeRTOS tick rate. `OSAL_MAX_DELAY`
+  is `OSAL_TICK_MAX` on both.
 - **Reboot.** `osal_sysctrl_reboot()` calls `esp_restart()` on ESP-IDF; on POSIX
   it logs a warning and `exit()`s with `POSIX_EXIT_REBOOT` (see
   `posix/include/posix_exit_codes.h`), which `osal/ota`'s mock bootloader

@@ -2,7 +2,10 @@ version: "0.8.0"
 description: "ESP RainMaker Neo Firmware SDK: node data model, provisioning, services and cloud connectivity."
 license: "Apache-2.0"
 dependencies:
-  espressif/network_provisioning: ^1.0.5
+  espressif/network_provisioning:
+    version: ^1.0.5
+    rules:
+      - if: "target not in [linux]"
   esp_rmaker_neo_common:
     path: ../esp_rmaker_neo_common
   osal:

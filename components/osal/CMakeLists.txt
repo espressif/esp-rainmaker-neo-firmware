@@ -113,6 +113,12 @@ list(APPEND OSAL_PRIV_INCLUDE_DIRS "${OSAL_DIR}/ota/priv_include")
 
 # ESP-IDF Platform ###
 if (ESP_PLATFORM)
+    # The ESP-IDF linux target runs the FreeRTOS POSIX port on a host: keep the FreeRTOS/ESP-IDF primitives, and take
+    # the host implementation for what has no ESP-IDF counterpart there (Wi-Fi/Thread netstatus, lwIP SNTP). No OTA.
+    set(OSAL_IDF_LINUX OFF)
+    if (IDF_TARGET STREQUAL "linux")
+        set(OSAL_IDF_LINUX ON)
+    endif ()
     list(APPEND OSAL_INCLUDE_DIRS "${OSAL_DIR}/errors/include/esp-idf" "${OSAL_DIR}/platform/src/esp")
     list(
         APPEND
@@ -130,12 +136,7 @@ if (ESP_PLATFORM)
         "${OSAL_DIR}/platform/src/esp/random_esp.c"
         # storage
         "${OSAL_DIR}/storage/src/nvs_esp_impl.c"
-        # timesync
-        "${OSAL_DIR}/timesync/src/time_esp.c"
-        # netstatus
-        "${OSAL_DIR}/netstatus/src/netstatus_esp.c"
-        # ota
-        "${OSAL_DIR}/ota/src/osal_ota_esp.c"
+        # ota events (every target: the core registers its event loop here)
         "${OSAL_DIR}/ota/src/osal_ota_events.c"
         # mqtt (common layer; the impl is Kconfig-selected below)
         "${OSAL_DIR}/mqtt/src/osal_mqtt_events.c"
@@ -143,6 +144,13 @@ if (ESP_PLATFORM)
         "${OSAL_DIR}/mqtt/src/osal_mqtt_subscription_manager.c"
         "${OSAL_DIR}/mqtt/src/osal_mqtt_impl.c"
     )
+    if (OSAL_IDF_LINUX)
+        list(APPEND OSAL_SRCS "${OSAL_DIR}/timesync/src/time_posix.c" "${OSAL_DIR}/netstatus/src/netstatus_posix.c")
+    else ()
+        list(APPEND OSAL_SRCS "${OSAL_DIR}/timesync/src/time_esp.c" "${OSAL_DIR}/netstatus/src/netstatus_esp.c"
+             "${OSAL_DIR}/ota/src/osal_ota_esp.c"
+        )
+    endif ()
     if (CONFIG_OSAL_MQTT_IMPL_ESP)
         list(APPEND OSAL_SRCS "${OSAL_DIR}/mqtt/src/osal_mqtt_esp_impl.c")
     endif ()
@@ -159,8 +167,10 @@ if (ESP_PLATFORM)
         list(APPEND OSAL_SRCS "${OSAL_DIR}/ext-io/src/osal_ext_io_esp.c")
         list(APPEND OSAL_INCLUDE_DIRS "${OSAL_DIR}/ext-io/esp/include")
     endif ()
-    # discovery (mDNS or Thread SRP, per Kconfig choice)
-    if (CONFIG_OSAL_DISCOVERY_TYPE_MDNS)
+    # discovery (mDNS or Thread SRP, per Kconfig choice; the managed mdns component does not build for linux)
+    if (OSAL_IDF_LINUX)
+        list(APPEND OSAL_SRCS "${OSAL_DIR}/discovery/src/mdns_stub.c")
+    elseif (CONFIG_OSAL_DISCOVERY_TYPE_MDNS)
         list(APPEND OSAL_SRCS "${OSAL_DIR}/discovery/src/mdns_esp.c")
     elseif (CONFIG_OSAL_DISCOVERY_TYPE_SRP)
         list(APPEND OSAL_SRCS "${OSAL_DIR}/discovery/src/srp_esp.c")
@@ -177,19 +187,18 @@ if (ESP_PLATFORM)
         endif ()
     endif ()
 
+    set(OSAL_REQUIRES espressif__json_generator espressif__json_parser esp_event)
+    set(OSAL_PRIV_REQUIRES esp_app_format log nvs_flash mbedtls esp_partition esp_timer)
+    if (NOT OSAL_IDF_LINUX)
+        list(APPEND OSAL_REQUIRES esp_netif)
+        list(APPEND OSAL_PRIV_REQUIRES app_update)
+    endif ()
     idf_component_register(
         SRCS ${OSAL_SRCS}
         INCLUDE_DIRS ${OSAL_INCLUDE_DIRS}
         PRIV_INCLUDE_DIRS ${OSAL_PRIV_INCLUDE_DIRS}
-        REQUIRES espressif__json_generator espressif__json_parser esp_event esp_netif
-        PRIV_REQUIRES
-            esp_app_format
-            log
-            nvs_flash
-            mbedtls
-            esp_partition
-            app_update
-            esp_timer
+        REQUIRES ${OSAL_REQUIRES}
+        PRIV_REQUIRES ${OSAL_PRIV_REQUIRES}
     )
 
     if (NOT OSAL_USING_VIRTUAL_SCHEDULER AND CONFIG_OSAL_TIMER_IMPL_ESP)
@@ -209,7 +218,7 @@ if (ESP_PLATFORM)
     if (CONFIG_OSAL_MQTT_IMPL_CORE)
         idf_component_optional_requires(PRIVATE backoffAlgorithm coreMQTT-Agent)
     endif ()
-    if (CONFIG_OSAL_DISCOVERY_TYPE_MDNS)
+    if (CONFIG_OSAL_DISCOVERY_TYPE_MDNS AND NOT OSAL_IDF_LINUX)
         idf_component_optional_requires(PRIVATE espressif__mdns)
     endif ()
 

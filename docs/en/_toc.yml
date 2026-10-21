@@ -15,6 +15,7 @@ subtrees:
               - file: specs/time_sync
               - file: specs/error_handling
               - file: specs/build_configuration
+              - file: specs/linux_target
               - file: specs/networking/index
                 subtrees:
                   - maxdepth: 2

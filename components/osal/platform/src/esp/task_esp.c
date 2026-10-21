@@ -7,6 +7,7 @@
 #include "osal_task.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "ticks_esp_priv.h"
 
 osal_err_t  osal_task_create(
     osal_task_function_t task_function,
@@ -31,7 +32,7 @@ void osal_task_delete(osal_task_handle_t task_handle)
 
 void osal_task_delay(osal_tick_type_t ticks_to_delay)
 {
-    vTaskDelay(ticks_to_delay);
+    vTaskDelay(osal_ticks_to_rtos(ticks_to_delay));
 }
 
 osal_tick_type_t osal_task_get_tick_count(void)

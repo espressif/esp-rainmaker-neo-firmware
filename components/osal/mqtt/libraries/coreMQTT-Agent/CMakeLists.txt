@@ -17,6 +17,13 @@ if (ESP_PLATFORM)
          "${CMAKE_CURRENT_LIST_DIR}/port/esp/network_transport_port.c"
     )
     target_sources(${COMPONENT_LIB} PRIVATE ${COREMQTT_AGENT_SRCS})
+    if (IDF_TARGET STREQUAL "linux")
+        # On a chip lwIP's socket headers declare fcntl() and select(); a macOS host declares them elsewhere.
+        set_source_files_properties(
+            "${RMNG_EAI_COREMQTT_PORT_DIR}/network_transport.c" PROPERTIES COMPILE_OPTIONS
+                                                                           "-include;fcntl.h;-include;sys/select.h"
+        )
+    endif ()
     target_include_directories(
         ${COMPONENT_LIB} PUBLIC ${COREMQTT_AGENT_LIB_INCLUDE_DIRS} "${RMNG_EAI_COREMQTT_PORT_DIR}"
     )
