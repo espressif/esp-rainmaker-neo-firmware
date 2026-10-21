@@ -8,7 +8,6 @@ set(TEST_ESP_RMAKER_NEO_SRCS
     "tests_src/test_timeseries.c"
     "tests_src/chal_resp/test_pb_c.c"
     "tests_src/local_ctrl/test_local_ctrl_endpoints.c"
-    "tests_src/local_ctrl/test_local_ctrl_sec2_cache.c"
     "tests_src/claim/test_claim.c"
     "tests_src/credentials/test_migration.c"
     "tests_src/util/test_checksum_impl.c"
@@ -48,6 +47,11 @@ if (CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE)
     list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/test_bridge.c" "tests_src/test_bridge_child_nvs.c"
          "tests_src/test_bridge_accessors.c" "tests_src/test_node_config_pending.c"
     )
+endif ()
+
+# The sec2 cache tests need esp_srp from protocomm, which the ESP-IDF linux target does not have.
+if (NOT IDF_TARGET STREQUAL "linux")
+    list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/local_ctrl/test_local_ctrl_sec2_cache.c")
 endif ()
 
 # ESP-IDF platform ###

@@ -1,0 +1,7 @@
+# ESP-IDF linux target: the unit tests run on the CI host (see .gitlab/unit_tests.yml).
+# The SDK installs its own osal-backed esp_schedule port; the component's ESP-IDF one needs lwIP SNTP.
+CONFIG_ESP_SCHEDULE_DISABLE_DEFAULT_PORT=y
+# Nothing selects ESP_RMAKER_NEO_CLAIM_CSR_SUPPORT without claiming, but the crypto tests cover key/CSR generation.
+CONFIG_MBEDTLS_X509_CREATE_C=y
+# From ESP-IDF v6.1, the VFS wraps open() and does not open host files.
+# CONFIG_VFS_SUPPORT_IO is not set
