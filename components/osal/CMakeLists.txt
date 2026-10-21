@@ -145,7 +145,9 @@ if (ESP_PLATFORM)
         "${OSAL_DIR}/mqtt/src/osal_mqtt_impl.c"
     )
     if (OSAL_IDF_LINUX)
-        list(APPEND OSAL_SRCS "${OSAL_DIR}/timesync/src/time_posix.c" "${OSAL_DIR}/netstatus/src/netstatus_posix.c")
+        list(APPEND OSAL_SRCS "${OSAL_DIR}/timesync/src/time_posix.c" "${OSAL_DIR}/netstatus/src/netstatus_posix.c"
+             "${OSAL_DIR}/storage/src/flash_image_linux.c"
+        )
     else ()
         list(APPEND OSAL_SRCS "${OSAL_DIR}/timesync/src/time_esp.c" "${OSAL_DIR}/netstatus/src/netstatus_esp.c"
              "${OSAL_DIR}/ota/src/osal_ota_esp.c"
@@ -200,6 +202,14 @@ if (ESP_PLATFORM)
         REQUIRES ${OSAL_REQUIRES}
         PRIV_REQUIRES ${OSAL_PRIV_REQUIRES}
     )
+    if (OSAL_IDF_LINUX)
+        # Nothing references the constructor, so the linker would drop it.
+        if (APPLE)
+            target_link_libraries(${COMPONENT_LIB} INTERFACE "-u _osal_flash_image_linux_init")
+        else ()
+            target_link_libraries(${COMPONENT_LIB} INTERFACE "-u osal_flash_image_linux_init")
+        endif ()
+    endif ()
 
     if (NOT OSAL_USING_VIRTUAL_SCHEDULER AND CONFIG_OSAL_TIMER_IMPL_ESP)
         idf_component_optional_requires(PRIVATE esp_timer)
