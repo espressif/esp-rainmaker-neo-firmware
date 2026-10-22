@@ -43,7 +43,9 @@ certificate yet, the node also exposes a `rmaker_claim` protocomm endpoint:
 - **Availability**: Only during network provisioning, and only while the node is unclaimed.
   Once claimed, the endpoint is not created at all.
 - **Protocol**: Protobuf frames carrying JSON payloads (see [rmaker_claim usage](#rmaker_claim-usage))
-- **Advertised as**: app-info label `rmaker`, version `1.0`, capability `claim`
+- **Advertised as**: app-info label `rmaker`, version `1.0`, capability `claim`. Always
+  `claim`, whatever cloud services the node uses: those are requested in the claim-verify
+  request (see [Requested capabilities](#requested-capabilities)), not advertised.
 - **Direction**: The device is a pure responder; the phone app drives the exchange.
 
 ### `rmaker_claim` usage
@@ -70,7 +72,7 @@ sequenceDiagram
 
     app ->> node: TypeCmdClaimInit + {"node_id"} (single fragment)
     Note over node: Stores the node ID, generates a CSR with subject CN=node-id
-    node -->> app: {"csr","send_mqtt_host":true} (first 200 bytes)
+    node -->> app: {"csr","send_mqtt_host":true[,"capabilities"]} (first 200 bytes)
     loop While Offset + len(Payload) < TotalLen
         app ->> node: TypeCmdClaimInit
         node -->> app: next fragment
@@ -101,7 +103,7 @@ ends, and the credentials are in place before `esp_rmaker_node_init()` reads the
 | Step | Request → Response | Payload |
 |---|---|---|
 | 1 | `TypeCmdClaimStart` → `TypeRespClaimStart` | Response is the claim-init request, unfragmented: `{"mac_addr":"AABBCC112233","platform":"<idf-target>"}`. The app POSTs it to `claim/initiate`. |
-| 2 | `TypeCmdClaimInit` → `TypeRespClaimInit` | First request carries the service's `{"node_id":"<node-id>"}`, which **must** arrive in a single fragment. The node stores the node ID, generates a CSR with subject `CN=<node-id>`, and answers with fragments of `{"csr":"<PEM, newlines escaped as \n>","send_mqtt_host":true}`. Repeat until all fragments are received; the app POSTs the reassembled JSON to `claim/verify`. |
+| 2 | `TypeCmdClaimInit` → `TypeRespClaimInit` | First request carries the service's `{"node_id":"<node-id>"}`, which **must** arrive in a single fragment. The node stores the node ID, generates a CSR with subject `CN=<node-id>`, and answers with fragments of `{"csr":"<PEM, newlines escaped as \n>","send_mqtt_host":true}`, plus `"capabilities":[...]` when the node requests cloud services (see [Requested capabilities](#requested-capabilities)). Repeat until all fragments are received; the app POSTs the reassembled JSON to `claim/verify`. |
 | 3 | `TypeCmdClaimVerify` → `TypeRespClaimVerify` | Request carries fragments of the service's `{"certificate":"<PEM, newlines escaped>","mqtt_host":"..."}`. Both fields are required. On the final fragment the node parses both, then persists the credentials; a response missing either field yields `InvalidParam`, writes nothing, and fails that attempt — the app may restart from step 1 while the session lasts. |
 | 4 | `TypeCmdClaimAbort` → `TypeRespClaimAbort` | Cancels claiming. The node resets its state so claiming can be retried within the same provisioning session. |
 
@@ -124,6 +126,22 @@ reads credentials unchanged.
 
 The verify response may also carry `mqtt_cred_host`, the AWS IoT credentials-provider
 endpoint. If present it is ignored and not persisted.
+
+### Requested capabilities
+
+The cloud attaches one IoT policy to the issued certificate per entry in the claim-verify
+request's `capabilities`. The node lists every service its enabled features need, in this
+order, and omits the array when there are none:
+
+| Kconfig option | Capability | What the cloud does |
+|---|---|---|
+| `CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT` | `kvs` | Attaches the device video policy and creates the node's `rmng-v1-<node_id>` KVS signaling channel |
+| `CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT` | `s3` | Attaches the device file policy (S3 access under `node-data/<node_id>/`) |
+| `CONFIG_ESP_RMAKER_NEO_CLAIM_BRIDGE_SUPPORT` (default with `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE`) | `bridge` | Attaches the bridge policy; requires the deployment's optional bridge stack |
+
+A re-claim replaces the certificate, and its policies are exactly those requested in that
+claim, so the node asks for every service on every claim. The app forwards the node's JSON
+to `claim/verify` unchanged.
 
 For configuration and operational detail, see the [claiming guide](https://docs.neo.rainmaker.espressif.com/docs/firmware/device-credentials/claiming).
 

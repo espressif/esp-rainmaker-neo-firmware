@@ -18,6 +18,12 @@
 #include <string.h>
 #include <stdbool.h>
 
+/* JSON includes */
+#include "json_generator.h"
+
+/* Configuration includes */
+#include "sdkconfig.h"
+
 /* Public function definitions *******************************************************/
 
 RmakerClaim__RMakerClaimStatus claim_rules_check_command(esp_rmaker_claim_state_t state,
@@ -159,4 +165,48 @@ void claim_rules_unescape_new_line(char *str)
         *target++ = *str++;
     }
     *target = '\0';
+}
+
+/** Capabilities of the enabled features, NULL-terminated. */
+static const char *const s_capabilities[] = {
+#if CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT
+    "kvs",
+#endif
+#if CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT
+    "s3",
+#endif
+#if CONFIG_ESP_RMAKER_NEO_CLAIM_BRIDGE_SUPPORT
+    "bridge",
+#endif
+    NULL,
+};
+
+esp_rmaker_error_t claim_rules_build_verify_request(const char *escaped_csr, char *buf, size_t buf_size,
+        size_t *p_len)
+{
+    if (!escaped_csr || !buf || buf_size == 0 || buf_size > INT32_MAX) {
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    json_gen_str_t jstr;
+    json_gen_str_start(&jstr, buf, (int)buf_size, NULL, NULL);
+    json_gen_start_object(&jstr);
+    json_gen_obj_set_string(&jstr, "csr", (char *)escaped_csr);
+    json_gen_obj_set_bool(&jstr, "send_mqtt_host", true);
+    if (s_capabilities[0]) {
+        json_gen_push_array(&jstr, "capabilities");
+        for (const char *const *cap = s_capabilities; *cap; cap++) {
+            json_gen_arr_set_string(&jstr, (char *)*cap);
+        }
+        json_gen_pop_array(&jstr);
+    }
+    json_gen_end_object(&jstr);
+    /* The total length counts what did not fit, so a larger value means truncation. */
+    int total = json_gen_str_end(&jstr);
+    if (total < 0 || (size_t)total > buf_size) {
+        return ESP_RMAKER_NO_MEM;
+    }
+    if (p_len) {
+        *p_len = (size_t)total - 1;
+    }
+    return ESP_RMAKER_OK;
 }

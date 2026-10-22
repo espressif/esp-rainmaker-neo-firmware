@@ -78,6 +78,7 @@ int test_rmng_all_tests_unity(void)
     RUN_TEST(test_claim_escape_new_line);
     RUN_TEST(test_claim_unescape_new_line);
     RUN_TEST(test_claim_command_guards);
+    RUN_TEST(test_claim_verify_request);
     RUN_TEST(test_pb_c_resp_pack_to_buffer);
 
     /* Utilities - checksum ***********************************************************/

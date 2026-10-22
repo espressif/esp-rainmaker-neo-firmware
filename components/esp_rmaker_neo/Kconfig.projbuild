@@ -358,6 +358,58 @@ menu "ESP RainMaker Neo Configuration"
                 the host-side factory tooling, which is what a private or self-hosted
                 deployment should do.
 
+        menu "Cloud Services to Request at Claim"
+            # ESP_RMAKER_NEO_TESTING: the POSIX unit tests, which have no BLE, cover the claim-verify body too.
+            depends on ESP_RMAKER_NEO_ASSISTED_CLAIM || ESP_RMAKER_NEO_TESTING
+
+            comment "The cloud attaches one policy per requested service to the issued certificate."
+            comment "A re-claim replaces the certificate, so request every service the node uses."
+
+            config ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT
+                bool "Video streaming (KVS)"
+                default n
+                help
+                    For camera nodes that stream over Amazon Kinesis Video Streams (KVS).
+
+                    The claim-verify request asks for the "kvs" capability. The cloud then
+                    attaches the device video policy to the issued certificate. The node
+                    exchanges this certificate for KVS credentials through the AWS IoT
+                    Credential Provider. The cloud also creates the node's
+                    rmng-v1-<node_id> signaling channel.
+
+            config ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT
+                bool "File storage (S3)"
+                default n
+                help
+                    For nodes that store files (for example camera clips or snapshots) in
+                    the deployment's per-node file storage.
+
+                    The claim-verify request asks for the "s3" capability, so the cloud
+                    attaches the device file policy to the issued certificate. The node
+                    exchanges this certificate for S3 credentials through the AWS IoT
+                    Credential Provider. Those credentials are scoped to the node's own
+                    node-data/<node_id>/ prefix.
+                    A feature component that needs file storage can imply this option
+                    (not select it: it depends on assisted claiming).
+
+            config ESP_RMAKER_NEO_CLAIM_BRIDGE_SUPPORT
+                bool "Bridge"
+                depends on ESP_RMAKER_NEO_BRIDGE_ENABLE
+                default y
+                help
+                    For bridge nodes (ESP_RMAKER_NEO_BRIDGE_ENABLE) onboarded by assisted claiming.
+
+                    The claim-verify request asks for the "bridge" capability, so the cloud
+                    attaches the bridge policy to the issued certificate. Without it, the
+                    bridge connects but cannot add or serve its children. On a node's first
+                    claim the cloud also records it as a bridge; a re-claim only updates
+                    the policies.
+
+                    The deployment must include the optional bridge stack: without it the
+                    bridge policy does not exist and claim-verify fails.
+
+        endmenu
+
     endmenu
 
     menu "Host Control"

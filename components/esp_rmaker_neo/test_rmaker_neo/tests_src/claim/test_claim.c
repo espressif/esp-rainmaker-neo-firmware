@@ -21,9 +21,11 @@
 #include "unity.h"
 #include "test_rmng_prototypes.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "claim/rules.h"
+#include "sdkconfig.h"
 
 /* How much room the real claiming context gives the reassembly buffer. */
 #define TEST_CAPACITY 3072
@@ -230,4 +232,55 @@ void test_claim_command_guards(void)
 
     /* --- An unknown command type is refused in every state --- */
     TEST_ASSERT_EQUAL_INT(ST_STATE, claim_rules_check_command(RMAKER_CLAIM_STATE_INIT, (int)0x7FFF));
+}
+
+void test_claim_verify_request(void)
+{
+    /* The exact body the phone app forwards to claim/verify: the capabilities array is
+     * present only when a feature asks, and lists them in a fixed order. */
+    const char *caps[3];
+    size_t n = 0;
+#if CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT
+    caps[n++] = "kvs";
+#endif
+#if CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT
+    caps[n++] = "s3";
+#endif
+#if CONFIG_ESP_RMAKER_NEO_CLAIM_BRIDGE_SUPPORT
+    caps[n++] = "bridge";
+#endif
+    /* snprintf() returns the length it wanted: assert after each call, so a larger fixture fails here instead of
+     * writing past expected[]. */
+    char expected[256];
+    int off = snprintf(expected, sizeof(expected), "{\"csr\":\"A\\nB\",\"send_mqtt_host\":true");
+    TEST_ASSERT_LESS_THAN((int) sizeof(expected), off);
+    if (n > 0) {
+        off += snprintf(expected + off, sizeof(expected) - off, ",\"capabilities\":[");
+        TEST_ASSERT_LESS_THAN((int) sizeof(expected), off);
+        for (size_t i = 0; i < n; i++) {
+            off += snprintf(expected + off, sizeof(expected) - off, "%s\"%s\"", i ? "," : "", caps[i]);
+            TEST_ASSERT_LESS_THAN((int) sizeof(expected), off);
+        }
+        off += snprintf(expected + off, sizeof(expected) - off, "]");
+        TEST_ASSERT_LESS_THAN((int) sizeof(expected), off);
+    }
+    off += snprintf(expected + off, sizeof(expected) - off, "}");
+    TEST_ASSERT_LESS_THAN((int) sizeof(expected), off);
+
+    char buf[256];
+    size_t len = 0;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_build_verify_request("A\\nB", buf, sizeof(buf), &len));
+    TEST_ASSERT_EQUAL_STRING(expected, buf);
+    TEST_ASSERT_EQUAL_UINT32(strlen(expected), len);
+
+    /* Exactly enough room (NUL included) fits; one byte less is reported, not truncated
+     * silently. */
+    char exact[256];
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_build_verify_request("A\\nB", exact, strlen(expected) + 1, NULL));
+    TEST_ASSERT_EQUAL_STRING(expected, exact);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_NO_MEM, claim_rules_build_verify_request("A\\nB", exact, strlen(expected), NULL));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_build_verify_request(NULL, buf, sizeof(buf), NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_build_verify_request("x", NULL, sizeof(buf), NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_build_verify_request("x", buf, 0, NULL));
 }

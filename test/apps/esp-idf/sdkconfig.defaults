@@ -13,6 +13,10 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # Enable RMNG testing (builds test_rmaker_neo and enables test hooks)
 CONFIG_ESP_RMAKER_NEO_TESTING=y
 CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE=y
+# Request every claim-time cloud service, so the claim-verify test covers the
+# full list ("bridge" is on by default with the bridge).
+CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT=y
+CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT=y
 
 # Enable virtual scheduler (required by RMNG testing)
 CONFIG_OSAL_USING_VIRTUAL_SCHEDULER=y

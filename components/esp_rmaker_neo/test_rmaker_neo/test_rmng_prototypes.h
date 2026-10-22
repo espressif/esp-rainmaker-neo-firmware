@@ -238,6 +238,11 @@ void test_claim_unescape_new_line(void);
 void test_claim_command_guards(void);
 
 /**
+ * @brief Test the claim-verify request body: exact JSON, buffer bounds and argument checks.
+ */
+void test_claim_verify_request(void);
+
+/**
  * @brief Test claim fragment sequencing: open at zero, then contiguous only.
  */
 void test_claim_fragment_sequencing(void);
