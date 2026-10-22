@@ -60,6 +60,10 @@ esp_rmaker_param_t *esp_rmaker_param_create(const char *param_id, const char *ty
         OSAL_LOGE(TAG, "Param id '%s' contains reserved path separator '%c'", param_id, RMAKER_PATH_SEPARATOR_CHAR);
         return NULL;
     }
+    if (strlen(param_id) > RMAKER_NVS_KEY_LEN_MAX) {
+        OSAL_LOGE(TAG, "Param id '%s' exceeds %d characters", param_id, RMAKER_NVS_KEY_LEN_MAX);
+        return NULL;
+    }
     bool is_ts = properties & PROP_FLAG_TIME_SERIES;
     bool is_ts_cumulative = properties & PROP_FLAG_TS_CUMULATIVE;
 

@@ -220,7 +220,8 @@ esp_rmaker_error_t esp_rmaker_node_remove_device(const esp_rmaker_node_t *node, 
  * @note The device created needs to be added to a node using esp_rmaker_node_add_device().
  *
  * @param[in] dev_id The unique device id. Must not contain '.', which is reserved as the data
- *                   model path separator.
+ *                   model path separator. Must not exceed 15 characters, as it is used as an
+ *                   NVS namespace.
  * @param[in] type Optional device type. Can be kept NULL.
  * @param[in] priv_data (Optional) Private data associated with the device. This will be passed to callbacks.
  * It should stay allocated throughout the lifetime of the device.
@@ -241,7 +242,8 @@ esp_rmaker_device_t *esp_rmaker_device_create(const char *dev_id, const char *ty
  * @note The service created needs to be added to a node using esp_rmaker_node_add_device().
  *
  * @param[in] serv_id The unique service id. Must not contain '.', which is reserved as the data
- *                    model path separator.
+ *                    model path separator. Must not exceed 15 characters, as it is used as an
+ *                    NVS namespace.
  * @param[in] type Optional service type. Can be kept NULL.
  * @param[in] priv_data (Optional) Private data associated with the service. This will be passed to callbacks.
  * It should stay allocated throughout the lifetime of the device.
@@ -447,7 +449,9 @@ esp_rmaker_param_t *esp_rmaker_device_get_param_by_id(const esp_rmaker_device_t 
  * @note The parameter created needs to be added to a device using esp_rmaker_device_add_param().
  * Parameter id should be unique in a given device.
  *
- * @param[in] param_id Id of the parameter.
+ * @param[in] param_id Id of the parameter. Must not contain '.', which is reserved as the data
+ *                     model path separator. Must not exceed 15 characters, as it is used as an
+ *                     NVS key.
  * @param[in] type Optional parameter type. Can be kept NULL.
  * @param[in] val Value of the parameter. This also specifies the type that will be assigned
  * to this parameter. You can use esp_rmaker_bool(), esp_rmaker_int(), esp_rmaker_float()

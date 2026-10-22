@@ -103,6 +103,10 @@ static esp_rmaker_device_t *__esp_rmaker_device_create(const char *id, const cha
         OSAL_LOGE(TAG, "%s id '%s' contains reserved path separator '%c'", is_service ? "Service" : "Device", id, RMAKER_PATH_SEPARATOR_CHAR);
         return NULL;
     }
+    if (strlen(id) > RMAKER_NVS_KEY_LEN_MAX) {
+        OSAL_LOGE(TAG, "%s id '%s' exceeds %d characters", is_service ? "Service" : "Device", id, RMAKER_NVS_KEY_LEN_MAX);
+        return NULL;
+    }
     _esp_rmaker_device_t *_device = OSAL_CALLOC_EXTRAM(1, sizeof(_esp_rmaker_device_t));
     if (!_device) {
         OSAL_LOGE(TAG, "Failed to allocate memory for %s %s", is_service ? "Service" : "Device", id);

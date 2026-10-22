@@ -16,6 +16,8 @@ int test_rmng_all_tests_unity(void)
     RUN_TEST(test_node_model_basic);
     RUN_TEST(test_device_create_rejects_path_separator);
     RUN_TEST(test_param_create_rejects_path_separator);
+    RUN_TEST(test_device_create_rejects_long_id);
+    RUN_TEST(test_param_create_rejects_long_id);
     RUN_TEST(test_path_round_trip);
     RUN_TEST(test_path_to_update_id_invalid);
     RUN_TEST(test_node_model_error_paths);

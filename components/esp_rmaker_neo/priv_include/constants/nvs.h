@@ -68,8 +68,8 @@
 #define RMAKER_NVS_BRIDGE_SCHEDS_NAMESPACE             "bridge_scheds"
 
 /**
- * @brief Maximum length of an NVS key (excluding NUL). Matches the
- * ESP-IDF NVS limit.
+ * @brief Maximum length of an NVS key or namespace name (excluding NUL).
+ * Matches the ESP-IDF NVS limit.
  */
 #define RMAKER_NVS_KEY_LEN_MAX                         15
 

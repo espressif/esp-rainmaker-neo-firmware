@@ -26,6 +26,8 @@ void test_node_model_basic(void);
 /** Path / ID validation tests. */
 void test_device_create_rejects_path_separator(void);
 void test_param_create_rejects_path_separator(void);
+void test_device_create_rejects_long_id(void);
+void test_param_create_rejects_long_id(void);
 void test_path_round_trip(void);
 void test_path_to_update_id_invalid(void);
 

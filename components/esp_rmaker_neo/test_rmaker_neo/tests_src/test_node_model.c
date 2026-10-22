@@ -1887,6 +1887,28 @@ void test_param_create_rejects_path_separator(void)
     TEST_ASSERT_NULL_MESSAGE(param, "Param create should reject id containing path separator");
 }
 
+void test_device_create_rejects_long_id(void)
+{
+    /* 15 chars is the NVS namespace limit; 16 must fail. */
+    esp_rmaker_device_t *device = esp_rmaker_device_create("123456789012345", "test_type", NULL);
+    TEST_ASSERT_NOT_NULL_MESSAGE(device, "Device create should accept a 15 char id");
+    esp_rmaker_device_delete(device);
+    device = esp_rmaker_device_create("1234567890123456", "test_type", NULL);
+    TEST_ASSERT_NULL_MESSAGE(device, "Device create should reject a 16 char id");
+    device = esp_rmaker_service_create("1234567890123456", "test_type", NULL);
+    TEST_ASSERT_NULL_MESSAGE(device, "Service create should reject a 16 char id");
+}
+
+void test_param_create_rejects_long_id(void)
+{
+    /* 15 chars is the NVS key limit; 16 must fail. */
+    esp_rmaker_param_t *param = esp_rmaker_param_create("123456789012345", "test_type", esp_rmaker_int(0), PROP_FLAG_READ);
+    TEST_ASSERT_NOT_NULL_MESSAGE(param, "Param create should accept a 15 char id");
+    esp_rmaker_param_delete(param);
+    param = esp_rmaker_param_create("1234567890123456", "test_type", esp_rmaker_int(0), PROP_FLAG_READ);
+    TEST_ASSERT_NULL_MESSAGE(param, "Param create should reject a 16 char id");
+}
+
 void test_path_round_trip(void)
 {
     esp_rmaker_node_t *node = __setup();
