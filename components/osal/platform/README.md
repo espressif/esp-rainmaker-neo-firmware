@@ -77,6 +77,9 @@ Always built. Two internal choices affect which sources are compiled:
 - `OSAL_TIMER_IMPL` (ESP-IDF Kconfig choice) — `CONFIG_OSAL_TIMER_IMPL_FREERTOS`
   (default, FreeRTOS software timers) or `CONFIG_OSAL_TIMER_IMPL_ESP`
   (`esp_timer`, higher precision but shared with peripherals such as Wi-Fi).
+  With the FreeRTOS backend, scheduled tasks run on the `osal_sched` dispatch
+  task, not on the FreeRTOS timer task. Its stack size, priority and catch-up
+  limit are the `CONFIG_OSAL_TIMER_FREERTOS_*` options.
 - `OSAL_USING_VIRTUAL_SCHEDULER` / `CONFIG_OSAL_USING_VIRTUAL_SCHEDULER` —
   replaces the platform scheduler with
   [`virtual_scheduler/`](virtual_scheduler/), which keeps real time ticking but

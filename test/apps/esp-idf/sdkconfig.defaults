@@ -4,9 +4,6 @@
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 
-# Increase FreeRTOS timer task stack depth.
-CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=3072
-
 # Tests can get very large; increase the default stack size
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 

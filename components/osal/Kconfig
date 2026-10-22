@@ -64,6 +64,34 @@ menu "OSAL Platform Build Options"
 
     endchoice
 
+    menu "FreeRTOS Timer Configuration"
+        depends on OSAL_TIMER_IMPL_FREERTOS && !OSAL_USING_VIRTUAL_SCHEDULER
+
+        config OSAL_TIMER_FREERTOS_DISPATCH_TASK_STACK_SIZE
+            int "Dispatch task stack size"
+            default 3072
+            range 3072 8192
+            help
+                Stack size of the task that runs the scheduled tasks. The FreeRTOS timer task only queues the
+                expired timers for this task, so it does not need a larger stack.
+
+        config OSAL_TIMER_FREERTOS_DISPATCH_TASK_PRIORITY
+            int "Dispatch task priority"
+            default FREERTOS_TIMER_TASK_PRIORITY
+            range 1 24
+            help
+                Priority of the task that runs the scheduled tasks.
+
+        config OSAL_TIMER_FREERTOS_CATCH_UP_MAX
+            int "Catch-up executions max"
+            default 10
+            range 1 100
+            help
+                Maximum number of executions of a periodic task that the dispatch task runs together, when it
+                runs late and the timer expired more than once.
+
+    endmenu
+
 endmenu
 
 menu "OSAL Timesync Configuration"

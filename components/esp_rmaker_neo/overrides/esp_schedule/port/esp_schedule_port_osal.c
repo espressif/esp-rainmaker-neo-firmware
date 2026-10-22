@@ -222,8 +222,8 @@ static bool __timer_start(esp_schedule_timer_handle_t *p_timer_handle, uint32_t 
      * would leak the first and leave it firing on the stale deadline.
      *
      * ``osal_scheduler_reset_timer`` re-arms the existing task (a stopped task is
-     * resumable through it) and is non-blocking on both backends, so it is safe
-     * on the re-arm-from-callback path. The callback pair is rebound because the
+     * resumable through it), also from a scheduled task, so it is safe on the
+     * re-arm-from-callback path. The callback pair is rebound because the
      * contract says it may change. */
     if (__cb_mutex == NULL) {
         OSAL_LOGE(TAG, "No callback mutex; refusing to arm rather than run unsynchronized");
