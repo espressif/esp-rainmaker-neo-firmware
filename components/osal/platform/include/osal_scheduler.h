@@ -7,6 +7,7 @@
 /**
  * @file osal_scheduler.h
  * @brief Platform common scheduler.
+ * @note With OSAL_TIMER_IMPL_FREERTOS, do not call these functions from the FreeRTOS timer task (timer or pended-function callbacks): they can deadlock it.
  */
 
 #ifndef __OSAL_SCHEDULER_H__
@@ -99,8 +100,8 @@ osal_err_t osal_scheduler_stop_timer(osal_scheduler_task_handle_t handle);
  *
  * @note The handle is invalid after this call: discard every copy, and do not cancel it while another call uses it.
  *
- * @note Non-blocking, so it is safe from inside a task callback, including on
- *       that callback's own handle. It does not wait, though: a task already
+ * @note Safe from inside a task callback, including on that callback's own
+ *       handle. It does not wait for the task to finish: a task already
  *       executing when the cancel lands runs to completion. Only a task not yet
  *       invoked is suppressed, so do not free heap state passed as the task
  *       argument right after cancelling - free it from the task itself, or tie

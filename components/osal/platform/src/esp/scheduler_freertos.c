@@ -8,6 +8,7 @@
  * @file scheduler_freertos.c
  * @brief FreeRTOS scheduler implementation.
  * @note This implementation uses the FreeRTOS software timer API. The task handle is the timer handle of the timer used for scheduling the task.
+ * @note Scheduled tasks run on a dispatch task, not on the FreeRTOS timer task.
  * @note esp_timer is used only as a monotonic 64-bit clock (xTaskGetTickCount() is 32-bit and wraps),
  *       so this file is built for ESP-IDF targets only - see components/osal/CMakeLists.txt.
  */
@@ -24,6 +25,7 @@
 /* FreeRTOS includes */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "freertos/timers.h"
 
 /* ESP-IDF includes */
@@ -40,8 +42,7 @@
 static const char *TAG = "osal_sched_freertos";
 
 /**
- * @brief Flag to indicate if the scheduler is initialized. Although no init is required for FreeRTOS scheduler,
- *        this flag is used to enforce proper init/deinit calls.
+ * @brief Flag to indicate if the scheduler is initialized, to enforce proper init/deinit calls.
  */
 static bool is_initialized = false;
 
@@ -55,6 +56,16 @@ static bool is_initialized = false;
  * the timer counted down. Treat a target this close as reached. */
 #define OSAL_SCHEDULER_TICK_SLACK 1ULL
 
+/* Timer private data flags */
+#define TIMER_FLAG_PERIODIC    (1U << 0) /* restarts after each period */
+#define TIMER_FLAG_QUEUED      (1U << 1) /* in the pending list, waiting for the dispatch task */
+#define TIMER_FLAG_STOPPED     (1U << 2) /* stopped by the API: expiries are ignored until the next reset */
+#define TIMER_FLAG_IN_CALLBACK (1U << 3) /* the dispatch task is using this block right now */
+#define TIMER_FLAG_CANCELLED   (1U << 4) /* cancelled: never runs again; the dispatch task tears it down if it holds the block */
+
+/* Flags that stop queued expiries from running */
+#define TIMER_FLAGS_NO_RUN     (TIMER_FLAG_CANCELLED | TIMER_FLAG_STOPPED)
+
 /**
  * @brief Timer private data.
  *
@@ -62,22 +73,41 @@ static bool is_initialized = false;
  *       a callback derives the next segment from these fields plus the clock
  *       instead of writing a balance back.
  */
-typedef struct {
+typedef struct __scheduler_timer_priv_data {
+    TimerHandle_t timer;     /* timer that owns this block */
     osal_scheduler_task_t task_cb;
     void *task_arg;
-    bool is_periodic;
     uint64_t total_ticks;    /* full delay (one whole period for periodic timers) */
     uint64_t deadline_ticks; /* absolute fire time; for periodic timers the first one */
     uint64_t segment_start;  /* tick the currently armed segment was armed at */
-    bool in_callback;        /* a callback is using this block right now */
-    bool cancelled;          /* cancelled mid-callback: the task must not run */
-    bool handover;           /* the callback, not the canceller, owns the teardown */
+    uint32_t flags;          /* TIMER_FLAG_* */
+    uint32_t pending_fires;  /* expiries merged into the queued entry; a stop clears them */
+    uint64_t reset_ticks;    /* delay that the latest reset publishes in the daemon task */
+    uint32_t reset_seq;      /* incremented by each reset and stop; only the latest reset publishes */
+    struct __scheduler_timer_priv_data *next; /* pending list link */
 } __scheduler_timer_priv_data_t;
 
-/* Guards the fields above; the callback runs in the daemon task while the API
- * runs in the caller's, on either core. Held for field accesses only - never
+/* Guards the fields above and the pending list. Held for field accesses only - never
  * across a timer command or the user task callback. */
 static portMUX_TYPE s_priv_data_lock = portMUX_INITIALIZER_UNLOCKED;
+
+/* Expired timers, in expiry order, that the dispatch task has not run yet */
+static __scheduler_timer_priv_data_t *s_pending_head = NULL;
+static __scheduler_timer_priv_data_t *s_pending_tail = NULL;
+
+/* Wakes the dispatch task */
+static SemaphoreHandle_t s_dispatch_sem = NULL;
+static StaticSemaphore_t s_dispatch_sem_buf;
+
+/* Orders the stop, reset and arm commands; the daemon task never waits for it */
+static SemaphoreHandle_t s_cmd_mutex = NULL;
+static StaticSemaphore_t s_cmd_mutex_buf;
+
+/* Creation state of the dispatch objects, so concurrent init calls create them once */
+#define DISPATCH_STATE_NONE     0U
+#define DISPATCH_STATE_CREATING 1U
+#define DISPATCH_STATE_READY    2U
+static uint32_t s_dispatch_state = DISPATCH_STATE_NONE;
 
 /* Private functions **********************************************************/
 
@@ -135,20 +165,6 @@ static void __split_delay(uint64_t delay_ms, uint64_t *total_ticks, TickType_t *
 }
 
 /**
- * @brief Arm the timer for the next segment of a split delay, from the callback.
- *
- * Zero block time: this runs in the daemon task, which is what drains the timer
- * command queue. That queue is shared system-wide, so the command can be
- * refused, leaving the timer dormant with nothing to re-arm it.
- *
- * @return true when the command was accepted.
- */
-static bool __arm_segment(TimerHandle_t timer_handle, uint64_t period_ticks)
-{
-    return xTimerChangePeriod(timer_handle, (TickType_t) period_ticks, 0) == pdPASS;
-}
-
-/**
  * @brief Create a new timer private data.
  *
  * @param[in] task_cb Task callback function.
@@ -180,94 +196,242 @@ static __scheduler_timer_priv_data_t *__scheduler_timer_priv_data_get(TimerHandl
 }
 
 /**
- * @brief Read the cancellation flag under the lock.
+ * @brief Next step for an expiry of this timer; call it under the lock.
  */
-static bool __is_cancelled(__scheduler_timer_priv_data_t *timer_priv_data)
+static osal_timer_chain_step_t __chain_step(const __scheduler_timer_priv_data_t *timer_priv_data, uint64_t now)
 {
-    taskENTER_CRITICAL(&s_priv_data_lock);
-    bool cancelled = timer_priv_data->cancelled;
-    taskEXIT_CRITICAL(&s_priv_data_lock);
-    return cancelled;
+    return osal_timer_chain_next(now, timer_priv_data->deadline_ticks, timer_priv_data->total_ticks,
+                                 timer_priv_data->segment_start, (timer_priv_data->flags & TIMER_FLAG_PERIODIC) != 0,
+                                 OSAL_SCHEDULER_TIMER_MAX_TICKS, OSAL_SCHEDULER_TICK_SLACK);
 }
 
 /**
- * @brief Common timer callback.
- *
- * @note The claim (``in_callback``) spans the user task, not just the chain
- *       bookkeeping, so a cancel landing anywhere in it is seen: the task is
- *       suppressed if not yet invoked, and the teardown is handed here rather
- *       than the block being freed underneath.
- *
- * @param[in] timer_handle Timer handle.
+ * @brief Publish a reset in the daemon task after its stop, if no later reset or stop replaced it.
  */
-static void __scheduler_timer_common_cb(TimerHandle_t timer_handle)
+static void __publish_reset(void *timer, uint32_t reset_seq)
 {
-    /* Resolve and claim under the lock: cancel detaches under the same lock, so
-     * the block is either unreachable here (NULL) or safe until we release. */
+    uint64_t now = __now_ticks();
     taskENTER_CRITICAL(&s_priv_data_lock);
-    __scheduler_timer_priv_data_t *timer_priv_data = __scheduler_timer_priv_data_get(timer_handle);
-    if (timer_priv_data == NULL) {
-        taskEXIT_CRITICAL(&s_priv_data_lock);
-        return;
+    __scheduler_timer_priv_data_t *timer_priv_data = __scheduler_timer_priv_data_get((TimerHandle_t) timer);
+    if (timer_priv_data != NULL && timer_priv_data->reset_seq == reset_seq) {
+        timer_priv_data->total_ticks = timer_priv_data->reset_ticks;
+        timer_priv_data->segment_start = now;
+        timer_priv_data->deadline_ticks = now + timer_priv_data->reset_ticks;
+        timer_priv_data->pending_fires = 0;
+        timer_priv_data->flags &= ~TIMER_FLAG_STOPPED;
     }
-    timer_priv_data->in_callback = true;
-    bool cancelled = timer_priv_data->cancelled;
-    uint64_t total_ticks = timer_priv_data->total_ticks;
-    uint64_t deadline_ticks = timer_priv_data->deadline_ticks;
-    uint64_t segment_start = timer_priv_data->segment_start;
-    bool is_periodic = timer_priv_data->is_periodic;
+    taskEXIT_CRITICAL(&s_priv_data_lock);
+}
+
+/**
+ * @brief Mark the timer stopped under the lock: drop its queued expiries and any pending reset.
+ *
+ * @return The new reset sequence number.
+ */
+static uint32_t __mark_stopped_locked(__scheduler_timer_priv_data_t *timer_priv_data)
+{
+    timer_priv_data->flags |= TIMER_FLAG_STOPPED;
+    timer_priv_data->pending_fires = 0;
+    return ++timer_priv_data->reset_seq;
+}
+
+/**
+ * @brief Check, under the lock, that the timer has expiries to run and is not cancelled or stopped.
+ */
+static bool __runnable_locked(const __scheduler_timer_priv_data_t *timer_priv_data)
+{
+    return timer_priv_data->pending_fires > 0 && !(timer_priv_data->flags & TIMER_FLAGS_NO_RUN);
+}
+
+/**
+ * @brief Check under the lock that the timer is not cancelled, stopped or reset since the expiries were taken.
+ */
+static bool __may_run(__scheduler_timer_priv_data_t *timer_priv_data, uint32_t taken_seq)
+{
+    taskENTER_CRITICAL(&s_priv_data_lock);
+    bool may_run = !(timer_priv_data->flags & TIMER_FLAGS_NO_RUN) && timer_priv_data->reset_seq == taken_seq;
+    taskEXIT_CRITICAL(&s_priv_data_lock);
+    return may_run;
+}
+
+/**
+ * @brief Run one expired timer in the dispatch task.
+ *
+ * @param[in] timer_priv_data Private data of the expired timer, taken from the pending list.
+ */
+static void __dispatch_one(__scheduler_timer_priv_data_t *timer_priv_data)
+{
+    taskENTER_CRITICAL(&s_priv_data_lock);
+    /* The claim lasts across the user task, so a cancel at any point hands the teardown here */
+    timer_priv_data->flags |= TIMER_FLAG_IN_CALLBACK;
+    TimerHandle_t timer_handle = timer_priv_data->timer;
     osal_scheduler_task_t task_cb = timer_priv_data->task_cb;
     void *task_arg = timer_priv_data->task_arg;
     taskEXIT_CRITICAL(&s_priv_data_lock);
 
-    if (!cancelled) {
-        /* Decided from the clock and the absolute deadline - see osal_timer_chain.h. */
-        uint64_t now = __now_ticks();
-        osal_timer_chain_step_t step = osal_timer_chain_next(now, deadline_ticks, total_ticks,
-                                       segment_start, is_periodic,
-                                       OSAL_SCHEDULER_TIMER_MAX_TICKS,
-                                       OSAL_SCHEDULER_TICK_SLACK);
-        if (step.rearm) {
-            if (__arm_segment(timer_handle, step.arm_ticks)) {
-                /* So the next expiry knows the boundary it aimed at, however
-                 * late the daemon runs it. */
-                taskENTER_CRITICAL(&s_priv_data_lock);
-                timer_priv_data->segment_start = now;
-                taskEXIT_CRITICAL(&s_priv_data_lock);
-            } else {
-                OSAL_LOGE(TAG, "Timer command queue full; %s abandoned (%llu ticks were to be armed).",
-                          step.run_task ? "periodic task is" : "a split delay is",
-                          (unsigned long long) step.arm_ticks);
-            }
-        }
-
-        /* Re-read: a cancel may have landed while the segment was being armed. */
-        if (step.run_task && task_cb != NULL && !__is_cancelled(timer_priv_data)) {
-            task_cb(task_arg);
-        }
-    }
-
-    /* Release the claim. */
+    /* Compute an arming step again under the command mutex, so a stop or reset comes before or after the arm */
+    bool hold = false;
+    uint64_t now = __now_ticks();
     taskENTER_CRITICAL(&s_priv_data_lock);
-    timer_priv_data->in_callback = false;
-    bool handover = timer_priv_data->handover;
+    osal_timer_chain_step_t step = __chain_step(timer_priv_data, now);
+    if (__runnable_locked(timer_priv_data) && step.rearm) {
+        taskEXIT_CRITICAL(&s_priv_data_lock);
+        xSemaphoreTake(s_cmd_mutex, portMAX_DELAY);
+        hold = true;
+        now = __now_ticks();
+        taskENTER_CRITICAL(&s_priv_data_lock);
+        step = __chain_step(timer_priv_data, now);
+    }
+    bool may_run = __runnable_locked(timer_priv_data);
+    uint32_t fires = timer_priv_data->pending_fires;
+    timer_priv_data->pending_fires = 0;
+    timer_priv_data->flags &= ~TIMER_FLAG_QUEUED;
+    uint32_t taken_seq = timer_priv_data->reset_seq;
+    bool is_periodic = (timer_priv_data->flags & TIMER_FLAG_PERIODIC) != 0;
     taskEXIT_CRITICAL(&s_priv_data_lock);
 
-    if (handover) {
-        /* Cancelled mid-callback, so the teardown is ours. The delete cannot
-         * block: this is the daemon task that drains the command queue. */
-        if (xTimerDelete(timer_handle, 0) != pdPASS) {
-            OSAL_LOGE(TAG, "Timer command queue full; cancelled timer could not be deleted.");
+    if (!may_run) {
+        step.run_task = false;
+        step.rearm = false;
+    }
+    if (step.rearm) {
+        if (xTimerChangePeriod(timer_handle, (TickType_t) step.arm_ticks, portMAX_DELAY) == pdPASS) {
+            taskENTER_CRITICAL(&s_priv_data_lock);
+            timer_priv_data->segment_start = now;
+            taskEXIT_CRITICAL(&s_priv_data_lock);
+        } else {
+            OSAL_LOGE(TAG, "Failed to arm the timer (%llu ticks).", (unsigned long long) step.arm_ticks);
+        }
+    }
+    if (hold) {
+        xSemaphoreGive(s_cmd_mutex);
+    }
+
+    /* A periodic timer that fits one period runs once per merged expiry; any other timer runs at most once. */
+    uint32_t runs = step.run_task ? ((is_periodic && !step.rearm) ? fires : 1) : 0;
+    for (uint32_t i = 0; i < runs && task_cb != NULL && __may_run(timer_priv_data, taken_seq); i++) {
+        task_cb(task_arg);
+    }
+
+    /* Release the claim; if the timer expired again meanwhile, its queued run does the teardown. */
+    taskENTER_CRITICAL(&s_priv_data_lock);
+    timer_priv_data->flags &= ~TIMER_FLAG_IN_CALLBACK;
+    bool teardown = (timer_priv_data->flags & (TIMER_FLAG_CANCELLED | TIMER_FLAG_QUEUED)) == TIMER_FLAG_CANCELLED;
+    taskEXIT_CRITICAL(&s_priv_data_lock);
+
+    if (teardown) {
+        if (xTimerDelete(timer_handle, portMAX_DELAY) != pdPASS) {
+            OSAL_LOGE(TAG, "Failed to delete a cancelled timer.");
         }
         free(timer_priv_data);
     }
 }
 
+/**
+ * @brief Dispatch task: run the expired timers that the daemon task queued.
+ */
+static void __dispatch_task(void *unused)
+{
+    for (;;) {
+        xSemaphoreTake(s_dispatch_sem, portMAX_DELAY);
+
+        taskENTER_CRITICAL(&s_priv_data_lock);
+        __scheduler_timer_priv_data_t *timer_priv_data = s_pending_head;
+        s_pending_head = NULL;
+        s_pending_tail = NULL;
+        taskEXIT_CRITICAL(&s_priv_data_lock);
+
+        while (timer_priv_data != NULL) {
+            /* Read first: until __dispatch_one clears QUEUED, the daemon cannot relink the block and a cancel cannot free it. */
+            __scheduler_timer_priv_data_t *next = timer_priv_data->next;
+            __dispatch_one(timer_priv_data);
+            timer_priv_data = next;
+        }
+    }
+}
+
+/**
+ * @brief Add the timer to the pending list under the lock, unless it is there already.
+ *
+ * @return true when the timer was added, so the dispatch task must be woken.
+ */
+static bool __enqueue_locked(__scheduler_timer_priv_data_t *timer_priv_data)
+{
+    if (timer_priv_data->flags & TIMER_FLAG_QUEUED) {
+        return false;
+    }
+    timer_priv_data->flags |= TIMER_FLAG_QUEUED;
+    timer_priv_data->next = NULL;
+    if (s_pending_tail != NULL) {
+        s_pending_tail->next = timer_priv_data;
+    } else {
+        s_pending_head = timer_priv_data;
+    }
+    s_pending_tail = timer_priv_data;
+    return true;
+}
+
+/**
+ * @brief Timer callback in the daemon task: queue the timer for the dispatch task, or count the expiry if queued.
+ *
+ * @param[in] timer_handle Timer handle.
+ */
+static void __scheduler_timer_common_cb(TimerHandle_t timer_handle)
+{
+    taskENTER_CRITICAL(&s_priv_data_lock);
+    __scheduler_timer_priv_data_t *timer_priv_data = __scheduler_timer_priv_data_get(timer_handle);
+    bool notify = false;
+    if (timer_priv_data != NULL && !(timer_priv_data->flags & TIMER_FLAG_STOPPED)) {
+        notify = __enqueue_locked(timer_priv_data);
+        if (timer_priv_data->pending_fires < CONFIG_OSAL_TIMER_FREERTOS_CATCH_UP_MAX) {
+            timer_priv_data->pending_fires++;
+        }
+    }
+    taskEXIT_CRITICAL(&s_priv_data_lock);
+
+    if (notify) {
+        xSemaphoreGive(s_dispatch_sem);
+    }
+}
+
 /* Public functions ***********************************************************/
+
+/**
+ * @brief Create the dispatch task and its semaphores once; a concurrent caller waits for the first one.
+ *
+ * @return true when the dispatch objects exist.
+ */
+static bool __dispatch_create_once(void)
+{
+    for (;;) {
+        uint32_t state = DISPATCH_STATE_NONE;
+        if (__atomic_compare_exchange_n(&s_dispatch_state, &state, DISPATCH_STATE_CREATING, false,
+                                        __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+            break;
+        }
+        if (state == DISPATCH_STATE_READY) {
+            return true;
+        }
+        vTaskDelay(1);
+    }
+
+    s_dispatch_sem = xSemaphoreCreateBinaryStatic(&s_dispatch_sem_buf);
+    s_cmd_mutex = xSemaphoreCreateMutexStatic(&s_cmd_mutex_buf);
+    if (xTaskCreate(__dispatch_task, "osal_sched", CONFIG_OSAL_TIMER_FREERTOS_DISPATCH_TASK_STACK_SIZE, NULL,
+                    CONFIG_OSAL_TIMER_FREERTOS_DISPATCH_TASK_PRIORITY, NULL) != pdPASS) {
+        __atomic_store_n(&s_dispatch_state, DISPATCH_STATE_NONE, __ATOMIC_RELEASE);
+        return false;
+    }
+    __atomic_store_n(&s_dispatch_state, DISPATCH_STATE_READY, __ATOMIC_RELEASE);
+    return true;
+}
 
 osal_err_t osal_scheduler_init(void)
 {
-    // No init is required for FreeRTOS scheduler, but log the initialization.
+    if (!__dispatch_create_once()) {
+        OSAL_LOGE(TAG, "Failed to create the scheduler dispatch task.");
+        return OSAL_ERR_NO_MEM;
+    }
     is_initialized = true;
     OSAL_LOGI(TAG, "Initialized FreeRTOS scheduler implementation.");
     return OSAL_ERR_OK;
@@ -275,7 +439,7 @@ osal_err_t osal_scheduler_init(void)
 
 osal_err_t osal_scheduler_deinit(void)
 {
-    // No deinit is required for FreeRTOS scheduler.
+    // The dispatch task stays, to run timers that expire after deinit.
     is_initialized = false;
     return OSAL_ERR_OK;
 }
@@ -312,7 +476,7 @@ static osal_err_t osal_scheduler_schedule_task_internal(osal_scheduler_task_hand
         *handle = NULL;
         return OSAL_ERR_NO_MEM;
     }
-    timer_priv_data->is_periodic = is_periodic;
+    timer_priv_data->flags = is_periodic ? TIMER_FLAG_PERIODIC : 0;
     timer_priv_data->total_ticks = total_ticks;
     timer_priv_data->segment_start = __now_ticks();
     timer_priv_data->deadline_ticks = timer_priv_data->segment_start + total_ticks;
@@ -327,9 +491,11 @@ static osal_err_t osal_scheduler_schedule_task_internal(osal_scheduler_task_hand
         *handle = NULL;
         return OSAL_ERR_NO_MEM;
     }
+    timer_priv_data->timer = timer_handle;
 
     // Start the timer.
     if (xTimerStart(timer_handle, portMAX_DELAY) != pdPASS) {
+        vTimerSetTimerID(timer_handle, NULL);
         xTimerDelete(timer_handle, portMAX_DELAY);
         free(timer_priv_data);
         *handle = NULL;
@@ -367,34 +533,29 @@ osal_err_t osal_scheduler_reset_timer(osal_scheduler_task_handle_t handle, uint6
     TickType_t delay_ticks = 0;
     __split_delay(delay_ms, &total_ticks, &delay_ticks);
 
-    // Stop the timer first
-    if (xTimerIsTimerActive(timer_handle) == pdTRUE && xTimerStop(timer_handle, portMAX_DELAY) != pdPASS) {
-        return OSAL_ERR_INVALID_STATE;
-    }
+    xSemaphoreTake(s_cmd_mutex, portMAX_DELAY);
 
-    /* Publish only once stopped, so a failure above leaves the old deadline
-     * intact. A callback in flight can still arm one segment against the old
-     * one; the next expiry reads the new one. */
+    /* Mark stopped, as a stop does; commands run in order, so no expiry of the old delay follows the publish. */
+    uint32_t reset_seq = 0;
     taskENTER_CRITICAL(&s_priv_data_lock);
     __scheduler_timer_priv_data_t *timer_priv_data = __scheduler_timer_priv_data_get(timer_handle);
     if (timer_priv_data != NULL) {
-        timer_priv_data->total_ticks = total_ticks;
-        timer_priv_data->segment_start = __now_ticks();
-        timer_priv_data->deadline_ticks = timer_priv_data->segment_start + total_ticks;
+        timer_priv_data->reset_ticks = total_ticks;
+        reset_seq = __mark_stopped_locked(timer_priv_data);
     }
     taskEXIT_CRITICAL(&s_priv_data_lock);
 
-    // Reset the timer with new period
-    if (xTimerChangePeriod(timer_handle, delay_ticks, portMAX_DELAY) != pdPASS) {
-        return OSAL_ERR_INVALID_STATE;
+    /* A cancelled task is not armed again */
+    osal_err_t err = OSAL_ERR_INVALID_STATE;
+    if (timer_priv_data != NULL &&
+            xTimerStop(timer_handle, portMAX_DELAY) == pdPASS &&
+            xTimerPendFunctionCall(__publish_reset, timer_handle, reset_seq, portMAX_DELAY) == pdPASS &&
+            xTimerChangePeriod(timer_handle, delay_ticks, portMAX_DELAY) == pdPASS) {
+        err = OSAL_ERR_OK;
     }
 
-    // Start the timer again
-    if (xTimerStart(timer_handle, portMAX_DELAY) != pdPASS) {
-        return OSAL_ERR_INVALID_STATE;
-    }
-
-    return OSAL_ERR_OK;
+    xSemaphoreGive(s_cmd_mutex);
+    return err;
 }
 
 osal_err_t osal_scheduler_stop_timer(osal_scheduler_task_handle_t handle)
@@ -409,11 +570,23 @@ osal_err_t osal_scheduler_stop_timer(osal_scheduler_task_handle_t handle)
 
     TimerHandle_t timer_handle = (TimerHandle_t) handle;
 
-    if (xTimerStop(timer_handle, portMAX_DELAY) != pdPASS) {
-        return OSAL_ERR_INVALID_STATE;
-    }
+    xSemaphoreTake(s_cmd_mutex, portMAX_DELAY);
 
-    return OSAL_ERR_OK;
+    /* Mark first: an expiry that the daemon task handles before the stop command is then dropped too. */
+    taskENTER_CRITICAL(&s_priv_data_lock);
+    __scheduler_timer_priv_data_t *timer_priv_data = __scheduler_timer_priv_data_get(timer_handle);
+    if (timer_priv_data != NULL) {
+        (void) __mark_stopped_locked(timer_priv_data);
+    }
+    taskEXIT_CRITICAL(&s_priv_data_lock);
+
+    /* A cancelled task is already stopped */
+    osal_err_t err = OSAL_ERR_OK;
+    if (timer_priv_data != NULL && xTimerStop(timer_handle, portMAX_DELAY) != pdPASS) {
+        err = OSAL_ERR_INVALID_STATE;
+    }
+    xSemaphoreGive(s_cmd_mutex);
+    return err;
 }
 
 osal_err_t osal_scheduler_cancel_task(osal_scheduler_task_handle_t *handle)
@@ -430,43 +603,32 @@ osal_err_t osal_scheduler_cancel_task(osal_scheduler_task_handle_t *handle)
     }
 
     TimerHandle_t timer_handle = (TimerHandle_t) * handle;
+    *handle = NULL;
+    xSemaphoreTake(s_cmd_mutex, portMAX_DELAY);
 
-    /* Detach first: the callback resolves under the same lock, so afterwards it
-     * either cannot reach the block or has already claimed it - freeing then
-     * would corrupt the heap under the daemon task. Later expiries see a NULL
-     * timer ID and bail. */
+    /* Detach first: later expiries then see a NULL timer ID and cannot queue the block again. */
     taskENTER_CRITICAL(&s_priv_data_lock);
     __scheduler_timer_priv_data_t *priv_data = __scheduler_timer_priv_data_get(timer_handle);
     if (priv_data == NULL) {
         /* A concurrent cancel already detached it and owns the teardown. */
         taskEXIT_CRITICAL(&s_priv_data_lock);
-        *handle = NULL;
+        xSemaphoreGive(s_cmd_mutex);
         return OSAL_ERR_OK;
     }
     vTimerSetTimerID(timer_handle, NULL);
-    /* The callback re-reads this before invoking the task. */
-    priv_data->cancelled = true;
-    bool handover = priv_data->in_callback;
-    priv_data->handover = handover;
+    /* The dispatch task re-reads this before invoking the task. */
+    priv_data->flags |= TIMER_FLAG_CANCELLED;
+    bool handover = (priv_data->flags & (TIMER_FLAG_IN_CALLBACK | TIMER_FLAG_QUEUED)) != 0;
     taskEXIT_CRITICAL(&s_priv_data_lock);
 
-    if (handover) {
-        /* A callback holds the claim and tears down on its way out. Not waited
-         * for: the caller may be the daemon task itself (a task cancelling its
-         * own timer), where waiting deadlocks. */
-        *handle = NULL;
-        return OSAL_ERR_OK;
+    if (!handover) {
+        /* Nothing holds the block, so this cancel owns the teardown; else the dispatch task does it. */
+        if (xTimerDelete(timer_handle, portMAX_DELAY) != pdPASS) {
+            OSAL_LOGE(TAG, "Failed to delete a cancelled timer.");
+        }
+        free(priv_data);
     }
 
-    /* Nothing holds the block, so this cancel owns the teardown. */
-    if (xTimerIsTimerActive(timer_handle) == pdTRUE) {
-        xTimerStop(timer_handle, portMAX_DELAY);
-    }
-
-    // Delete the timer, then free the detached private data
-    xTimerDelete(timer_handle, portMAX_DELAY);
-    free(priv_data);
-
-    *handle = NULL;
+    xSemaphoreGive(s_cmd_mutex);
     return OSAL_ERR_OK;
 }

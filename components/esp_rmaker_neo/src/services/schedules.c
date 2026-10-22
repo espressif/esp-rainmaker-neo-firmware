@@ -58,7 +58,7 @@
  *    replaced the set (a stale pointer would be a use-after-free; a stale id
  *    just misses).
  *
- *    Deleting the handle here crosses tasks -- the fire runs on the timer task
+ *    Deleting the handle here crosses tasks -- the fire runs on a task of the scheduler backend
  *    while the work queue does the teardown -- so it relies on the port's timer
  *    ``cancel`` barriering against a running callback (see
  *    ``overrides/esp_schedule/port/esp_schedule_port_osal.c``). Without that barrier

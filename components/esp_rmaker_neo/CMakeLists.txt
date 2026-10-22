@@ -1,8 +1,5 @@
 include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
-# Add pre-processor checks to enforce minimum stack sizes for the SDK.
-list(APPEND RMNG_SRCS ${RMNG_CHECKS_SRCS})
-
 # Normal CMake Platform ###
 if (NOT ESP_PLATFORM)
     # Register esp_rmaker_neo and all children Kconfigs

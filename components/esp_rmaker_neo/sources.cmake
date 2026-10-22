@@ -96,30 +96,6 @@ if (RMNG_CONSOLE_ENABLED)
     endif ()
 endif ()
 
-get_property(_rmng_checks_done GLOBAL PROPERTY _RMNG_CHECKS_CONFIGURED)
-if (NOT _rmng_checks_done)
-    # Configure pre-processor checks to enforce minimum stack sizes for the SDK.
-    set(MIN_FREERTOS_TIMER_TASK_STACK_DEPTH 3072)
-    if (ESP_PLATFORM)
-        if (CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH LESS ${MIN_FREERTOS_TIMER_TASK_STACK_DEPTH})
-            message(
-                WARNING
-                    "This SDK requires CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH >= ${MIN_FREERTOS_TIMER_TASK_STACK_DEPTH} "
-                    "(currently ${CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH}). "
-                    "Add 'CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=${MIN_FREERTOS_TIMER_TASK_STACK_DEPTH}' to your "
-                    "project's sdkconfig.defaults, or raise it in menuconfig under "
-                    "Component config → FreeRTOS → Kernel."
-            )
-        endif ()
-    endif ()
-
-    set(RMNG_CHECKS_MIN_STACK_SIZES_SRC ${CMAKE_CURRENT_BINARY_DIR}/src/checks/min_stack_sizes.c)
-    configure_file(${CMAKE_CURRENT_LIST_DIR}/src/checks/min_stack_sizes.c.in ${RMNG_CHECKS_MIN_STACK_SIZES_SRC})
-
-    set(RMNG_CHECKS_SRCS ${RMNG_CHECKS_MIN_STACK_SIZES_SRC})
-    set_property(GLOBAL PROPERTY _RMNG_CHECKS_CONFIGURED TRUE)
-endif ()
-
 # Host control sources. Defining them is unconditional; only consumption is gated on RMNG_HOST_CTRL, which is resolved
 # in CMakeLists.txt. bridge_handlers.c is not here: it depends on CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE, and on POSIX no
 # CONFIG_* exists yet at the point this file is included.
