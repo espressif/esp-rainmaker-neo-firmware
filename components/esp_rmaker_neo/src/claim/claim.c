@@ -36,6 +36,7 @@
 
 /* Protobuf includes */
 #include "claim/pb-c.h"
+#include "claim/rules.h"
 
 /* JSON includes */
 #include "json_generator.h"
@@ -85,6 +86,7 @@ static const char *TAG = "rmng_claim";
 
 static prov_registration_info_t prov_info;
 
+/* Advertised in app-info; the policies travel in the claim-verify "capabilities". */
 static const char *__app_info_capabilities[] = { "claim" };
 
 /** The live claim context, or NULL once it has been released.
@@ -321,7 +323,8 @@ static esp_rmaker_error_t __generate_claim_init_request(esp_rmaker_claim_data_t 
  * @brief Handle the claim-init response and build the claim-verify request.
  *
  * Init response: {"node_id":"<cloud-assigned-node-id>"}
- * Verify request: {"csr":"<escaped PEM CSR>","send_mqtt_host":true}
+ * Verify request: {"csr":"<escaped PEM CSR>","send_mqtt_host":true}, plus
+ * "capabilities":[...] when any feature asks (see claim_rules_build_verify_request()).
  */
 static esp_rmaker_error_t __handle_claim_init_response(esp_rmaker_claim_data_t *claim_data)
 {
@@ -363,15 +366,15 @@ static esp_rmaker_error_t __handle_claim_init_response(esp_rmaker_claim_data_t *
         return err;
     }
 
-    json_gen_str_t jstr;
-    json_gen_str_start(&jstr, claim_data->payload, sizeof(claim_data->payload), NULL, NULL);
-    json_gen_start_object(&jstr);
-    json_gen_obj_set_string(&jstr, "csr", (char *)claim_data->csr);
-    json_gen_obj_set_bool(&jstr, "send_mqtt_host", true);
-    json_gen_end_object(&jstr);
-    json_gen_str_end(&jstr);
+    size_t len = 0;
+    err = claim_rules_build_verify_request((const char *)claim_data->csr, claim_data->payload,
+                                           sizeof(claim_data->payload), &len);
+    if (err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to build the claim verify request: %d", err);
+        return err;
+    }
 
-    claim_data->payload_len = strlen(claim_data->payload);
+    claim_data->payload_len = len;
     claim_data->payload_offset = 0;
     return ESP_RMAKER_OK;
 }

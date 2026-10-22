@@ -147,6 +147,26 @@ esp_rmaker_error_t claim_rules_escape_new_line(char *dst, size_t dst_size, char 
  */
 void claim_rules_unescape_new_line(char *str);
 
+/**
+ * @brief Build the claim-verify request body.
+ *
+ * Format: {"csr":"<escaped PEM CSR>","send_mqtt_host":true}, plus "capabilities":[...]
+ * when any feature asks for a cloud service. The phone app forwards this body to
+ * claim/verify unchanged.
+ *
+ * @note Lists every enabled capability; a re-claim replaces the certificate's policies.
+ *
+ * @param[in] escaped_csr PEM CSR with newlines already escaped for JSON.
+ * @param[out] buf Receives the NUL-terminated JSON.
+ * @param[in] buf_size Size of @p buf.
+ * @param[out] p_len Receives strlen() of the JSON. Optional.
+ * @return ESP_RMAKER_OK on success.
+ * @return ESP_RMAKER_INVALID_ARG on a NULL argument or a zero-sized buffer.
+ * @return ESP_RMAKER_NO_MEM if the JSON does not fit in @p buf.
+ */
+esp_rmaker_error_t claim_rules_build_verify_request(const char *escaped_csr, char *buf, size_t buf_size,
+        size_t *p_len);
+
 #ifdef __cplusplus
 }
 #endif
