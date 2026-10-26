@@ -6,6 +6,7 @@
 #   $SITE_DIR/<app>/LAUNCHPAD.md                per-firmware readme (copied from the example)
 #   $SITE_DIR/_meta/<app>.factory_offset        fctry partition offset (feeds the site README)
 #   $SITE_DIR/_meta/idf.txt                     resolved IDF version + commit
+#   $SITE_DIR/<app>/<target>/<app>.elf.gz       gzipped app ELF for backtrace decode
 #
 # _meta/ is consumed and deleted by generate_launchpad_config.sh, so it never ships.
 #
@@ -130,8 +131,9 @@ for build_dir in "$BUILD_TMP"/*; do
   app="${build_name%_default}"
   desc="$build_dir/project_description.json"
   project_path=""
+  elf=""
   if [ -f "$desc" ]; then
-    project_path=$(python -c "import json;print(json.load(open('$desc')).get('project_path',''))" 2>/dev/null) || true
+    { read -r project_path; read -r elf; } < <(python -c "import json;d=json.load(open('$desc'));print(d.get('project_path',''));print(d.get('app_elf',''))" 2>/dev/null) || true
   fi
 
   out_dir="$SITE_DIR/$app/$IDF_TARGET"
@@ -141,6 +143,13 @@ for build_dir in "$BUILD_TMP"/*; do
       -o "$out_dir/${app}-merged.bin" "@flash_args" )
   staged=$((staged + 1))
   echo "merged: $app/$IDF_TARGET/${app}-merged.bin ($(du -h "$out_dir/${app}-merged.bin" | cut -f1))"
+
+  [ -n "$elf" ] || elf="${app}.elf"
+  if [ ! -f "$build_dir/$elf" ]; then
+    echo "ERROR: no app ELF for $app ($build_dir/$elf)." >&2
+    exit 1
+  fi
+  gzip -9nc "$build_dir/$elf" > "$out_dir/${app}.elf.gz"
 
   # Per-app files: identical across targets, so first target to run wins. Artifact
   # merging in the deploy job overwrites them with identical content.

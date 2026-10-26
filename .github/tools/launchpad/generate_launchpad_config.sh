@@ -3,6 +3,7 @@
 #
 # Expects the layout produced by build_launchpad.sh (merged across all targets):
 #   $SITE_DIR/<app>/<target>/<app>-merged.bin
+#   $SITE_DIR/<app>/<target>/<app>.elf.gz
 #   $SITE_DIR/<app>/LAUNCHPAD.md
 #   $SITE_DIR/_meta/<app>.factory_offset
 #   $SITE_DIR/_meta/idf.txt
@@ -157,6 +158,16 @@ fi
   echo ""
   echo "There is currently no support yet."
   echo ""
+  echo "## Debug Symbols"
+  echo ""
+  echo "Each image has a gzipped app ELF next to it, at \`<app>/<target>/<app>.elf.gz\`."
+  echo "Use it to decode a backtrace from a device that runs that image:"
+  echo ""
+  echo "\`\`\`"
+  echo "gunzip <app>.elf.gz"
+  echo "python -m esp_idf_monitor -p <port> <app>.elf"
+  echo "\`\`\`"
+  echo ""
   echo "## Build Configuration"
   echo ""
   echo "- **Ref:** \`${REF_NAME:-unknown}\`"
@@ -203,6 +214,12 @@ done
       [ -n "$bin_path" ] || continue
       echo "image.$(to_image_key "$target") = \"$app/$target/$(basename "$bin_path")\""
     done
+    # Not read by Launchpad; relative to firmware_images_url, like image.*.
+    for target_dir in "$SITE_DIR/$app"/*/; do
+      [ -f "$target_dir$app.elf.gz" ] || continue
+      target=$(basename "$target_dir")
+      echo "elf-gz.$(to_image_key "$target") = \"$app/$target/$app.elf.gz\""
+    done
     # Rendered as app store badges in the Launchpad UI. Per app, not global.
     echo "ios_app_url = \"${IOS_APP_URL}\""
     echo "android_app_url = \"${ANDROID_APP_URL}\""
@@ -221,6 +238,7 @@ echo "============================================================"
 echo "Launchpad site staged in $SITE_DIR"
 echo "  apps:     ${APPS[*]}"
 echo "  images:   $(find "$SITE_DIR" -name '*-merged.bin' | wc -l | tr -d ' ')"
+echo "  elfs:     $(find "$SITE_DIR" -name '*.elf.gz' | wc -l | tr -d ' ')"
 echo "  toml:     ${PAGES_BASE_URL}launchpad.toml"
 echo "  launchpad: https://espressif.github.io/esp-launchpad/?flashConfigURL=${PAGES_BASE_URL}launchpad.toml"
 echo "============================================================"
