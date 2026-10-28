@@ -1,8 +1,5 @@
 FROM ubuntu:24.04
 
-# Set folder names
-ARG APP_DIR=/app
-
 # Environment facts: the single source of truth for what this image serves.
 ENV MQTT_HOST=localhost
 ENV MQTT_PORT_TCP=1883
@@ -21,45 +18,12 @@ ENV HTTP_SERVER_KEY=httpbin_server.key
 ENV HTTP_URL_TCP=http://$HTTP_HOST:$HTTP_PORT_TCP
 ENV HTTP_URL_TLS=https://$HTTP_HOST:$HTTP_PORT_TLS
 
-# The generators themselves, so a consumer can discover what produces the files
-# above without grepping the image. All are on PATH.
+# The generators, all on PATH. Each *_SETUP_CMD takes its output directory as
+# argv[1]; the *_CERT/*_KEY values above are the filenames it writes there.
 ENV MQTT_SETUP_CMD=mosquitto_setup_conf.sh
 ENV MQTT_RUN_CMD=mosquitto_run.sh
 ENV HTTP_SETUP_CMD=httpbin_setup_conf.sh
 ENV HTTP_RUN_CMD=httpbin_run.sh
-
-# Same facts as a readable file.
-ENV POSIX_TEST_ENV_FILE=$APP_DIR/posix_test_env.env
-RUN mkdir -p $APP_DIR && { \
-        echo "# Environment facts for this image. Source with:"; \
-        echo "#   set -a; . \"\$POSIX_TEST_ENV_FILE\"; set +a"; \
-        echo "#"; \
-        echo "# Directories are NOT declared here: each *_SETUP_CMD takes its output"; \
-        echo "# directory as argv[1], so the consumer chooses the location and the"; \
-        echo "# *_CERT/*_KEY values below are the filenames it will find there."; \
-        echo "#   \$MQTT_SETUP_CMD <certs_dir> <mosquitto_conf_out> [validity_days]"; \
-        echo "#   \$HTTP_SETUP_CMD <certs_dir> [validity_days]"; \
-        echo "MQTT_HOST=$MQTT_HOST"; \
-        echo "MQTT_PORT_TCP=$MQTT_PORT_TCP"; \
-        echo "MQTT_PORT_TLS_SERVER_ONLY=$MQTT_PORT_TLS_SERVER_ONLY"; \
-        echo "MQTT_PORT_TLS_MUTUAL_AUTH=$MQTT_PORT_TLS_MUTUAL_AUTH"; \
-        echo "MQTT_USERNAME=$MQTT_USERNAME"; \
-        echo "MQTT_PASSWORD=$MQTT_PASSWORD"; \
-        echo "MQTT_CA_CERT=$MQTT_CA_CERT"; \
-        echo "MQTT_CLIENT_CERT=$MQTT_CLIENT_CERT"; \
-        echo "MQTT_CLIENT_KEY=$MQTT_CLIENT_KEY"; \
-        echo "HTTP_HOST=$HTTP_HOST"; \
-        echo "HTTP_PORT_TCP=$HTTP_PORT_TCP"; \
-        echo "HTTP_PORT_TLS=$HTTP_PORT_TLS"; \
-        echo "HTTP_SERVER_CERT=$HTTP_SERVER_CERT"; \
-        echo "HTTP_SERVER_KEY=$HTTP_SERVER_KEY"; \
-        echo "HTTP_URL_TCP=$HTTP_URL_TCP"; \
-        echo "HTTP_URL_TLS=$HTTP_URL_TLS"; \
-        echo "MQTT_SETUP_CMD=$MQTT_SETUP_CMD"; \
-        echo "MQTT_RUN_CMD=$MQTT_RUN_CMD"; \
-        echo "HTTP_SETUP_CMD=$HTTP_SETUP_CMD"; \
-        echo "HTTP_RUN_CMD=$HTTP_RUN_CMD"; \
-    } > $POSIX_TEST_ENV_FILE
 
 # Make sure install is non-interactive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -128,11 +92,6 @@ if [ -z "$CERTS_DIR" ] || [ -z "$CONFIG_OUT" ]; then\n\
     echo "Example: $0 /tmp/mqtt_certs /app/mosquitto_config/mosquitto.conf 365"\n\
     exit 1\n\
 fi\n\
-\n\
-# Source the environment file to get the cert names\n\
-set -a\n\
-. "$POSIX_TEST_ENV_FILE"\n\
-set +a\n\
 \n\
 echo "Setting up MQTT certificates and configuration..."\n\
 echo "Certificate directory: $CERTS_DIR"\n\

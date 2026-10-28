@@ -5,6 +5,15 @@
 workflow:
   auto_cancel:
     on_new_commit: interruptible
+  rules:
+    # An MR that changes the image builds and uses its own tag, never main's.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - tools/docker/posix_test/Dockerfile
+      variables:
+        POSIX_TEST_ENV_IMAGE: "${CI_REGISTRY_IMAGE}/posix_test_env:mr-${CI_MERGE_REQUEST_IID}"
+    - when: always
 
 # Pipeline is split under .gitlab/ — include order matters for variable merge.
 # unit_tests.yml is listed before the example builds on purpose: runners pull

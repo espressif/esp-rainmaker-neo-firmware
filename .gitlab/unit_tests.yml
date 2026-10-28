@@ -23,7 +23,6 @@ build_unit_tests_posix:
       "$MQTT_SETUP_CMD" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs" "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mosquitto.conf"
     - |
       # Copy the image's certs into the test component.
-      set -a; . "$POSIX_TEST_ENV_FILE"; set +a
       mkdir -p "$TEST_OSAL_MQTT_CERTS_DEST_DIR"
       cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/$MQTT_CA_CERT"     "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CA_CERT"
       cp "$POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR/mqtt_certs/$MQTT_CLIENT_CERT" "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CLIENT_CERT"
