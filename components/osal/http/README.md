@@ -170,7 +170,7 @@ All functions return `os_err_t` values:
 
 ## Examples
 
-See the `test-http-common/` directory for comprehensive examples including:
+See the `test_osal_http/` directory for comprehensive examples including:
 
 - Basic HTTP operations (GET, POST)
 - Header management

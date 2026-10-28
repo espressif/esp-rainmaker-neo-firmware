@@ -10,7 +10,7 @@
  */
 
 #include "unity.h"
-#include "test_rmng_prototypes.h"
+#include "test_rmaker_neo_prototypes.h"
 
 void test_cloud_events_payload(void)
 {

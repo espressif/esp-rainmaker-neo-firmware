@@ -18,18 +18,18 @@ if (NOT ESP_PLATFORM)
     endif ()
 endif ()
 
-# Get TEST_RMNG value from ESP_RMAKER_NEO_TESTING
-if (NOT DEFINED TEST_RMNG)
-    set(TEST_RMNG OFF)
+# Get TEST_ESP_RMAKER_NEO value from ESP_RMAKER_NEO_TESTING
+if (NOT DEFINED TEST_ESP_RMAKER_NEO)
+    set(TEST_ESP_RMAKER_NEO OFF)
 endif ()
 if (DEFINED CONFIG_ESP_RMAKER_NEO_TESTING)
-    set(TEST_RMNG ${CONFIG_ESP_RMAKER_NEO_TESTING})
+    set(TEST_ESP_RMAKER_NEO ${CONFIG_ESP_RMAKER_NEO_TESTING})
 endif ()
-message(STATUS "TEST_RMNG: ${TEST_RMNG}")
+message(STATUS "TEST_ESP_RMAKER_NEO: ${TEST_ESP_RMAKER_NEO}")
 
-if (TEST_RMNG AND NOT ESP_PLATFORM)
+if (TEST_ESP_RMAKER_NEO AND NOT ESP_PLATFORM)
     # Set up testing early
-    if (TEST_RMNG)
+    if (TEST_ESP_RMAKER_NEO)
         # Use virtual scheduler
         set(OSAL_USING_VIRTUAL_SCHEDULER ON)
 
@@ -167,16 +167,16 @@ else ()
     target_include_directories(${RMNG_NAME} PRIVATE ${RMNG_PRIV_INCLUDE_DIRS})
 
     # Testing remainder setup
-    if (TEST_RMNG)
+    if (TEST_ESP_RMAKER_NEO)
         include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/testing.cmake)
         add_subdirectory(test_rmaker_neo)
         testing_enable_coverage(esp_rmaker_neo)
         get_filename_component(RMNG_SDK_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
         testing_add_gcovr_coverage_target(
-            NAME rmng_coverage
+            NAME esp_rmaker_neo_coverage
             ROOT_DIR "${RMNG_SDK_REPO_ROOT}"
             TEST_DIR "${CMAKE_CURRENT_BINARY_DIR}"
-            OUTPUT_DIR "${CMAKE_BINARY_DIR}/rmng-coverage"
+            OUTPUT_DIR "${CMAKE_BINARY_DIR}/coverage/esp_rmaker_neo"
             FILTERS "^components/esp_rmaker_neo(/|$)"
         )
     endif ()

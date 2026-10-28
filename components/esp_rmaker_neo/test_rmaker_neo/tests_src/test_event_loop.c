@@ -9,7 +9,7 @@
  */
 
 #include "unity.h"
-#include "test_rmng_prototypes.h"
+#include "test_rmaker_neo_prototypes.h"
 
 #include <stdint.h>
 #include "esp_rmaker_event_loop.h"

@@ -31,16 +31,16 @@ else ()
     target_include_directories(${RMNG_OTA_NAME} PRIVATE ${RMNG_OTA_PRIV_INCLUDE_DIRS})
 
     # Add coverage target and test component
-    option(TEST_RMNG_OTA "Enable testing for RMNG OTA" OFF)
-    if (TEST_RMNG_OTA)
+    option(TEST_ESP_RMAKER_NEO_OTA "Enable testing for esp_rmaker_neo_ota" OFF)
+    if (TEST_ESP_RMAKER_NEO_OTA)
         include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/testing.cmake)
         testing_enable_coverage(${RMNG_OTA_NAME})
         get_filename_component(RMNG_SDK_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
         testing_add_gcovr_coverage_target(
-            NAME rmng_ota_coverage
+            NAME esp_rmaker_neo_ota_coverage
             ROOT_DIR "${RMNG_SDK_REPO_ROOT}"
             TEST_DIR "${CMAKE_CURRENT_BINARY_DIR}"
-            OUTPUT_DIR "${CMAKE_BINARY_DIR}/rmng-ota-coverage"
+            OUTPUT_DIR "${CMAKE_BINARY_DIR}/coverage/esp_rmaker_neo_ota"
             FILTERS "^components/esp_rmaker_neo_ota(/|$)"
         )
         add_subdirectory(test_rmaker_neo_ota)

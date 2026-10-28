@@ -10,7 +10,7 @@
  */
 
 #include "unity.h"
-#include "test_rmng_common_prototypes.h"
+#include "test_rmaker_neo_common_prototypes.h"
 
 #include <stdint.h>
 #include <stdlib.h>

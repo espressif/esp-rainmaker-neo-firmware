@@ -19,4 +19,4 @@ target_include_directories(${OSAL_MQTT_NAME} PUBLIC ${OSAL_MQTT_INCLUDE_DIRS})
 target_link_libraries(${OSAL_MQTT_NAME} PUBLIC ${OSAL_MQTT_REQUIRES})
 target_link_libraries(${OSAL_MQTT_NAME} PRIVATE ${OSAL_MQTT_PRIV_REQUIRES})
 
-# DO NOT add test-mqtt-common here. It is added by the test app that needs it.
+# DO NOT add test_osal_mqtt here. It is added by the test app that needs it.

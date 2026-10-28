@@ -38,5 +38,5 @@ Because the POSIX path resolves the dependencies through the ESP component
 manager, configuring a POSIX build needs the component registry to be reachable
 (or an already-populated managed-components cache).
 
-[`test-json-common/`](test-json-common/) holds the unit tests, which build for
+[`test_osal_json/`](test_osal_json/) holds the unit tests, which build for
 both platforms and are added when testing is enabled.

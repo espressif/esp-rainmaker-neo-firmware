@@ -14,7 +14,7 @@
 #include "../../../src/retry/backoff.c"
 
 #include "unity.h"
-#include "test_rmng_common_prototypes.h"
+#include "test_rmaker_neo_common_prototypes.h"
 
 #include <stdbool.h>
 #include <stdint.h>

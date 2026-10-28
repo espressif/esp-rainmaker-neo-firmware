@@ -3,11 +3,11 @@
 # Force testing.
 CONFIG_ESP_RMAKER_NEO_TESTING=y
 
-# Custom CA certificate for test-mqtt-common (POSIX CA bundle).
+# Custom CA certificate for test_osal_mqtt (POSIX CA bundle).
 CONFIG_OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE=y
-CONFIG_OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE_PATH="../../../components/osal/mqtt/test-mqtt-common/certs/test_mqtt_common_host_crt.pem"
+CONFIG_OSAL_CA_BUNDLE_CUSTOM_CERTIFICATE_BUNDLE_PATH="../../../components/osal/mqtt/test_osal_mqtt/certs/test_osal_mqtt_ca.pem"
 
-# Enable http-common
+# Enable osal http
 CONFIG_OSAL_INCLUDE_HTTP=y
 
 # Enable bridge testing

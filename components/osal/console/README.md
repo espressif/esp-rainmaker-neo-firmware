@@ -37,5 +37,5 @@ for source compatibility but unused; the UART device config is ignored because
 Always built on POSIX (unconditionally added to the osal library); never built
 on ESP-IDF.
 
-Unit tests live in [`test-esp_console-posix/`](test-esp_console-posix/) and are
+Unit tests live in [`test_osal_console/`](test_osal_console/) and are
 added when testing is enabled.

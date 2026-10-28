@@ -73,5 +73,5 @@ egress is black-holed.
   wrappers, config headers and the transport port are committed.
 - Buffers pointed to by `osal_mqtt_conn_params_t` (and the LWT) must stay alive
   until the client is deinitialized; the implementation does not copy them.
-- Tests: [`test-mqtt-common/`](test-mqtt-common/), added by the test app that
+- Tests: [`test_osal_mqtt/`](test_osal_mqtt/), added by the test app that
   needs them rather than from this `CMakeLists.txt`.

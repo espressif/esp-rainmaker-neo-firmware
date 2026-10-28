@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(posix_rmng_sdk_test_app C ASM)
+project(test-app-posix C ASM)
 
 enable_testing()
-set(TEST_RMNG ON)
-set(TEST_RMNG_OTA ON)
+set(TEST_ESP_RMAKER_NEO ON)
+set(TEST_ESP_RMAKER_NEO_OTA ON)
 set(CMAKE_BUILD_TYPE Debug)
 
 # Opt-in AddressSanitizer for the POSIX unit-test build. Catches use-after-free, buffer overflows, etc. across all
@@ -34,5 +34,5 @@ set(COMPONENTS_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../components)
 add_subdirectory(${COMPONENTS_DIR}/esp_rmaker_neo components/esp_rmaker_neo)
 add_subdirectory(${COMPONENTS_DIR}/esp_rmaker_neo_ota components/esp_rmaker_neo_ota)
 
-# Optional test-mqtt-common.
-add_subdirectory(${COMPONENTS_DIR}/osal/mqtt/test-mqtt-common components/osal/mqtt/test-mqtt-common)
+# Optional: osal MQTT tests are not pulled in by osal itself (they need a live broker).
+add_subdirectory(${COMPONENTS_DIR}/osal/mqtt/test_osal_mqtt components/osal/mqtt/test_osal_mqtt)

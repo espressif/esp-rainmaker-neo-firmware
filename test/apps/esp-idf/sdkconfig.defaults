@@ -7,7 +7,7 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 # Tests can get very large; increase the default stack size
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 
-# Enable RMNG testing (builds test_rmaker_neo and enables test hooks)
+# Enable esp_rmaker_neo testing (builds test_rmaker_neo and enables test hooks)
 CONFIG_ESP_RMAKER_NEO_TESTING=y
 CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE=y
 # Request every claim-time cloud service, so the claim-verify test covers the
@@ -18,13 +18,13 @@ CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT=y
 # Enable virtual scheduler (required by RMNG testing)
 CONFIG_OSAL_USING_VIRTUAL_SCHEDULER=y
 
-# test-http-common is always built here (ESP-IDF auto-discovers it and test_app.c runs its suite), so the osal http area
+# test_osal_http is always built here (ESP-IDF auto-discovers it and test_app.c runs its suite), so the osal http area
 # it tests must be built too. On POSIX the test dir is only added when this is on, so no equivalent is needed there.
 CONFIG_OSAL_INCLUDE_HTTP=y
 
 # Point to custom CA certificate bundle for MQTT testing
 CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE=y
-CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH="../../../components/osal/mqtt/test-mqtt-common/certs/test_mqtt_common_host_crt.pem"
+CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH="../../../components/osal/mqtt/test_osal_mqtt/certs/test_osal_mqtt_ca.pem"
 
 # Default to BLE provisioning.
 CONFIG_BT_ENABLED=y

@@ -17,7 +17,7 @@
  */
 
 #include "unity.h"
-#include "test_rmng_prototypes.h"
+#include "test_rmaker_neo_prototypes.h"
 
 #include "sdkconfig.h"
 

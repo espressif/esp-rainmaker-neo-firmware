@@ -14,7 +14,7 @@
  */
 
 #include "unity.h"
-#include "test_rmng_ota_prototypes.h"
+#include "test_rmaker_neo_ota_prototypes.h"
 
 #include <string.h>
 

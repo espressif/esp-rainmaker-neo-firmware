@@ -18,6 +18,7 @@ variables:
   variables:
     COVERAGE_REPORTS_DIR: "${CI_PROJECT_DIR}/coverage_reports"
     TEST_REPORT_DIR: "${CI_PROJECT_DIR}/test_reports"
+    TEST_REPORT_JUNIT: "${TEST_REPORT_DIR}/junit.xml"
     # Marker expression passed to pytest -m. Overridden per job.
     PYTEST_MARKER_EXPR: ""
     # Space-separated test files (relative to test/) skipped in every job. Each becomes a
@@ -108,7 +109,8 @@ variables:
       set +e
       pytest -n auto -v --no-esp --reruns 2 --reruns-delay 30 -m "${PYTEST_MARKER_EXPR}" \
         ${PYTEST_IGNORE_ARGS} ${PYTEST_EXTRA_ARGS} \
-        --html="${TEST_REPORT_DIR}/report.html" --self-contained-html
+        --html="${TEST_REPORT_DIR}/report.html" --self-contained-html \
+        --junitxml="${TEST_REPORT_JUNIT}"
       PYTEST_RC=$?
       set -e
       if [ "${PYTEST_RC}" -eq 5 ]; then
@@ -124,6 +126,8 @@ variables:
       fi
   artifacts:
     when: always
+    reports:
+      junit: "${TEST_REPORT_JUNIT}"
     paths:
       - "${COVERAGE_REPORTS_DIR}/"
       - "${TEST_REPORT_DIR}/"

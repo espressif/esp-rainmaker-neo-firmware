@@ -1,5 +1,7 @@
 variables:
-  POSIX_TEST_ENV_IMAGE: "${CI_REGISTRY_IMAGE}/posix_test_env:latest"
+  # Bump whenever tools/docker/posix_test/Dockerfile changes.
+  POSIX_TEST_ENV_VERSION: "1"
+  POSIX_TEST_ENV_IMAGE: "${CI_REGISTRY_IMAGE}/posix_test_env:${POSIX_TEST_ENV_VERSION}"
 
 .posix_env_template:
   image: ${POSIX_TEST_ENV_IMAGE}
@@ -13,13 +15,81 @@ variables:
 .esp_env_template:
   image: espressif/idf:${IDF_VERSION}
 
+# Editing the Dockerfile without bumping POSIX_TEST_ENV_VERSION would push the new
+# image over the tag main already pulls.
+check_posix_test_env_version_bump:
+  stage: prepare
+  tags: [lint]
+  # ensure_base_sha and git show below need git, which the runner's default image
+  # (alpine) does not ship. python:3.11 is what pre_commit already pulls on this tag.
+  image: python:3.11
+  interruptible: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - tools/docker/posix_test/Dockerfile
+      when: on_success
+  script:
+    - |
+      if ! ensure_base_sha "$CI_MERGE_REQUEST_DIFF_BASE_SHA"; then
+        echo "ERROR: could not resolve MR diff base $CI_MERGE_REQUEST_DIFF_BASE_SHA" >&2
+        exit 1
+      fi
+    - |
+      version_of() { sed -n 's/^ *POSIX_TEST_ENV_VERSION: *"\([^"]*\)".*/\1/p'; }
+      # Empty on the base side when this MR introduces the variable; that counts as 0.
+      BASE_VERSION=$(git show "$CI_MERGE_REQUEST_DIFF_BASE_SHA:.gitlab/environment.yml" 2>/dev/null | version_of)
+      HEAD_VERSION=$(version_of < .gitlab/environment.yml)
+      case "$HEAD_VERSION" in
+        ''|*[!0-9]*)
+          echo "ERROR: POSIX_TEST_ENV_VERSION in .gitlab/environment.yml is \"$HEAD_VERSION\", not a positive integer" >&2
+          exit 1 ;;
+      esac
+      if [ "$HEAD_VERSION" -le "${BASE_VERSION:-0}" ]; then
+        echo "ERROR: tools/docker/posix_test/Dockerfile changed but POSIX_TEST_ENV_VERSION \"$HEAD_VERSION\" is not higher than \"${BASE_VERSION:-<none>}\"." >&2
+        echo "       Bump it in .gitlab/environment.yml so the rebuilt image gets a new tag." >&2
+        exit 1
+      fi
+      echo "POSIX_TEST_ENV_VERSION bumped: ${BASE_VERSION:-<none>} -> $HEAD_VERSION"
+
+cleanup_posix_test_env_mr_images:
+  stage: prepare
+  tags: [lint]
+  image: python:3.11
+  needs: []
+  interruptible: true
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - python "$CI_PROJECT_DIR/tools/ci/cleanup_mr_image_tags.py" posix_test_env
+
 update_posix_test_env_image:
   stage: prepare
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   tags: [build]
-  when: manual
+  # MR pipelines push the mr-<iid> tag from .gitlab-ci.yml's workflow rules; only
+  # the default branch publishes POSIX_TEST_ENV_VERSION's tag.
+  needs:
+    - job: check_posix_test_env_version_bump
+      optional: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - tools/docker/posix_test/Dockerfile
+      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        paths:
+          - tools/docker/posix_test/Dockerfile
+      when: on_success
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+      allow_failure: true
   script:
     - |
       mkdir -p /kaniko/.docker
