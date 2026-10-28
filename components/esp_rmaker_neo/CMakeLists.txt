@@ -116,6 +116,11 @@ if (CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE)
     )
 endif ()
 
+# Server config (getServerConfig cloud event). Gated here for the same reason as the bridge handlers above.
+if (CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG)
+    list(APPEND RMNG_SRCS ${CMAKE_CURRENT_LIST_DIR}/src/network/cloud/server_config.c)
+endif ()
+
 # ESP-IDF Platform ###
 if (ESP_PLATFORM)
 

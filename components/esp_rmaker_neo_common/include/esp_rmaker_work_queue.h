@@ -12,6 +12,7 @@
 #ifndef __ESP_RMAKER_WORK_QUEUE_H__
 #define __ESP_RMAKER_WORK_QUEUE_H__
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "esp_rmaker_error_types.h"
 
@@ -82,6 +83,15 @@ esp_rmaker_error_t esp_rmaker_work_queue_stop(void);
  * @return error on failure.
  */
 esp_rmaker_error_t esp_rmaker_work_queue_add_task(esp_rmaker_work_fn_t work_fn, void *priv_data);
+
+/**
+ * @brief Whether the caller runs on the Work Queue task.
+ *
+ * A function on the Work Queue cannot wait for work that the queue itself has to run.
+ *
+ * @return true if called from the Work Queue task.
+ */
+bool esp_rmaker_work_queue_is_current_task(void);
 
 #ifdef __cplusplus
 }

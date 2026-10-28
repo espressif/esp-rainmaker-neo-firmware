@@ -329,6 +329,24 @@ void test_cloud_event_timesync_builder(void);
 void test_cloud_event_timesync_builder_registered(void);
 void test_cloud_event_timesync_response_sets_processed_bit(void);
 void test_cloud_event_timesync_response_ignores_invalid_time(void);
+void test_cloud_event_server_config_builder(void);
+void test_cloud_event_server_config_build_nested(void);
+void test_cloud_event_server_config_build_buffer_size(void);
+void test_cloud_event_server_config_build_invalid_args(void);
+void test_cloud_event_server_config_parse_nested(void);
+void test_cloud_event_server_config_parse_partial(void);
+void test_cloud_event_server_config_parse_too_long(void);
+void test_cloud_event_server_config_value_limits(void);
+void test_cloud_event_server_config_ignores_unrequested(void);
+void test_cloud_event_server_config_missing_key(void);
+void test_cloud_event_server_config_non_string_value(void);
+void test_cloud_event_server_config_waits_for_response(void);
+void test_cloud_event_server_config_error_reply_not_received(void);
+void test_cloud_event_server_config_response_is_cached(void);
+void test_cloud_event_server_config_missing_rmng_base(void);
+void test_cloud_event_server_config_invalid_args(void);
+void test_cloud_event_server_config_deinit_keeps_readers_safe(void);
+void test_cloud_event_server_config_stop_wakes_reader(void);
 
 /* Cloud manager inbox */
 void test_cloud_manager_failed_send_releases_context(void);

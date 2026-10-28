@@ -44,6 +44,7 @@ typedef struct {
 
 static osal_queue_handle_t work_queue;
 static _Atomic esp_rmaker_work_queue_state_t queue_state;
+static _Atomic(osal_task_handle_t) s_work_queue_task;  /**< The running Work Queue task, NULL when stopped. */
 
 static void esp_rmaker_handle_work_queue(void)
 {
@@ -59,10 +60,12 @@ static void esp_rmaker_handle_work_queue(void)
 static void esp_rmaker_work_queue_task(void *param)
 {
     OSAL_LOGI(TAG, "RainMaker Work Queue task started.");
+    atomic_store(&s_work_queue_task, osal_task_get_current());
     while (atomic_load(&queue_state) != WORK_QUEUE_STATE_STOP_REQUESTED) {
         esp_rmaker_handle_work_queue();
     }
     OSAL_LOGI(TAG, "Stopping Work Queue task");
+    atomic_store(&s_work_queue_task, NULL);
     atomic_store(&queue_state, WORK_QUEUE_STATE_INIT_DONE);
     osal_task_delete(NULL);
 }
@@ -207,4 +210,10 @@ esp_rmaker_error_t esp_rmaker_work_queue_stop(void)
         esp_rmaker_work_queue_add_task(__empty_work_task, NULL); // Avoid waiting on the full queue delay with a dummy task
     }
     return ESP_RMAKER_OK;
+}
+
+bool esp_rmaker_work_queue_is_current_task(void)
+{
+    osal_task_handle_t task = atomic_load(&s_work_queue_task);
+    return task && task == osal_task_get_current();
 }

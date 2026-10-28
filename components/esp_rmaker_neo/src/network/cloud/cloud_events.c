@@ -11,6 +11,7 @@
 
 /* Declarations */
 #include "network/cloud/events.h"
+#include "network/cloud/server_config.h"
 
 /* Standard includes */
 #include <stddef.h>
@@ -87,6 +88,9 @@ const esp_rmaker_cloud_event_builder_t RMAKER_CLOUD_EVENT_BUILDERS[] = {
     esp_rmaker_cloud_event_getGVAEn,
     esp_rmaker_cloud_event_getTimeSync,
     esp_rmaker_cloud_event_getSTEn,
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG
+    esp_rmaker_cloud_event_getServerConfig,
+#endif
 };
 
 /* Private variables **************************************************************/
@@ -574,6 +578,28 @@ void esp_rmaker_cloud_event_response_getTimeSync(esp_rmaker_cloud_events_tracker
     }
     p_events_tracker->events_processed |= (1 << RMAKER_CLOUD_EVENT_FLAG_POS_getTimeSync);
 }
+
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG
+esp_rmaker_error_t esp_rmaker_cloud_event_getServerConfig(esp_rmaker_cloud_event_t *p_event)
+{
+    const char *request = esp_rmaker_server_config_request_data();
+    if (!request) {
+        return ESP_RMAKER_FAIL;
+    }
+    p_event->name = RMAKER_CLOUD_EVENT_NAME_getServerConfig;
+    p_event->data = (char *)request;
+    p_event->p_set_response_cb_context = NULL;
+    OSAL_LOGD(TAG, "Built getServerConfig event");
+    return ESP_RMAKER_OK;
+}
+
+void esp_rmaker_cloud_event_response_getServerConfig(esp_rmaker_cloud_events_tracker_t *p_events_tracker)
+{
+    OSAL_LOGI(TAG, "Server config received");
+    esp_rmaker_server_config_mark_received();
+    p_events_tracker->events_processed |= (1 << RMAKER_CLOUD_EVENT_FLAG_POS_getServerConfig);
+}
+#endif /* CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG */
 
 esp_rmaker_error_t esp_rmaker_cloud_event_getSTEn(esp_rmaker_cloud_event_t *p_event)
 {

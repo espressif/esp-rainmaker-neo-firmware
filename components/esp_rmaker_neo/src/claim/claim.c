@@ -414,10 +414,7 @@ static esp_rmaker_error_t __handle_claim_verify_response(esp_rmaker_claim_data_t
     }
     cert_len++; /* NUL terminator */
     host_len++;
-    /* The response may also carry `mqtt_cred_host`, the AWS IoT credentials-provider
-     * endpoint. It is deliberately ignored: nothing in this SDK fetches temporary AWS
-     * credentials (that serves camera/videostream, which is not supported here), so storing
-     * it would just consume factory-partition space. Add it back together with its consumer. */
+    /* The credentials-provider endpoint comes from the getServerConfig cloud event, not from claiming. */
 
     char *cert_buf = (char *)OSAL_CALLOC_EXTRAM(1, cert_len);
     char *host_buf = (char *)OSAL_CALLOC_EXTRAM(1, host_len);

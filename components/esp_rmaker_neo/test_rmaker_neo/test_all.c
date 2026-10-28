@@ -131,6 +131,26 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_cloud_manager_newer_send_supersedes_context);
     RUN_TEST(test_cloud_manager_response_during_failed_send);
     RUN_TEST(test_cloud_manager_response_without_status_reports_failure);
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG
+    RUN_TEST(test_cloud_event_server_config_builder);
+    RUN_TEST(test_cloud_event_server_config_build_nested);
+    RUN_TEST(test_cloud_event_server_config_build_buffer_size);
+    RUN_TEST(test_cloud_event_server_config_build_invalid_args);
+    RUN_TEST(test_cloud_event_server_config_parse_nested);
+    RUN_TEST(test_cloud_event_server_config_parse_partial);
+    RUN_TEST(test_cloud_event_server_config_parse_too_long);
+    RUN_TEST(test_cloud_event_server_config_value_limits);
+    RUN_TEST(test_cloud_event_server_config_ignores_unrequested);
+    RUN_TEST(test_cloud_event_server_config_missing_key);
+    RUN_TEST(test_cloud_event_server_config_non_string_value);
+    RUN_TEST(test_cloud_event_server_config_waits_for_response);
+    RUN_TEST(test_cloud_event_server_config_error_reply_not_received);
+    RUN_TEST(test_cloud_event_server_config_response_is_cached);
+    RUN_TEST(test_cloud_event_server_config_missing_rmng_base);
+    RUN_TEST(test_cloud_event_server_config_invalid_args);
+    RUN_TEST(test_cloud_event_server_config_deinit_keeps_readers_safe);
+    RUN_TEST(test_cloud_event_server_config_stop_wakes_reader);
+#endif
 
     /* Network notify ****************************************************************/
     RUN_TEST(test_notify_init_deinit);
