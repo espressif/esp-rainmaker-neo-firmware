@@ -69,6 +69,7 @@
 /* Cloud includes */
 #include "network/cloud/manager.h"
 #include "network/cloud/events.h"
+#include "network/cloud/server_config.h"
 
 /* Network includes */
 #include "network/common.h"
@@ -1104,7 +1105,7 @@ static void esp_rmaker_on_reconnect_task(void *unused)
 
 static esp_rmaker_error_t esp_rmaker_get_cloud_info(void)
 {
-    esp_rmaker_cloud_event_t events[7];
+    esp_rmaker_cloud_event_t events[8];
     esp_rmaker_cloud_event_t *p_event = events;
     esp_rmaker_error_t err = esp_rmaker_cloud_event_getGroupInfo(p_event++);
     if (err != ESP_RMAKER_OK) {
@@ -1146,6 +1147,16 @@ static esp_rmaker_error_t esp_rmaker_get_cloud_info(void)
             goto get_cloud_info_fail;
         }
     }
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG
+    /* Only until it has been received: the values are cached for the life of the SDK. */
+    if (!esp_rmaker_server_config_is_received()) {
+        err = esp_rmaker_cloud_event_getServerConfig(p_event++);
+        if (err != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Failed to add getServerConfig event");
+            goto get_cloud_info_fail;
+        }
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG */
     err = esp_rmaker_cloud_manager_send(&esp_rmaker_topic_ctx_self, events, (size_t)(p_event - events), MQTT_CHANNEL_SUB_CLOUD_MANAGER_CLOUD_SETUP);
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to send cloud events");

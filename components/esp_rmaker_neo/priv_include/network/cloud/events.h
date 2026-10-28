@@ -115,6 +115,7 @@ typedef enum {
     RMAKER_CLOUD_EVENT_FLAG_POS_getGVAEn = 6, /**< Get GVA (Google Voice Assistant) enable. */
     RMAKER_CLOUD_EVENT_FLAG_POS_getTimeSync = 7, /**< Get current server time. */
     RMAKER_CLOUD_EVENT_FLAG_POS_getSTEn = 8, /**< Get SmartThings enable. */
+    RMAKER_CLOUD_EVENT_FLAG_POS_getServerConfig = 9, /**< Get the deployment's server config. */
 } esp_rmaker_cloud_event_flag_pos_t;
 
 #ifdef __cplusplus
@@ -196,6 +197,28 @@ esp_rmaker_error_t esp_rmaker_cloud_event_getTimeSync(esp_rmaker_cloud_event_t *
  * @param[in] time_ms Server time in milliseconds since the Unix epoch (UTC).
  */
 void esp_rmaker_cloud_event_response_getTimeSync(esp_rmaker_cloud_events_tracker_t *p_events_tracker, int64_t time_ms);
+
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG
+/** Name of the 'getServerConfig' cloud event, in the request and in the reply. */
+#define RMAKER_CLOUD_EVENT_NAME_getServerConfig "getServerConfig"
+
+/**
+ * @brief Set cloud event 'getServerConfig', with the request tree of the selected keys.
+ * @note Bundled with the cloud-setup events until the config has been received; the response fills the cache behind
+ *       esp_rmaker_server_config_get().
+ * @param[out] p_event Pointer to the event.
+ * @return ESP_RMAKER_OK on success, otherwise error code.
+ */
+esp_rmaker_error_t esp_rmaker_cloud_event_getServerConfig(esp_rmaker_cloud_event_t *p_event);
+
+/**
+ * @brief Handle 'getServerConfig' response.
+ * @note Called only for a response that carried at least one requested key; marks the event processed and releases
+ *       esp_rmaker_server_config_get() waiters.
+ * @param[in] p_events_tracker Pointer to the events tracker.
+ */
+void esp_rmaker_cloud_event_response_getServerConfig(esp_rmaker_cloud_events_tracker_t *p_events_tracker);
+#endif /* CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG */
 
 /**
  * @brief Set cloud event 'getSTEn'.

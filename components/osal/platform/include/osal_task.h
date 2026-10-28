@@ -80,6 +80,13 @@ osal_tick_type_t osal_task_get_tick_count(void);
  */
 const char *osal_task_get_name(osal_task_handle_t task_handle);
 
+/**
+ * @brief Get the handle of the calling task.
+ *
+ * @return The calling task's handle, comparable with the one osal_task_create() returned for it.
+ */
+osal_task_handle_t osal_task_get_current(void);
+
 #ifdef __cplusplus
 }
 #endif

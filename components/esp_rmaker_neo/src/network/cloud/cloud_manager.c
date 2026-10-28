@@ -11,6 +11,7 @@
 
 #include "network/cloud/manager.h"
 #include "network/cloud/events.h"
+#include "network/cloud/server_config.h"
 #include "constants/identity.h"
 
 /* Include files ****************************************************************/
@@ -769,6 +770,18 @@ static void __get_event_response_payload_handler(char *event_name, jparse_ctx_t 
         esp_rmaker_cloud_event_response_getTimeSync(p_events_tracker, time_ms);
     }
 
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG
+    /* Get server config: the request tree, with a string value at each requested key. An error or empty reply does
+     * not count, so the next connection asks again. */
+    else if (strcmp(event_name, RMAKER_CLOUD_EVENT_NAME_getServerConfig) == 0) {
+        if (!esp_rmaker_server_config_parse(p_jctx)) {
+            OSAL_LOGW(TAG, "Server config reply has none of the requested keys");
+            goto get_handler_end;
+        }
+        esp_rmaker_cloud_event_response_getServerConfig(p_events_tracker);
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG */
+
 get_handler_end:
     json_obj_leave_object(p_jctx);
 }
@@ -941,6 +954,13 @@ __version_retry_task_fail:
 
 esp_rmaker_error_t esp_rmaker_cloud_manager_init(void)
 {
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG
+    /* Cache for the getServerConfig response (read via esp_rmaker_server_config_get()) */
+    if (esp_rmaker_server_config_init() != ESP_RMAKER_OK) {
+        return ESP_RMAKER_NO_MEM;
+    }
+#endif
+
     /* Register the event handler */
     esp_rmaker_error_t err = event_loop_register_mqtt_on_complete_handler(__cloud_manager_on_complete_event_handler);
     if (err != ESP_RMAKER_OK) {
@@ -1015,6 +1035,10 @@ esp_rmaker_error_t esp_rmaker_cloud_manager_init(void)
 
 esp_rmaker_error_t esp_rmaker_cloud_manager_deinit(void)
 {
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG
+    esp_rmaker_server_config_deinit();
+#endif
+
     /* Stop any pending version retries */
     retry_manager_stop_context(&version_retry_manager_contexts.sched);
     retry_manager_stop_context(&version_retry_manager_contexts.trigger);

@@ -29,6 +29,7 @@ set(TEST_ESP_RMAKER_NEO_SRCS
     "tests_src/network/test_notify.c"
     "tests_src/cloud/test_cloud_event_timesync.c"
     "tests_src/cloud/test_cloud_manager_inbox.c"
+    "tests_src/cloud/test_cloud_event_server_config.c"
     "tests_src/services/test_schedules.c"
     "tests_src/services/test_schedule_port.c"
     "tests_src/services/test_automation.c"

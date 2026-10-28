@@ -43,3 +43,8 @@ const char *osal_task_get_name(osal_task_handle_t task_handle)
 {
     return pcTaskGetName((TaskHandle_t) task_handle);
 }
+
+osal_task_handle_t osal_task_get_current(void)
+{
+    return (osal_task_handle_t) xTaskGetCurrentTaskHandle();
+}

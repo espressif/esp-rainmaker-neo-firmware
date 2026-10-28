@@ -368,6 +368,7 @@ menu "ESP RainMaker Neo Configuration"
             config ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT
                 bool "Video streaming (KVS)"
                 default n
+                select ESP_RMAKER_NEO_SERVER_CONFIG_VIDEOSTREAM_SUPPORT
                 help
                     For camera nodes that stream over Amazon Kinesis Video Streams (KVS).
 
@@ -377,9 +378,13 @@ menu "ESP RainMaker Neo Configuration"
                     Credential Provider. The cloud also creates the node's
                     rmng-v1-<node_id> signaling channel.
 
+                    Also selects ESP_RMAKER_NEO_SERVER_CONFIG_VIDEOSTREAM_SUPPORT, which fetches
+                    the credential provider endpoint, video role alias and AWS region.
+
             config ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT
                 bool "File storage (S3)"
                 default n
+                select ESP_RMAKER_NEO_SERVER_CONFIG_FILE_SUPPORT
                 help
                     For nodes that store files (for example camera clips or snapshots) in
                     the deployment's per-node file storage.
@@ -391,6 +396,9 @@ menu "ESP RainMaker Neo Configuration"
                     node-data/<node_id>/ prefix.
                     A feature component that needs file storage can imply this option
                     (not select it: it depends on assisted claiming).
+
+                    Also selects ESP_RMAKER_NEO_SERVER_CONFIG_FILE_SUPPORT, which fetches the
+                    credential provider endpoint, file role alias, files bucket and AWS region.
 
             config ESP_RMAKER_NEO_CLAIM_BRIDGE_SUPPORT
                 bool "Bridge"
@@ -409,6 +417,90 @@ menu "ESP RainMaker Neo Configuration"
                     bridge policy does not exist and claim-verify fails.
 
         endmenu
+
+    endmenu
+
+    menu "Server Config"
+
+        config ESP_RMAKER_NEO_SERVER_CONFIG_VIDEOSTREAM_SUPPORT
+            bool "Video streaming (KVS) server config"
+            default y if ESP_RMAKER_NEO_TESTING
+            select ESP_RMAKER_NEO_SERVER_CONFIG_KEY_STACK_REGION
+            select ESP_RMAKER_NEO_SERVER_CONFIG_KEY_CRED_ENDPOINT
+            select ESP_RMAKER_NEO_SERVER_CONFIG_KEY_VIDEO_ROLE_ALIAS
+            help
+                Fetch the values that a camera node needs to get KVS credentials: the AWS
+                IoT Credential Provider endpoint, the video role alias and the AWS region.
+
+                ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT selects this option. Enable it
+                directly for a node that gets its credentials another way, for example
+                from the factory partition.
+
+        config ESP_RMAKER_NEO_SERVER_CONFIG_FILE_SUPPORT
+            bool "File storage (S3) server config"
+            default y if ESP_RMAKER_NEO_TESTING
+            select ESP_RMAKER_NEO_SERVER_CONFIG_KEY_STACK_REGION
+            select ESP_RMAKER_NEO_SERVER_CONFIG_KEY_CRED_ENDPOINT
+            select ESP_RMAKER_NEO_SERVER_CONFIG_KEY_FILE_ROLE_ALIAS
+            select ESP_RMAKER_NEO_SERVER_CONFIG_KEY_FILES_BUCKET_NAME
+            help
+                Fetch the values that a node needs to store files in S3: the AWS IoT
+                Credential Provider endpoint, the file role alias, the files bucket and
+                the AWS region.
+
+                ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT selects this option. Enable it directly
+                for a node that gets its credentials another way, for example from the
+                factory partition.
+
+        config ESP_RMAKER_NEO_SERVER_CONFIG
+            bool
+            help
+                Fetch the deployment's server config from the cloud. The node adds the
+                "getServerConfig" cloud event to the cloud-setup events of each connection
+                until it has received the config; a lost response waits for the next
+                connection, as for the other cloud-setup events. The request names only the
+                selected ESP_RMAKER_NEO_SERVER_CONFIG_KEY_* keys, and the node keeps a fixed
+                buffer for each of them. Read the values with esp_rmaker_server_config_get().
+
+                Needs a cloud that answers only the requested keys (esp-rainmaker-neo
+                v0.8.1 or later). An older cloud replies with all of its outputs, about 5 KB, which
+                does not fit the default MQTT receive buffer, so the node never gets the
+                values.
+
+                Selected by the server config key options. Do not set it directly.
+
+        config ESP_RMAKER_NEO_SERVER_CONFIG_KEY_STACK_REGION
+            bool
+            select ESP_RMAKER_NEO_SERVER_CONFIG
+            help
+                Request "rmng-base.StackRegion": the AWS region of the deployment.
+
+        config ESP_RMAKER_NEO_SERVER_CONFIG_KEY_CRED_ENDPOINT
+            bool
+            select ESP_RMAKER_NEO_SERVER_CONFIG
+            help
+                Request "rmng-base.CredentialProviderEndpoint": the AWS IoT Credential
+                Provider endpoint.
+
+        config ESP_RMAKER_NEO_SERVER_CONFIG_KEY_VIDEO_ROLE_ALIAS
+            bool
+            select ESP_RMAKER_NEO_SERVER_CONFIG
+            help
+                Request "rmng-base.NodeVideoRoleAliases": the IoT role alias for node
+                video (KVS) access.
+
+        config ESP_RMAKER_NEO_SERVER_CONFIG_KEY_FILE_ROLE_ALIAS
+            bool
+            select ESP_RMAKER_NEO_SERVER_CONFIG
+            help
+                Request "rmng-base.NodeFileRoleAliases": the IoT role alias for node
+                file (S3) access.
+
+        config ESP_RMAKER_NEO_SERVER_CONFIG_KEY_FILES_BUCKET_NAME
+            bool
+            select ESP_RMAKER_NEO_SERVER_CONFIG
+            help
+                Request "rmng-base.FilesBucketName": the S3 bucket for node file storage.
 
     endmenu
 
