@@ -6,10 +6,11 @@
 
 /**
  * @file test_http_contracts.c
- * @brief Test the NULL-argument and method/body contracts of osal_http
+ * @brief Test the NULL-argument, method/body and callback contracts of osal_http
  */
 
 #include "unity.h"
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -18,10 +19,26 @@
 
 /** Echoes the request method, headers and body */
 #define ANYTHING_URL TEST_OSAL_HTTP_URL_TCP "/anything"
+/** Replies 204 with no body */
+#define NO_CONTENT_URL TEST_OSAL_HTTP_URL_TCP "/status/204"
+/** Replies with a declared length: 100 and 10 bytes, base64-encoded in the path */
+#define LENGTH_100_URL TEST_OSAL_HTTP_URL_TCP "/base64/" \
+    "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ=="
+#define LENGTH_10_URL TEST_OSAL_HTTP_URL_TCP "/base64/YmJiYmJiYmJiYg=="
 
 static osal_http_impl_t http_impl;
 static uint8_t response_buffer[TEST_OSAL_HTTP_BUFFER_SIZE];
 static size_t response_buffer_pos;
+
+/* What the headers callback and the read callback saw in one perform */
+static int headers_calls;
+static int headers_status;
+static int64_t headers_length;
+static int headers_return;
+static bool read_before_headers;
+static int64_t read_length;
+static void *headers_user_data;
+static void *read_user_data;
 
 static int collect_response(uint8_t *data, size_t data_len, int64_t content_length, void *user_data)
 {
@@ -31,6 +48,38 @@ static int collect_response(uint8_t *data, size_t data_len, int64_t content_leng
     memcpy(response_buffer + response_buffer_pos, data, data_len);
     response_buffer_pos += data_len;
     return data_len;
+}
+
+static int record_headers(int status_code, int64_t content_length, void *user_data)
+{
+    headers_calls++;
+    headers_user_data = user_data;
+    headers_status = status_code;
+    headers_length = content_length;
+    return headers_return;
+}
+
+static int record_response(uint8_t *data, size_t data_len, int64_t content_length, void *user_data)
+{
+    if (headers_calls == 0) {
+        read_before_headers = true;
+    }
+    read_length = content_length;
+    read_user_data = user_data;
+    return collect_response(data, data_len, content_length, user_data);
+}
+
+static void reset_record(void)
+{
+    headers_calls = 0;
+    headers_status = 0;
+    headers_length = 0;
+    headers_return = 0;
+    read_before_headers = false;
+    read_length = 0;
+    headers_user_data = NULL;
+    read_user_data = NULL;
+    response_buffer_pos = 0;
 }
 
 /* Open a handle on the echo endpoint with the response callback installed */
@@ -175,6 +224,95 @@ void test_http_contract_method_not_stale(void)
     const char *echo = perform_and_echo(handle);
     TEST_ASSERT_NOT_NULL(strstr(echo, "\"method\": \"GET\""));
     TEST_ASSERT_NULL(strstr(echo, "\"first\": \"post\""));
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.cleanup(handle));
+}
+
+/* Open a GET handle on @p url with both recording callbacks installed */
+static osal_http_handle_t open_recording_handle(const char *url)
+{
+    osal_http_handle_t handle = open_echo_handle(OSAL_HTTP_METHOD_GET);
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.set_url(handle, url));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.set_read_callback(handle, record_response, NULL));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.set_headers_callback(handle, record_headers, NULL));
+    reset_record();
+    return handle;
+}
+
+void test_http_contract_headers_callback_before_body(void)
+{
+    osal_http_handle_t handle = open_recording_handle(LENGTH_100_URL);
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.perform(handle));
+    TEST_ASSERT_EQUAL(1, headers_calls);
+    TEST_ASSERT_FALSE(read_before_headers);
+    TEST_ASSERT_EQUAL(100, response_buffer_pos);
+    /* -1 where the platform has no headers-complete event */
+    TEST_ASSERT_TRUE(headers_status == 200 || headers_status == -1);
+    TEST_ASSERT_TRUE(headers_length == 100 || headers_length == -1);
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.cleanup(handle));
+}
+
+void test_http_contract_headers_callback_on_empty_body(void)
+{
+    osal_http_handle_t handle = open_recording_handle(NO_CONTENT_URL);
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.perform(handle));
+    TEST_ASSERT_EQUAL(1, headers_calls);
+    TEST_ASSERT_EQUAL(0, response_buffer_pos);
+    TEST_ASSERT_TRUE(headers_status == 204 || headers_status == -1);
+    TEST_ASSERT_EQUAL(204, http_impl.get_status_code(handle));
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.cleanup(handle));
+}
+
+void test_http_contract_headers_callback_aborts(void)
+{
+    osal_http_handle_t handle = open_recording_handle(LENGTH_100_URL);
+
+    headers_return = -1;
+    TEST_ASSERT_NOT_EQUAL(OSAL_ERR_OK, http_impl.perform(handle));
+    TEST_ASSERT_EQUAL(1, headers_calls);
+    TEST_ASSERT_EQUAL(0, response_buffer_pos);
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.cleanup(handle));
+}
+
+void test_http_contract_content_length_not_stale(void)
+{
+    osal_http_handle_t handle = open_recording_handle(LENGTH_100_URL);
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.perform(handle));
+    TEST_ASSERT_EQUAL(100, read_length);
+
+    /* The same handle, reused: the read callback must see the new length, not the last one */
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.set_url(handle, LENGTH_10_URL));
+    reset_record();
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.perform(handle));
+    TEST_ASSERT_EQUAL(1, headers_calls);
+    TEST_ASSERT_EQUAL(10, response_buffer_pos);
+    TEST_ASSERT_EQUAL(10, read_length);
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.cleanup(handle));
+}
+
+void test_http_contract_callbacks_get_user_data(void)
+{
+    int read_ctx = 0;
+    int headers_ctx = 0;
+    osal_http_handle_t handle = open_recording_handle(LENGTH_10_URL);
+
+    /* Different pointers, so a swap between the two callbacks fails too */
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.set_read_callback(handle, record_response, &read_ctx));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.set_headers_callback(handle, record_headers, &headers_ctx));
+
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.perform(handle));
+    TEST_ASSERT_EQUAL(1, headers_calls);
+    TEST_ASSERT_EQUAL(10, response_buffer_pos);
+    TEST_ASSERT_EQUAL_PTR(&headers_ctx, headers_user_data);
+    TEST_ASSERT_EQUAL_PTR(&read_ctx, read_user_data);
 
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.cleanup(handle));
 }

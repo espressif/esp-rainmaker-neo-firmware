@@ -62,6 +62,11 @@ typedef struct osal_http_handle {
     osal_http_read_callback_t read_callback;
     void *read_user_data;
 
+    /* Headers callback, and whether this perform has called it */
+    osal_http_headers_callback_t headers_callback;
+    void *headers_user_data;
+    bool headers_reported;
+
     /* Headers for API compatibility */
     header_entry_t headers[MAX_HEADERS];
     int header_count;
@@ -83,6 +88,7 @@ static header_entry_t *find_header(http_libcurl_handle_t *handle, const char *ke
 static void remove_header(http_libcurl_handle_t *handle, const char *key);
 static osal_err_t execute_request(http_libcurl_handle_t *handle);
 static size_t write_callback(void *ptr, size_t size, size_t nmemb, void *userdata);
+static size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata);
 static osal_err_t curl_to_common_error(CURLcode res);
 
 /** Implementation functions */
@@ -178,7 +184,8 @@ osal_err_t http_libcurl_init(const osal_http_config_t *config, osal_http_handle_
     /* Set callbacks */
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, handle);
-    /* No header callback needed - we only need status and content-length */
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, handle);
 
     /* Buffer sizing - TX */
     long buffer_size_tx = config->buffer_size_tx ? config->buffer_size_tx : configHTTP_COMMON_BUFFER_SIZE;
@@ -509,6 +516,24 @@ osal_err_t http_libcurl_set_read_callback(osal_http_handle_t handle_in, osal_htt
 }
 
 /**
+ * Set headers callback for libcurl HTTP client
+ */
+osal_err_t http_libcurl_set_headers_callback(osal_http_handle_t handle_in, osal_http_headers_callback_t headers_callback,
+        void *user_data)
+{
+    http_libcurl_handle_t *handle = (http_libcurl_handle_t *)handle_in;
+
+    if (handle == NULL) {
+        OSAL_LOGE(TAG, "Invalid handle");
+        return OSAL_ERR_INVALID_ARG;
+    }
+
+    handle->headers_callback = headers_callback;
+    handle->headers_user_data = user_data;
+    return OSAL_ERR_OK;
+}
+
+/**
  * Perform HTTP request synchronously for libcurl HTTP client
  */
 osal_err_t http_libcurl_perform(osal_http_handle_t handle_in)
@@ -523,6 +548,10 @@ osal_err_t http_libcurl_perform(osal_http_handle_t handle_in)
     /* Set curl headers */
     struct curl_slist *curl_headers = build_curl_headers(handle);
     curl_easy_setopt(handle->curl, CURLOPT_HTTPHEADER, curl_headers);
+
+    /* The header callback sets the length again; a chunked response would otherwise keep the last one */
+    handle->content_length = 0;
+    handle->headers_reported = false;
 
     /* Execute the request */
     CURLcode res = curl_easy_perform(handle->curl);
@@ -606,6 +635,46 @@ static size_t write_callback(void *ptr, size_t size, size_t nmemb, void *userdat
         if (bytes_processed != (int)total_size) {
             /* Callback didn't process all data - this is an error */
             OSAL_LOGE(TAG, "Read callback failed to process all data: expected %zu, got %d", total_size, bytes_processed);
+            return 0; /* Signal error to libcurl */
+        }
+    }
+
+    return total_size;
+}
+
+/**
+ * libcurl header callback - records the status and length, and calls the headers callback
+ */
+static size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
+{
+    http_libcurl_handle_t *handle = (http_libcurl_handle_t *)userdata;
+    size_t total_size = size * nitems;
+
+    /* Only the blank line that ends a header block is of interest */
+    bool end_of_headers = (total_size == 2 && buffer[0] == '\r' && buffer[1] == '\n') ||
+                          (total_size == 1 && buffer[0] == '\n');
+    if (!end_of_headers) {
+        return total_size;
+    }
+
+    long response_code = 0;
+    curl_easy_getinfo(handle->curl, CURLINFO_RESPONSE_CODE, &response_code);
+    if (response_code < 200) {
+        return total_size; /* 1xx: the final response follows */
+    }
+
+    curl_off_t content_length = -1;
+    if (curl_easy_getinfo(handle->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &content_length) != CURLE_OK) {
+        content_length = -1;
+    }
+    handle->status_code = (int)response_code;
+    handle->content_length = content_length < 0 ? 0 : (int64_t)content_length;
+
+    if (handle->headers_callback && !handle->headers_reported) {
+        handle->headers_reported = true;
+        if (handle->headers_callback(handle->status_code, content_length < 0 ? -1 : (int64_t)content_length,
+                                     handle->headers_user_data) != 0) {
+            OSAL_LOGE(TAG, "Headers callback aborted the request");
             return 0; /* Signal error to libcurl */
         }
     }
@@ -771,6 +840,7 @@ osal_err_t osal_http_impl_setup(osal_http_impl_t *http_impl)
     http_impl->delete_all_headers = http_libcurl_delete_all_headers;
     http_impl->set_request_body = http_libcurl_set_request_body;
     http_impl->set_read_callback = http_libcurl_set_read_callback;
+    http_impl->set_headers_callback = http_libcurl_set_headers_callback;
 
     http_impl->perform = http_libcurl_perform;
     http_impl->get_status_code = http_libcurl_get_status_code;

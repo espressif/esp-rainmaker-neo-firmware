@@ -208,8 +208,34 @@ typedef int (*osal_http_read_callback_t)(uint8_t *buffer, size_t len, int64_t co
  */
 typedef osal_err_t (*osal_http_set_read_callback_t)(osal_http_handle_t handle, osal_http_read_callback_t read_callback, void *user_data);
 
+/** HTTP Headers callback function prototype
+ * Called once per perform, when the first response headers arrive and before any read callback.
+ *
+ * @param[in] status_code The HTTP status code, or -1 when the platform does not report it yet.
+ * @param[in] content_length The declared body length, or -1 when the response declares none or the platform does not report it yet.
+ * @param[in] user_data The pointer given to set_headers_callback().
+ *
+ * @note A redirect that the client follows does not call it again.
+ *
+ * @return 0 to continue. Any other value aborts the operation.
+ */
+typedef int (*osal_http_headers_callback_t)(int status_code, int64_t content_length, void *user_data);
+
+/**
+ * @brief HTTP Set Headers Callback function prototype
+ *
+ * @param[in] handle The HTTP client handle.
+ * @param[in] headers_callback The headers callback function. NULL removes it.
+ * @param[in] user_data Passed to headers_callback. Can be NULL.
+ *
+ * @return OSAL_ERR_OK on success.
+ * @return error in case of any error.
+ */
+typedef osal_err_t (*osal_http_set_headers_callback_t)(osal_http_handle_t handle, osal_http_headers_callback_t headers_callback, void *user_data);
+
 /** HTTP Perform function prototype
  * - Performs the HTTP request.
+ * - Calls the headers callback once, when the response headers arrive.
  * - Calls the read callback for each chunk of data received.
  * - Returns when the request is complete or an error occurs.
  *
@@ -258,6 +284,7 @@ typedef struct {
     osal_http_delete_all_headers_t delete_all_headers;
     osal_http_set_request_body_t set_request_body;
     osal_http_set_read_callback_t set_read_callback;
+    osal_http_set_headers_callback_t set_headers_callback;
 
     /* Request execution */
     osal_http_perform_t perform;

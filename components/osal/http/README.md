@@ -98,6 +98,18 @@ For each HTTP request, follow these steps:
    }
    ```
 
+   Optionally, register a headers callback. It runs once for each perform, when the response headers arrive and
+   before the first read callback. It also runs for a response with no body:
+
+   ```c
+   int my_headers_callback(int status_code, int64_t content_length, void *user_data) {
+       // -1 means that the platform does not report the value yet (ESP-IDF before v6.0)
+       return 0; // Any other value aborts the request
+   }
+
+   status = http_impl.set_headers_callback(handle, my_headers_callback, my_context);
+   ```
+
 5. **Perform the request**: Call `perform()` to execute the HTTP request synchronously. The request blocks until complete, and your callback receives response data as it arrives.
 
    ```c
