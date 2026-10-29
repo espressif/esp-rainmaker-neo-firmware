@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "util/esp_rmaker_crypto.h"
+#include "test_rmng_common_certs.h"
 
 /* mbedTLS includes for key generation and verification */
 #include "psa/crypto.h"
@@ -555,4 +556,28 @@ void test_rmaker_gen_csr_pem_errors(void)
     err = esp_rmaker_crypto_gen_csr_pem(key_pem, key_pem_len, long_cn, &csr_pem, &csr_pem_len);
     TEST_ASSERT_EQUAL_MESSAGE(ESP_RMAKER_INVALID_ARG, err, "gen_csr_pem should reject an over-long CN");
     free(key_pem);
+}
+
+
+void test_rmaker_get_cert_cn(void)
+{
+    char *cn = NULL;
+    esp_rmaker_error_t err = esp_rmaker_crypto_get_cert_cn((const uint8_t *)TEST_CERT_CN, sizeof(TEST_CERT_CN), &cn);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, err);
+    TEST_ASSERT_EQUAL_STRING("rmng-unit-test-do-not-use", cn);
+    free(cn);
+
+    cn = NULL;
+    err = esp_rmaker_crypto_get_cert_cn((const uint8_t *)TEST_CERT_NO_CN, sizeof(TEST_CERT_NO_CN), &cn);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_NOT_FOUND, err);
+    TEST_ASSERT_NULL(cn);
+
+    static const char garbage[] = "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n";
+    err = esp_rmaker_crypto_get_cert_cn((const uint8_t *)garbage, sizeof(garbage), &cn);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_STATE, err);
+    TEST_ASSERT_NULL(cn);
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_crypto_get_cert_cn(NULL, 1, &cn));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_crypto_get_cert_cn((const uint8_t *)TEST_CERT_CN, 0, &cn));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_crypto_get_cert_cn((const uint8_t *)TEST_CERT_CN, sizeof(TEST_CERT_CN), NULL));
 }

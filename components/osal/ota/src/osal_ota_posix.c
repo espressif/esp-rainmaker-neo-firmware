@@ -26,6 +26,7 @@
 #include "psa/crypto.h"
 #include "osal_ota_posix_shared.h"
 #include "osal_ota_posix_config.h"
+#include "osal_ota_events.h"
 #include "osal_app_desc_posix.h"
 #include "osal_crc.h"
 
@@ -696,6 +697,9 @@ osal_err_t osal_ota_mark_app_valid_cancel_rollback(void)
     rc = osal_ota_posix_config_set_last_valid_partition(boot_idx);
 
     pthread_mutex_unlock(&g_ota_mutex);
+    if (rc == OSAL_ERR_OK) {
+        osal_ota_events_post_app_valid();
+    }
     return rc;
 }
 

@@ -109,6 +109,7 @@ configure_file(
 )
 list(APPEND OSAL_INCLUDE_DIRS "${OSAL_TIMESYNC_BINARY_INCLUDE_DIR}")
 list(APPEND OSAL_PRIV_INCLUDE_DIRS "${OSAL_DIR}/timesync/priv_include")
+list(APPEND OSAL_PRIV_INCLUDE_DIRS "${OSAL_DIR}/ota/priv_include")
 
 # ESP-IDF Platform ###
 if (ESP_PLATFORM)
@@ -135,6 +136,7 @@ if (ESP_PLATFORM)
         "${OSAL_DIR}/netstatus/src/netstatus_esp.c"
         # ota
         "${OSAL_DIR}/ota/src/osal_ota_esp.c"
+        "${OSAL_DIR}/ota/src/osal_ota_events.c"
         # mqtt (common layer; the impl is Kconfig-selected below)
         "${OSAL_DIR}/mqtt/src/osal_mqtt_events.c"
         "${OSAL_DIR}/mqtt/src/osal_mqtt_util.c"

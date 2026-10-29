@@ -12,6 +12,7 @@
 /* Include headers **************************************************************/
 
 /* Standard C headers */
+#include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 #include <stdint.h>
@@ -25,6 +26,8 @@
 #include "psa/crypto.h"
 #include "mbedtls/asn1write.h"
 #include "mbedtls/x509_csr.h"
+#include "mbedtls/x509_crt.h"
+#include "mbedtls/oid.h"
 #if MBEDTLS_VERSION_MAJOR < 4
 #include "mbedtls/psa_util.h"
 #endif /* MBEDTLS_VERSION_MAJOR < 4 */
@@ -908,4 +911,54 @@ size_t esp_rmaker_crypto_csr_pem_max_len(esp_rmaker_crypto_key_type_t key_type)
          * largest bound rather than refusing to size a buffer for it. */
         return RMAKER_CRYPTO_CSR_PEM_LEN_MAX;
     }
+}
+
+esp_rmaker_error_t esp_rmaker_crypto_get_cert_cn(const uint8_t *cert, size_t cert_len, char **p_cn)
+{
+    if (cert == NULL || cert_len == 0 || p_cn == NULL) {
+        OSAL_LOGE(TAG, "Invalid arguments: cert=%p, cert_len=%" PRIu32 ", p_cn=%p", cert, (uint32_t)cert_len, p_cn);
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    *p_cn = NULL;
+
+    psa_status_t status = psa_crypto_init();
+    if (status != PSA_SUCCESS) {
+        OSAL_LOGE(TAG, "Failed to initialize PSA crypto: %" PRId32, (int32_t)status);
+        return ESP_RMAKER_INVALID_STATE;
+    }
+
+    mbedtls_x509_crt crt;
+    mbedtls_x509_crt_init(&crt);
+    int ret = mbedtls_x509_crt_parse(&crt, cert, cert_len);
+    if (ret != 0) {
+        OSAL_LOGE(TAG, "mbedtls_x509_crt_parse failed: -0x%04X", -ret);
+        mbedtls_x509_crt_free(&crt);
+        return ESP_RMAKER_INVALID_STATE;
+    }
+
+    static const char cn_oid[] = MBEDTLS_OID_AT_CN;
+    esp_rmaker_error_t err = ESP_RMAKER_NOT_FOUND;
+    for (const mbedtls_x509_name *name = &crt.subject; name != NULL; name = name->next) {
+        if (name->oid.len != sizeof(cn_oid) - 1 || memcmp(name->oid.p, cn_oid, name->oid.len) != 0) {
+            continue;
+        }
+        if (name->val.len == 0) {
+            break;
+        }
+        char *cn = (char *)calloc(name->val.len + 1, sizeof(char));
+        if (cn == NULL) {
+            err = ESP_RMAKER_NO_MEM;
+            break;
+        }
+        memcpy(cn, name->val.p, name->val.len);
+        *p_cn = cn;
+        err = ESP_RMAKER_OK;
+        break;
+    }
+    if (err == ESP_RMAKER_NOT_FOUND) {
+        OSAL_LOGE(TAG, "The certificate subject has no Common Name");
+    }
+
+    mbedtls_x509_crt_free(&crt);
+    return err;
 }

@@ -8,9 +8,17 @@
 
 /* Declarations */
 #include "esp_rmaker_credentials.h"
+#include "credentials/factory_part.h"
 
 /* Standard includes */
+#include <stdlib.h>
 #include <string.h>
+
+/* Platform includes */
+#include "osal_storage.h"
+
+/* Test includes */
+#include "test_rmng_common_certs.h"
 
 /* Unity includes */
 #include "unity.h"
@@ -26,7 +34,7 @@
  * If a secret scanner flags the PRIVATE KEY block: it is inert test material, safe to
  * dismiss. Do not reuse it anywhere, and do not treat it as a template for real credentials
  * -- real ones come from the factory NVS partition (see esp_rmaker_credentials.h). */
-#define TEST_OVERRIDE_DUMMY_CERT "-----BEGIN CERTIFICATE-----\nMIIBnjCCAUWgAwIBAgIUOTYoQNMLZHsx3iPyN39RYG8oSRswCgYIKoZIzj0EAwIw\nJDEiMCAGA1UEAwwZcm1uZy11bml0LXRlc3QtZG8tbm90LXVzZTAgFw0yNjA3MzEx\nMTQ3NTJaGA8yMTI2MDcwNzExNDc1MlowJDEiMCAGA1UEAwwZcm1uZy11bml0LXRl\nc3QtZG8tbm90LXVzZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABHnEF75bu35w\noe5HG9NAqweHXCkqc4kCwYmCME4vzxe6q6Qkm3iHRjk7/dUvbrLRcwQ7WEc69NGg\npx4Pd+gOk7yjUzBRMB0GA1UdDgQWBBRBfFfVvr/aFrpwwwMfik3V786EezAfBgNV\nHSMEGDAWgBRBfFfVvr/aFrpwwwMfik3V786EezAPBgNVHRMBAf8EBTADAQH/MAoG\nCCqGSM49BAMCA0cAMEQCIA48t8EJotP4GTyKQ2bav/muY1OYoD8kfYe+w2ko8/4d\nAiA5frtr4uL2TAdJbayY7e9+/9m/rBiwGEHdO9i8Mx+KbA==\n-----END CERTIFICATE-----\n"
+#define TEST_OVERRIDE_DUMMY_CERT TEST_CERT_CN
 #define TEST_OVERRIDE_CLIENT_KEY "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgKek1auJXbiXKOynT\n5Kao9Gp5yjKv8NQhakCoB6YEowahRANCAAR5xBe+W7t+cKHuRxvTQKsHh1wpKnOJ\nAsGJgjBOL88XuqukJJt4h0Y5O/3VL26y0XMEO1hHOvTRoKceD3foDpO8\n-----END PRIVATE KEY-----\n"
 
 /* Private functions **************************************************/
@@ -94,7 +102,82 @@ static esp_rmaker_credentials_providers_t __test_credentials_providers = {
     .codesign_cert = __test_credentials_override_codesign_cert,
 };
 
+/**
+ * @brief A factory partition key and the value that the test found there.
+ */
+typedef struct {
+    const char *key;
+    uint8_t *data;
+    size_t len;
+} __test_factory_entry_t;
+
+static void __test_factory_write(const char *key, const void *data, size_t len)
+{
+    if (data != NULL) {
+        TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_nvs_update_binary(RMAKER_NVS_FACTORY_PART_NAME, RMAKER_NVS_FACTORY_NAMESPACE, key, data, len));
+        return;
+    }
+    osal_storage_handle_t handle = NULL;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_load_nvs_handle(RMAKER_NVS_FACTORY_PART_NAME, RMAKER_NVS_FACTORY_NAMESPACE, &handle));
+    osal_err_t err = osal_storage_erase(handle, key);
+    TEST_ASSERT_TRUE(err == OSAL_ERR_OK || err == OSAL_ERR_NVS_KEY_NOT_FOUND);
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_commit(handle));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_close(handle));
+}
+
+/**
+ * @brief Call esp_rmaker_factory_part_get_client_id() with the given node ID and certificate in the factory partition.
+ * @note NULL means the key is absent. The original factory partition is restored before the return.
+ */
+static esp_rmaker_error_t __test_factory_get_client_id(const char *node_id, const char *cert, char **p_client_id)
+{
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_factory_part_init());
+    __test_factory_entry_t saved[] = {
+        { .key = RMAKER_NVS_FACTORY_KEY_CLIENT_ID },
+        { .key = RMAKER_NVS_FACTORY_KEY_CLIENT_CERT },
+    };
+    for (size_t i = 0; i < sizeof(saved) / sizeof(saved[0]); i++) {
+        saved[i].data = esp_rmaker_nvs_get_binary(RMAKER_NVS_FACTORY_PART_NAME, RMAKER_NVS_FACTORY_NAMESPACE, saved[i].key, &saved[i].len);
+    }
+
+    __test_factory_write(RMAKER_NVS_FACTORY_KEY_CLIENT_ID, node_id, node_id ? strlen(node_id) : 0);
+    __test_factory_write(RMAKER_NVS_FACTORY_KEY_CLIENT_CERT, cert, cert ? strlen(cert) : 0);
+    /* The open factory handle can miss writes from other handles, so reopen it. */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_factory_part_deinit());
+    *p_client_id = NULL;
+    esp_rmaker_error_t err = esp_rmaker_factory_part_get_client_id(p_client_id);
+
+    for (size_t i = 0; i < sizeof(saved) / sizeof(saved[0]); i++) {
+        __test_factory_write(saved[i].key, saved[i].data, saved[i].len);
+        free(saved[i].data);
+    }
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_factory_part_deinit());
+    return err;
+}
+
 /* Public function definitions ****************************************************/
+
+void test_credentials_factory_client_id_no_cn_fallback(void)
+{
+    char *client_id = NULL;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_NOT_FOUND, __test_factory_get_client_id(NULL, TEST_OVERRIDE_DUMMY_CERT, &client_id));
+    TEST_ASSERT_NULL(client_id);
+}
+
+void test_credentials_factory_client_id_node_id(void)
+{
+    char *client_id = NULL;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, __test_factory_get_client_id("test_node_id", TEST_OVERRIDE_DUMMY_CERT, &client_id));
+    TEST_ASSERT_EQUAL_STRING("test_node_id", client_id);
+    free(client_id);
+}
+
+void test_credentials_factory_client_id_not_found(void)
+{
+    char *client_id = NULL;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_NOT_FOUND, __test_factory_get_client_id(NULL, NULL, &client_id));
+    TEST_ASSERT_NULL(client_id);
+}
 
 void test_credentials_override(void)
 {

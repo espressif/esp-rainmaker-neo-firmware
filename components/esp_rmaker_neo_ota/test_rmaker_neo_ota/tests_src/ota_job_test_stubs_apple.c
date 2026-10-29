@@ -27,6 +27,8 @@ extern int g_test_work_queue_fail_countdown;
 extern const void *g_test_last_backoff_ctx;
 extern const void *g_test_last_backoff_task;
 extern int g_test_backoff_retry_calls;
+extern osal_event_base_t g_test_last_posted_event_base;
+extern int32_t g_test_last_posted_event_id;
 
 typedef esp_rmaker_error_t (*esp_rmaker_work_queue_add_task_fn)(esp_rmaker_work_fn_t work_fn, void *priv_data);
 typedef osal_err_t (*osal_event_post_fn)(osal_event_base_t event_base, int32_t event_id,
@@ -56,6 +58,8 @@ osal_err_t osal_event_post(osal_event_base_t event_base, int32_t event_id,
                            void *event_data, size_t event_data_size,
                            osal_tick_type_t ticks_to_wait)
 {
+    g_test_last_posted_event_base = event_base;
+    g_test_last_posted_event_id = event_id;
     if (TEST_OTA_JOBS_DO_NOT_WRAP) {
         osal_event_post_fn real_fn = (osal_event_post_fn)dlsym(RTLD_NEXT, "osal_event_post");
         if (real_fn != NULL) {

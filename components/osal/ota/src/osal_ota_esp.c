@@ -11,6 +11,7 @@
 
 #include <string.h>
 #include "osal_ota.h"
+#include "osal_ota_events.h"
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
 #include "esp_app_format.h"
@@ -381,6 +382,9 @@ osal_err_t osal_ota_get_partition_hash(const osal_ota_partition_t *partition,
 osal_err_t osal_ota_mark_app_valid_cancel_rollback(void)
 {
     esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
+    if (err == ESP_OK) {
+        osal_ota_events_post_app_valid();
+    }
     return esp_err_to_os_err(err);
 }
 

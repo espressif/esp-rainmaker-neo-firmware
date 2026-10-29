@@ -43,6 +43,10 @@ const void *g_test_last_backoff_ctx = NULL;
 const void *g_test_last_backoff_task = NULL;
 int g_test_backoff_retry_calls = 0;
 
+/* Last event that reached the osal_event_post stub, whether or not it was forwarded */
+osal_event_base_t g_test_last_posted_event_base = NULL;
+int32_t g_test_last_posted_event_id = 0;
+
 /**
  * Strategy A (Linux/ESP): linker --wrap; provide __wrap_* that get called instead of real symbols.
  * Strategy B (Apple): stub object with real symbol names linked first (see ota_job_test_stubs_apple.c).
@@ -78,6 +82,8 @@ osal_err_t __wrap_osal_event_post(osal_event_base_t event_base, int32_t event_id
                                   void *event_data, size_t event_data_size,
                                   osal_tick_type_t ticks_to_wait)
 {
+    g_test_last_posted_event_base = event_base;
+    g_test_last_posted_event_id = event_id;
     if (TEST_OTA_JOBS_DO_NOT_WRAP) {
         return __real_osal_event_post(event_base, event_id, event_data, event_data_size, ticks_to_wait);
     }

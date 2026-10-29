@@ -13,6 +13,9 @@ int test_rmaker_neo_common_all_tests_unity(void)
 
     /* Credentials *****************************************************************/
     RUN_TEST(test_credentials_override);
+    RUN_TEST(test_credentials_factory_client_id_no_cn_fallback);
+    RUN_TEST(test_credentials_factory_client_id_node_id);
+    RUN_TEST(test_credentials_factory_client_id_not_found);
 
     /* Work queue *****************************************************************/
     RUN_TEST(test_work_queue_basic);
@@ -58,6 +61,7 @@ int test_rmaker_neo_common_all_tests_unity(void)
     RUN_TEST(test_rmaker_gen_csr_pem_basic);
     RUN_TEST(test_rmaker_csr_pem_max_len);
     RUN_TEST(test_rmaker_gen_csr_pem_errors);
+    RUN_TEST(test_rmaker_get_cert_cn);
 
     /* Retry **********************************************************************/
     RUN_TEST(test_backoff_retry_successful_schedule);

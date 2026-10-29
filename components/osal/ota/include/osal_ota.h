@@ -21,6 +21,7 @@
 #include <stddef.h>
 
 #include "osal_err.h"
+#include "osal_event_loop.h"
 
 /**
  * @brief OTA image states
@@ -72,6 +73,16 @@ typedef struct {
 } osal_ota_app_desc_t;
 
 /**
+ * @brief Event loop registration information
+ */
+typedef struct {
+    osal_event_base_t event_base;
+    struct {
+        int32_t app_valid; /**< Posted after ::osal_ota_mark_app_valid_cancel_rollback succeeds */
+    } event_ids;
+} osal_ota_event_loop_registration_info_t;
+
+/**
  * @brief Opaque handle for an OTA update
  */
 typedef void *osal_ota_handle_t;
@@ -89,6 +100,14 @@ typedef void *osal_ota_handle_t;
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * @brief Set the event base and IDs that the OTA functions post to.
+ *
+ * @param[in] event_loop_registration_info The registration information, or NULL to stop the events.
+ * @return OSAL_ERR_OK on success, error code otherwise
+ */
+osal_err_t osal_ota_event_loop_init(const osal_ota_event_loop_registration_info_t *event_loop_registration_info);
 
 /**
  * @brief Begin an OTA update:

@@ -37,6 +37,11 @@ static esp_rmaker_error_t __timer_init(const rmaker_ota_timeout_handler_config_t
 #undef rmaker_ota_timeout_handler_init
 
 extern bool TEST_OTA_JOBS_DO_NOT_WRAP;
+extern osal_event_base_t g_test_last_posted_event_base;
+extern int32_t g_test_last_posted_event_id;
+
+OSAL_EVENT_DEFINE_BASE(TEST_OSAL_OTA_EVENT);
+#define TEST_OSAL_OTA_EVENT_APP_VALID 7
 
 static esp_rmaker_error_t __timer_init(const rmaker_ota_timeout_handler_config_t *config, rmaker_ota_timeout_handler_handle_t *p_handle)
 {
@@ -95,6 +100,15 @@ static void __begin_pending_verify_boot(void)
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_ota_posix_config_set_boot_partition(new_slot));
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_ota_posix_config_set_partition_state(new_slot, OSAL_OTA_IMG_PENDING_VERIFY));
     osal_mqtt_event_notify_client_disconnected();
+    osal_ota_event_loop_registration_info_t ota_registration_info = {
+        .event_base = TEST_OSAL_OTA_EVENT,
+        .event_ids = {
+            .app_valid = TEST_OSAL_OTA_EVENT_APP_VALID,
+        },
+    };
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_ota_event_loop_init(&ota_registration_info));
+    g_test_last_posted_event_base = NULL;
+    g_test_last_posted_event_id = 0;
     g_diag_calls = 0;
     g_diag_last_priv = NULL;
 }
@@ -109,6 +123,7 @@ static void __end_pending_verify_boot(void)
     g_post_mqtt_diag = NULL;
     g_post_mqtt_diag_priv = NULL;
     g_timer_init_fail = false;
+    osal_ota_event_loop_init(NULL);
     osal_storage_reset((char *)RMAKER_NVS_PART_NAME);
     __set_all_slots_valid();
 }
@@ -128,6 +143,7 @@ void test_rollback_null_diag_waits_for_mqtt_before_valid(void)
     TEST_ASSERT_TRUE(esp_rmaker_ota_partition_running_is_pending_verify());
     TEST_ASSERT_NOT_NULL(g_rollback_timeout_handler);
     TEST_ASSERT_NOT_EQUAL(__boot_slot(), __last_valid_slot());
+    TEST_ASSERT_FALSE(g_test_last_posted_event_base == TEST_OSAL_OTA_EVENT);
     __end_pending_verify_boot();
 }
 
@@ -187,6 +203,8 @@ void test_rollback_null_diag_mqtt_connect_marks_valid(void)
 
     TEST_ASSERT_NULL(g_rollback_timeout_handler);
     TEST_ASSERT_EQUAL(__boot_slot(), __last_valid_slot());
+    TEST_ASSERT_EQUAL_PTR(TEST_OSAL_OTA_EVENT, g_test_last_posted_event_base);
+    TEST_ASSERT_EQUAL(TEST_OSAL_OTA_EVENT_APP_VALID, g_test_last_posted_event_id);
     __end_pending_verify_boot();
 }
 
@@ -224,6 +242,8 @@ void test_rollback_post_mqtt_diag_receives_config_priv(void)
     TEST_ASSERT_NULL(g_post_mqtt_diag);
     TEST_ASSERT_NULL(g_post_mqtt_diag_priv);
     TEST_ASSERT_EQUAL(__boot_slot(), __last_valid_slot());
+    TEST_ASSERT_EQUAL_PTR(TEST_OSAL_OTA_EVENT, g_test_last_posted_event_base);
+    TEST_ASSERT_EQUAL(TEST_OSAL_OTA_EVENT_APP_VALID, g_test_last_posted_event_id);
     __end_pending_verify_boot();
 }
 

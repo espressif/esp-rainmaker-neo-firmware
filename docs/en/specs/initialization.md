@@ -18,7 +18,7 @@ The node initialization follows a specific order with dependencies. Steps 1--4 a
 12. **Timeseries Manager**: Initialize timeseries data collection
 13. **Work Queue**: Initialize work queue for asynchronous tasks
 14. **Bridge subsystem**: Only when `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE` is set
-15. **MQTT**: Select the MQTT implementation (wrapped by the budgeting shim when `CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING` is set), build the connection parameters from the credentials store, and initialize the client
+15. **MQTT**: Select the MQTT implementation (wrapped by the budgeting shim when `CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING` is set), run the MQTT host migration check (only with `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`), build the connection parameters from the credentials store, and initialize the client
 16. **Services**: Initialize the schedule and automation services
 17. **Start task**: Queue the start task as the first work-queue task, then post the "init done" event
 
@@ -35,7 +35,7 @@ Everything from the MQTT connection onwards happens in the start task, on the wo
 ### Before MQTT Connection
 
 - Network provisioning must be complete
-- Network connection must be established (the start task blocks on the connectivity trapdoor until the first IP is acquired; no-op on POSIX)
+- Network connection must be established (the start task blocks on the connectivity trapdoor until the first IP is acquired; no-op on POSIX). With `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`, the start task then starts the target host connection timeout
 - Time synchronization must complete **in the synchronous flow only** (`CONFIG_MBEDTLS_HAVE_TIME_DATE`); the decoupled flow does not wait
 - Shadow bookkeeping must be initialized
 - Service data must be loaded from NVS (schedules, automation triggers)
@@ -55,6 +55,7 @@ On the first MQTT connection the SDK queues the cloud-setup task and (with `CONF
 - **NVS Failure**: Prevents local configuration access; may require factory reset
 - **Network Failure**: Prevents MQTT connection; node remains in provisioning or error state
 - **Time Sync Failure**: In the synchronous flow (`CONFIG_MBEDTLS_HAVE_TIME_DATE`) startup blocks until sync (a valid clock is required for the TLS handshake); in the decoupled flow startup never blocks. See [Time Synchronization](time_sync.md)
+- **MQTT Host Migration Failure**: With `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`, a node with no stored node ID and no certificate CN fails `esp_rmaker_node_init()` with `ESP_RMAKER_NOT_FOUND`
 - **MQTT Connection Failure**: Prevents cloud communication; triggers reconnection attempts
 - **Shadow Initialization Failure**: Aborts the start task and leaves the SDK in the error state
 - **Service Data Load Failure**: A failure to load schedule or automation details from NVS aborts the start task and leaves the SDK in the error state
