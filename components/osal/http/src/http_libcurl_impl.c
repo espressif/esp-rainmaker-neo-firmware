@@ -67,6 +67,11 @@ typedef struct osal_http_handle {
 
     /* Configuration */
     long timeout_ms;
+    osal_http_method_t method;
+
+    /* Request body state, needed to pick the right libcurl verb options */
+    bool body_set;
+    size_t body_size;
 } http_libcurl_handle_t;
 
 /** Static function declarations */
@@ -74,6 +79,7 @@ static osal_err_t add_header(http_libcurl_handle_t *handle, const char *key, con
 static struct curl_slist *build_curl_headers(http_libcurl_handle_t *handle);
 static void free_header_entry(header_entry_t *entry);
 static header_entry_t *find_header(http_libcurl_handle_t *handle, const char *key);
+static void remove_header(http_libcurl_handle_t *handle, const char *key);
 static osal_err_t execute_request(http_libcurl_handle_t *handle);
 static size_t write_callback(void *ptr, size_t size, size_t nmemb, void *userdata);
 static osal_err_t curl_to_common_error(CURLcode res);
@@ -82,6 +88,7 @@ static osal_err_t curl_to_common_error(CURLcode res);
 
 // Forward declarations
 static osal_err_t http_libcurl_set_method(osal_http_handle_t handle_in, osal_http_method_t method);
+static void apply_method(http_libcurl_handle_t *handle);
 
 /**
  * Initialize libcurl HTTP client
@@ -286,8 +293,81 @@ osal_err_t http_libcurl_set_url(osal_http_handle_t handle_in, const char *url)
 }
 
 /**
- * Set method for libcurl HTTP client
+ * Apply the requested verb, taking any installed request body into account.
  */
+static void apply_method(http_libcurl_handle_t *handle)
+{
+    osal_http_method_t method = handle->method;
+    long opt_post = 0L;
+    long opt_upload = 0L;
+    long opt_no_body = 0L;
+    char *opt_customrequest = NULL;
+
+    /* A body reaches libcurl through CURLOPT_*POSTFIELDS, which only sends it (and the matching
+     * Content-Length) while CURLOPT_POST is on; CURLOPT_CUSTOMREQUEST then overrides the verb. PUT
+     * and POST keep it on even for an empty body, so servers that demand Content-Length on writes
+     * get "Content-Length: 0" rather than no header at all. */
+    bool with_body = handle->body_set && handle->body_size > 0;
+
+    switch (method) {
+    case OSAL_HTTP_METHOD_GET:
+        OSAL_LOGD(TAG, "Setting HTTP GET method");
+        if (with_body) {
+            opt_customrequest = "GET";
+            opt_post = 1L;
+        }
+        break;
+    case OSAL_HTTP_METHOD_POST:
+        OSAL_LOGD(TAG, "Setting HTTP POST method");
+        opt_post = 1L;
+        break;
+    case OSAL_HTTP_METHOD_PUT:
+        OSAL_LOGD(TAG, "Setting HTTP PUT method");
+        opt_customrequest = "PUT";
+        opt_post = handle->body_set ? 1L : 0L;
+        break;
+    case OSAL_HTTP_METHOD_PATCH:
+        OSAL_LOGD(TAG, "Setting HTTP PATCH method");
+        opt_customrequest = "PATCH";
+        opt_post = handle->body_set ? 1L : 0L;
+        break;
+    case OSAL_HTTP_METHOD_DELETE:
+        OSAL_LOGD(TAG, "Setting HTTP DELETE method");
+        opt_customrequest = "DELETE";
+        opt_post = with_body ? 1L : 0L;
+        break;
+    case OSAL_HTTP_METHOD_HEAD:
+        OSAL_LOGD(TAG, "Setting HTTP HEAD method");
+        opt_no_body = 1L;
+        break;
+    case OSAL_HTTP_METHOD_OPTIONS:
+        OSAL_LOGD(TAG, "Setting HTTP OPTIONS method");
+        opt_customrequest = "OPTIONS";
+        opt_post = with_body ? 1L : 0L;
+        break;
+    default:
+        OSAL_LOGD(TAG, "Setting HTTP GET method (default)");
+        break;
+    }
+
+    /* Clear every verb option before selecting one. */
+    curl_easy_setopt(handle->curl, CURLOPT_CUSTOMREQUEST, NULL);
+    curl_easy_setopt(handle->curl, CURLOPT_NOBODY, 0L);
+    curl_easy_setopt(handle->curl, CURLOPT_UPLOAD, 0L);
+    curl_easy_setopt(handle->curl, CURLOPT_POST, 0L);
+
+    if (opt_post) {
+        curl_easy_setopt(handle->curl, CURLOPT_POST, 1L);
+    } else if (opt_upload) {
+        curl_easy_setopt(handle->curl, CURLOPT_UPLOAD, 1L);
+    } else if (opt_no_body) {
+        curl_easy_setopt(handle->curl, CURLOPT_NOBODY, 1L);
+    }
+    if (opt_customrequest) {
+        curl_easy_setopt(handle->curl, CURLOPT_CUSTOMREQUEST, opt_customrequest);
+    }
+}
+
 osal_err_t http_libcurl_set_method(osal_http_handle_t handle_in, osal_http_method_t method)
 {
     http_libcurl_handle_t *handle = (http_libcurl_handle_t *)handle_in;
@@ -297,54 +377,8 @@ osal_err_t http_libcurl_set_method(osal_http_handle_t handle_in, osal_http_metho
         return OSAL_ERR_INVALID_ARG;
     }
 
-    long opt_httpget = 0L;
-    long opt_post = 0L;
-    long opt_upload = 0L;
-    long opt_no_body = 0L;
-    char *opt_customrequest = NULL;
-
-    /* Convert method to libcurl */
-    switch (method) {
-    case OSAL_HTTP_METHOD_GET:
-        OSAL_LOGD(TAG, "Setting HTTP GET method");
-        opt_httpget = 1L;
-        break;
-    case OSAL_HTTP_METHOD_POST:
-        OSAL_LOGD(TAG, "Setting HTTP POST method");
-        opt_post = 1L;
-        break;
-    case OSAL_HTTP_METHOD_PUT:
-        OSAL_LOGD(TAG, "Setting HTTP PUT method");
-        opt_customrequest = "PUT";
-        break;
-    case OSAL_HTTP_METHOD_PATCH:
-        OSAL_LOGD(TAG, "Setting HTTP PATCH method");
-        opt_customrequest = "PATCH";
-        break;
-    case OSAL_HTTP_METHOD_DELETE:
-        OSAL_LOGD(TAG, "Setting HTTP DELETE method");
-        opt_customrequest = "DELETE";
-        break;
-    case OSAL_HTTP_METHOD_HEAD:
-        OSAL_LOGD(TAG, "Setting HTTP HEAD method");
-        opt_no_body = 1L;
-        break;
-    case OSAL_HTTP_METHOD_OPTIONS:
-        OSAL_LOGD(TAG, "Setting HTTP OPTIONS method");
-        opt_customrequest = "OPTIONS";
-        break;
-    default:
-        OSAL_LOGD(TAG, "Setting HTTP GET method (default)");
-        opt_httpget = 1L;
-        break;
-    }
-
-    /* Set all options */
-    curl_easy_setopt(handle->curl, CURLOPT_HTTPGET, opt_httpget);
-    curl_easy_setopt(handle->curl, CURLOPT_POST, opt_post);
-    curl_easy_setopt(handle->curl, CURLOPT_UPLOAD, opt_upload);
-    curl_easy_setopt(handle->curl, CURLOPT_NOBODY, opt_no_body);
-    curl_easy_setopt(handle->curl, CURLOPT_CUSTOMREQUEST, opt_customrequest);
+    handle->method = method;
+    apply_method(handle);
 
     return OSAL_ERR_OK;
 }
@@ -356,9 +390,15 @@ osal_err_t http_libcurl_set_header(osal_http_handle_t handle_in, const char *key
 {
     http_libcurl_handle_t *handle = (http_libcurl_handle_t *)handle_in;
 
-    if (handle == NULL || key == NULL || value == NULL) {
+    if (handle == NULL || key == NULL) {
         OSAL_LOGE(TAG, "Invalid parameters");
         return OSAL_ERR_INVALID_ARG;
+    }
+
+    /* A NULL value removes the header; removing one that was never set is a no-op. */
+    if (value == NULL) {
+        remove_header(handle, key);
+        return OSAL_ERR_OK;
     }
 
     /* Add to API-compatible header list */
@@ -441,6 +481,10 @@ osal_err_t http_libcurl_set_request_body(osal_http_handle_t handle_in, const uin
     /* Set request body */
     curl_easy_setopt(handle->curl, CURLOPT_POSTFIELDSIZE, body_size);
     curl_easy_setopt(handle->curl, CURLOPT_COPYPOSTFIELDS, (char *)body);
+    handle->body_set = true;
+    handle->body_size = body_size;
+    /* CURLOPT_*POSTFIELDS implies POST, so restate the method the caller asked for. */
+    apply_method(handle);
 
     return OSAL_ERR_OK;
 }
@@ -585,6 +629,26 @@ static osal_err_t curl_to_common_error(CURLcode res)
         return OSAL_ERR_INVALID_ARG;
     default:
         return OSAL_ERR_FAIL;
+    }
+}
+
+/**
+ * Drop a header, keeping the array contiguous.
+ */
+static void remove_header(http_libcurl_handle_t *handle, const char *key)
+{
+    for (int i = 0; i < handle->header_count; i++) {
+        if (strcasecmp(handle->headers[i].key, key) != 0) {
+            continue;
+        }
+        free_header_entry(&handle->headers[i]);
+        for (int j = i; j < handle->header_count - 1; j++) {
+            handle->headers[j] = handle->headers[j + 1];
+        }
+        handle->header_count--;
+        handle->headers[handle->header_count].key = NULL;
+        handle->headers[handle->header_count].value = NULL;
+        return;
     }
 }
 

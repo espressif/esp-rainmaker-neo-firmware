@@ -76,6 +76,43 @@ void test_http_delete_method(void);
  */
 void test_http_multiple_requests(void);
 
+/* --- Contract tests --- */
+
+/**
+ * @brief A NULL header value removes the header from the next request
+ */
+void test_http_contract_null_value_removes_header(void);
+
+/**
+ * @brief The removal of a header that was never set succeeds
+ */
+void test_http_contract_removing_absent_header_succeeds(void);
+
+/**
+ * @brief A NULL content type keeps the current Content-Type header
+ */
+void test_http_contract_null_content_type_keeps_header(void);
+
+/**
+ * @brief A body set before the method keeps both
+ */
+void test_http_contract_body_before_method(void);
+
+/**
+ * @brief A body does not change the method
+ */
+void test_http_contract_body_keeps_method(void);
+
+/**
+ * @brief POST with an empty body sends Content-Length: 0
+ */
+void test_http_contract_empty_body_sends_length_zero(void);
+
+/**
+ * @brief A reused handle does not inherit the previous method
+ */
+void test_http_contract_method_not_stale(void);
+
 /* --- All tests --- */
 
 /**

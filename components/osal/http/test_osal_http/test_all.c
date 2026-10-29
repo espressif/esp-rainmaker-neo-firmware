@@ -25,5 +25,14 @@ int test_osal_http_all_tests_unity(void)
     RUN_TEST(test_http_delete_method);
     RUN_TEST(test_http_multiple_requests);
 
+    /* Contract tests */
+    RUN_TEST(test_http_contract_null_value_removes_header);
+    RUN_TEST(test_http_contract_removing_absent_header_succeeds);
+    RUN_TEST(test_http_contract_null_content_type_keeps_header);
+    RUN_TEST(test_http_contract_body_before_method);
+    RUN_TEST(test_http_contract_body_keeps_method);
+    RUN_TEST(test_http_contract_empty_body_sends_length_zero);
+    RUN_TEST(test_http_contract_method_not_stale);
+
     return UNITY_END();
 }
