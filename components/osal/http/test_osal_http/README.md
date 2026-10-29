@@ -14,6 +14,7 @@ This test component provides comprehensive unit tests for the osal HTTP area (`c
 - Multiple request scenarios
 - Authentication testing (Basic Auth)
 - Header management operations
+- NULL-argument and method/body contracts (`tests_src/test_http_contracts.c`)
 
 ## Configuration
 

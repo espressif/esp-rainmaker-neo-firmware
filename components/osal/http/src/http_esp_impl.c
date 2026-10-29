@@ -229,6 +229,10 @@ osal_err_t http_esp_set_header(osal_http_handle_t handle, const char *key, const
     }
 
     esp_err_t err = esp_http_client_set_header(esp_client, key, value);
+    /* A NULL value removes the header, and removing one that was never set is a no-op. */
+    if (err == ESP_ERR_NOT_FOUND && value == NULL) {
+        err = ESP_OK;
+    }
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "HTTP set header failed: (%d) %s", err, esp_err_to_name(err));
         return convert_esp_err(err);
@@ -236,7 +240,7 @@ osal_err_t http_esp_set_header(osal_http_handle_t handle, const char *key, const
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0)
     /* Cache the header key for delete_all_headers workaround */
-    if (key != NULL) {
+    if (key != NULL && value != NULL) {
         /* Check if key already exists in cache */
         header_key_node_t *current = esp_handle->current_keys;
         bool key_exists = false;
@@ -370,14 +374,21 @@ osal_err_t http_esp_set_request_body(osal_http_handle_t handle, const uint8_t *b
         return OSAL_ERR_INVALID_ARG;
     }
 
-    osal_err_t header_status = http_esp_set_header(handle, "Content-Type", content_type);
-    if (header_status != OSAL_ERR_OK) {
-        return header_status;
+    /* Only when named: esp_http_client treats a NULL value as a header delete. */
+    if (content_type != NULL) {
+        osal_err_t header_status = http_esp_set_header(handle, "Content-Type", content_type);
+        if (header_status != OSAL_ERR_OK) {
+            return header_status;
+        }
     }
 
     esp_err_t err = esp_http_client_set_post_field(esp_client, (const char *)body, body_size);
+    /* Clearing the body drops Content-Type, which is absent when there was no body. */
+    if (err == ESP_ERR_NOT_FOUND && body == NULL) {
+        err = ESP_OK;
+    }
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "HTTP set request body failed: (%d) %s", err, esp_err_to_name(err));
+        ESP_LOGE(TAG, "HTTP set request body failed: content_type: %s, body: %p, body_size: %d, (%d) %s", content_type, body, (int)body_size, err, esp_err_to_name(err));
         return convert_esp_err(err);
     }
     return OSAL_ERR_OK;

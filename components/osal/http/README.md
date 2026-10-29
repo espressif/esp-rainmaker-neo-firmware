@@ -1,12 +1,12 @@
-# HTTP Common Component
+# osal/http
 
-The HTTP Common component provides a unified interface for HTTP client operations across different platforms and implementations. It abstracts the underlying HTTP implementation details and provides a consistent API for making HTTP requests.
+A unified HTTP client interface across platforms.
 
 ## Features
 
 - Platform-agnostic HTTP client interface
 - Support for common HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
-- Header management (set, get, delete)
+- Header management (set, remove, delete all)
 - SSL/TLS support
 - Configurable timeouts and buffer sizes
 - Keep-alive connections
@@ -16,12 +16,12 @@ The HTTP Common component provides a unified interface for HTTP client operation
 
 ### Initialization
 
-1. **Setup the implementation**: First call `http_common_impl_setup()` to populate the interface.
+1. **Setup the implementation**: First call `osal_http_impl_setup()` to populate the interface.
 
    ```c
-   http_common_impl_t http_impl;
-   os_err_t status = http_common_impl_setup(&http_impl);
-   if (status != OS_ERR_OK) {
+   osal_http_impl_t http_impl;
+   osal_err_t status = osal_http_impl_setup(&http_impl);
+   if (status != OSAL_ERR_OK) {
        // Handle error
    }
    ```
@@ -29,16 +29,16 @@ The HTTP Common component provides a unified interface for HTTP client operation
 2. **Initialize the HTTP client**: Call `impl.init()` with your configuration.
 
    ```c
-   http_common_config_t config = {
+   osal_http_config_t config = {
        .url = "https://example.com/api",
-       .method = HTTP_COMMON_METHOD_GET,
+       .method = OSAL_HTTP_METHOD_GET,
        .timeout_ms = 5000,
        // ... other configuration options
    };
 
-   http_common_handle_t handle;
+   osal_http_handle_t handle;
    status = http_impl.init(&config, &handle);
-   if (status != OS_ERR_OK) {
+   if (status != OSAL_ERR_OK) {
        // Handle error
    }
    ```
@@ -51,7 +51,7 @@ For each HTTP request, follow these steps:
    - Set the URL and method if not already set in config:
      ```c
      http_impl.set_url(handle, "https://example.com/api/data");
-     http_impl.set_method(handle, HTTP_COMMON_METHOD_POST);
+     http_impl.set_method(handle, OSAL_HTTP_METHOD_POST);
      ```
 
    - Set headers using `set_header()`:
@@ -59,11 +59,28 @@ For each HTTP request, follow these steps:
      http_impl.set_header(handle, "Content-Type", "application/json");
      ```
 
+   - Remove a header with a NULL value. The removal of a header that was never set succeeds:
+     ```c
+     http_impl.set_header(handle, "Content-Type", NULL);
+     ```
+
    - For requests with a body, set the request body:
      ```c
      const char *json_payload = "{\"key\": \"value\"}";
      http_impl.set_request_body(handle, (uint8_t *)json_payload, strlen(json_payload), "application/json");
      ```
+
+   - A NULL content type keeps the current `Content-Type` header. A NULL body with a size of 0 sets an empty body.
+     On ESP-IDF, a NULL body also removes the `Content-Type` header:
+     ```c
+     http_impl.set_request_body(handle, NULL, 0, NULL);
+     ```
+
+   > A handle keeps the method and the body independently. Call `set_method()` and
+   > `set_request_body()` in either order; the body does not change the method. A body on
+   > `GET`, `DELETE` or `OPTIONS` stays with that method. `POST` and `PUT` with an empty body
+   > send `Content-Length: 0`. The body stays on the handle for later requests. Clear it with
+   > `set_request_body(handle, NULL, 0, NULL)`.
 
 4. **Set response callback**: Register a callback function to receive response data as it arrives.
 
@@ -76,7 +93,7 @@ For each HTTP request, follow these steps:
    }
 
    status = http_impl.set_read_callback(handle, my_read_callback);
-   if (status != OS_ERR_OK) {
+   if (status != OSAL_ERR_OK) {
        // Handle error
    }
    ```
@@ -85,7 +102,7 @@ For each HTTP request, follow these steps:
 
    ```c
    status = http_impl.perform(handle);
-   if (status != OS_ERR_OK) {
+   if (status != OSAL_ERR_OK) {
        // Handle error
    }
    ```
@@ -109,7 +126,7 @@ For each HTTP request, follow these steps:
 
    ```c
    status = http_impl.cleanup(handle);
-   if (status != OS_ERR_OK) {
+   if (status != OSAL_ERR_OK) {
        // Handle error
    }
    ```
@@ -120,12 +137,12 @@ The typical flow is: **1 → 2 → (3-6) for as many requests as required → 7*
 
 ```c
 // 1. Setup implementation
-http_common_impl_t http_impl;
-http_common_impl_setup(&http_impl);
+osal_http_impl_t http_impl;
+osal_http_impl_setup(&http_impl);
 
 // 2. Initialize
-http_common_config_t config = { /* ... */ };
-http_common_handle_t handle;
+osal_http_config_t config = { /* ... */ };
+osal_http_handle_t handle;
 http_impl.init(&config, &handle);
 
 // 3. Set read callback (once per handle)
@@ -143,29 +160,30 @@ http_impl.cleanup(handle);
 
 ## Configuration
 
-The `http_common_config_t` structure supports the following options:
+The `osal_http_config_t` structure supports the following options:
 
 - **Connection**: `url`, `host`, `port`, `path`
 - **Request**: `method`
-- **SSL/TLS**: `client_cert`, `client_key`, `skip_cert_common_name_check`, `common_name`
+- **SSL/TLS**: `client_cert`, `client_cert_len`, `client_key`, `client_key_len`,
+  `skip_cert_common_name_check`, `common_name`
+  - A length of 0 means the cert/key is a NULL-terminated PEM and the implementation derives the length itself.
   - Server CA uses the platform certificate bundle (ESP: `esp_crt_bundle_attach`; POSIX: `ca-bundle-posix`).
 - **Transport**: `transport_type`
 - **Timeouts**: `timeout_ms`
 - **Buffers**: `buffer_size_tx`, `buffer_size_rx`
 - **Keep-alive**: `keep_alive_enable`, `keep_alive_idle`, `keep_alive_interval`, `keep_alive_count`
-- **User data**: `user_data`
 
 ## Error Handling
 
-All functions return `os_err_t` values:
-- `OS_ERR_OK`: Operation completed successfully
-- `OS_ERR_FAIL`: Generic error
-- `OS_ERR_INVALID_ARG`: Invalid parameter
-- `OS_ERR_INVALID_STATE`: Invalid state for operation
-- `OS_ERR_NO_MEM`: Buffer too small
-- `OS_ERR_TIMEOUT`: Operation timed out
-- `OS_ERR_HTTP_CONNECTION_FAILED`: Connection failed
-- `OS_ERR_INVALID_RESPONSE`: Invalid HTTP response
+All functions return `osal_err_t` values:
+- `OSAL_ERR_OK`: Operation completed successfully
+- `OSAL_ERR_FAIL`: Generic error
+- `OSAL_ERR_INVALID_ARG`: Invalid parameter
+- `OSAL_ERR_INVALID_STATE`: Invalid state for operation
+- `OSAL_ERR_NO_MEM`: Buffer too small
+- `OSAL_ERR_TIMEOUT`: Operation timed out
+- `OSAL_ERR_HTTP_CONNECTION_FAILED`: Connection failed
+- `OSAL_ERR_INVALID_RESPONSE`: Invalid HTTP response
 
 
 ## Examples

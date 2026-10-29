@@ -138,7 +138,9 @@ typedef osal_err_t (*osal_http_set_method_t)(osal_http_handle_t handle, osal_htt
 
  * @param[in] handle The HTTP client handle.
  * @param[in] key The header key to set.
- * @param[in] value The header value to set.
+ * @param[in] value The header value to set. A NULL value removes the header.
+ *
+ * @note The removal of a header that was never set returns OSAL_ERR_OK.
  *
  * @return OSAL_ERR_OK on success.
  * @return error in case of any error.
@@ -170,9 +172,12 @@ typedef osal_err_t (*osal_http_delete_all_headers_t)(osal_http_handle_t handle);
  * @brief HTTP Set Request Body function prototype
 
  * @param[in] handle The HTTP client handle.
- * @param[in] body The request body.
+ * @param[in] body The request body. A NULL body with a body_size of 0 sets an empty body.
  * @param[in] body_size The size of the request body.
- * @param[in] content_type The content type of the request body.
+ * @param[in] content_type The content type of the request body. A NULL content type keeps the current Content-Type header.
+ *
+ * @note Call this before or after set_method(); the body does not change the method.
+ *       The body stays on the handle for later requests. Clear it with set_request_body(handle, NULL, 0, NULL).
  *
  * @return OSAL_ERR_OK on success.
  * @return error in case of any error.
@@ -199,7 +204,7 @@ typedef int (*osal_http_read_callback_t)(uint8_t *buffer, size_t len, int64_t co
  * @return OSAL_ERR_OK on success.
  * @return error in case of any error.
  */
-typedef osal_err_t (*http_comon_set_read_callback_t)(osal_http_handle_t handle, osal_http_read_callback_t read_callback);
+typedef osal_err_t (*osal_http_set_read_callback_t)(osal_http_handle_t handle, osal_http_read_callback_t read_callback);
 
 /** HTTP Perform function prototype
  * - Performs the HTTP request.
@@ -250,7 +255,7 @@ typedef struct {
     osal_http_delete_header_t delete_header;
     osal_http_delete_all_headers_t delete_all_headers;
     osal_http_set_request_body_t set_request_body;
-    http_comon_set_read_callback_t set_read_callback;
+    osal_http_set_read_callback_t set_read_callback;
 
     /* Request execution */
     osal_http_perform_t perform;

@@ -1,4 +1,4 @@
-set(TEST_OSAL_HTTP_SOURCES tests_src/test_http_basic.c test_all.c)
+set(TEST_OSAL_HTTP_SOURCES tests_src/test_http_basic.c tests_src/test_http_contracts.c test_all.c)
 set(TEST_OSAL_HTTP_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR})
 
 set(TEST_OSAL_HTTP_PRIV_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/config)
