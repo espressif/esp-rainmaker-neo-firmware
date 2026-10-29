@@ -4,3 +4,6 @@ license: "Apache-2.0"
 dependencies:
   osal:
     path: ../osal
+
+  # external dependencies
+  espressif/rmaker_aws_sign: ~1.0.0 # AWS SigV4 signing with the device certificate

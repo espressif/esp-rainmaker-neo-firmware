@@ -25,6 +25,9 @@ link it directly — it arrives transitively (in POSIX builds `esp_rmaker_neo`'s
 | `retry/esp_rmaker_backoff.h` | Exponential backoff with random jitter for retried `osal_scheduler` tasks. |
 | `util/esp_rmaker_nvs.h`, `util/esp_rmaker_crypto.h`, `util/esp_rmaker_convert_hex.h`, `util/esp_rmaker_convert_base64.h` | Typed NVS get/update helpers over `osal_storage`; SHA-256, signing and key-format helpers over mbedTLS; hex and base64 conversion. |
 
+The osal port for the registry component `espressif/rmaker_aws_sign` (AWS SigV4 signing) is also here, behind
+`CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT`. See [overrides/rmaker_aws_sign](overrides/rmaker_aws_sign/README.md).
+
 Two things are declared here but **owned at runtime by `esp_rmaker_neo`**:
 `esp_rmaker_mqtt_impl` starts zeroed and is populated during RMNG init, and the
 work queue is initialised at node init but only starts in `esp_rmaker_start()`

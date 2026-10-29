@@ -17,6 +17,11 @@ set(TEST_ESP_RMAKER_NEO_COMMON_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}")
 set(TEST_ESP_RMAKER_NEO_COMMON_PRIV_INCLUDE_DIRS ${RMNG_COMMON_INCLUDE_DIRS} ${RMNG_COMMON_PRIV_INCLUDE_DIRS})
 set(TEST_ESP_RMAKER_NEO_COMMON_PRIV_REQUIRES ${RMNG_COMMON_NAME} ${RMNG_COMMON_PRIV_REQUIRES})
 
+if (CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT)
+    list(APPEND TEST_ESP_RMAKER_NEO_COMMON_SRCS "tests_src/aws_sign/test_aws_sign_port.c")
+    list(APPEND TEST_ESP_RMAKER_NEO_COMMON_PRIV_INCLUDE_DIRS ${RMNG_AWS_SIGN_PORT_PRIV_INCLUDE_DIRS})
+endif ()
+
 # ESP-IDF platform ###
 if (ESP_PLATFORM)
     # esp_rmaker_neo_common's own dirs are attached after register: IDF's component validation inspects register-time
@@ -27,6 +32,9 @@ if (ESP_PLATFORM)
         PRIV_REQUIRES ${TEST_ESP_RMAKER_NEO_COMMON_PRIV_REQUIRES} unity
     )
     target_include_directories(${COMPONENT_LIB} PRIVATE ${TEST_ESP_RMAKER_NEO_COMMON_PRIV_INCLUDE_DIRS})
+    if (CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT)
+        idf_component_optional_requires(PRIVATE ${RMNG_AWS_SIGN_PORT_PRIV_REQUIRES})
+    endif ()
 
     # Normal CMake platform ###
 else ()
@@ -41,6 +49,9 @@ else ()
     target_link_libraries(
         ${TEST_ESP_RMAKER_NEO_COMMON_TARGET} PRIVATE ${TEST_ESP_RMAKER_NEO_COMMON_PRIV_REQUIRES} unity::framework
     )
+    if (CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT)
+        target_link_libraries(${TEST_ESP_RMAKER_NEO_COMMON_TARGET} PRIVATE ${RMNG_AWS_SIGN_PORT_PRIV_REQUIRES})
+    endif ()
 
     add_test(NAME ${TEST_ESP_RMAKER_NEO_COMMON_TARGET} COMMAND ${TEST_ESP_RMAKER_NEO_COMMON_TARGET})
 
