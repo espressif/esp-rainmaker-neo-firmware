@@ -218,6 +218,40 @@ menu "ESP RainMaker Neo Configuration"
                 The count by which the budget will be increased periodically based on
                 ESP_RMAKER_NEO_MQTT_BUDGET_REVIVE_PERIOD.
 
+        config ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
+            bool "Migrate to a new MQTT host"
+            default n
+            help
+                Move the node to the MQTT host in ESP_RMAKER_NEO_MQTT_HOST_MIGRATION_TARGET.
+
+                At boot, the node uses the target host in memory. The node writes the target
+                host and the node ID to the factory partition only after the first MQTT
+                connection succeeds and the running image is valid.
+
+                If the node cannot connect to the target host and the running image is pending
+                verify, the node rolls back to the previous image. Other images log an error and post an event.
+
+        config ESP_RMAKER_NEO_MQTT_HOST_MIGRATION_TARGET
+            string "Target MQTT host"
+            depends on ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
+            default ""
+            help
+                The MQTT host name that the node moves to, for example
+                "a1b2c3d4e5f6g7-ats.iot.us-east-1.amazonaws.com".
+
+        config ESP_RMAKER_NEO_MQTT_HOST_MIGRATION_TIMEOUT
+            int "Target MQTT host connection timeout (seconds)"
+            depends on ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
+            default 90
+            range 30 3600
+            help
+                The time from the first network connection to the first MQTT connection to the target host.
+                On timeout, the node logs an error and posts RMAKER_EVENT_MQTT_HOST_MIGRATION_TIMEOUT.
+                The MQTT retries continue. If the running image is pending verify, the node rolls back
+                to the previous image instead, and posts no event.
+                With the OTA component, ESP_RMAKER_NEO_OTA_ROLLBACK_WAIT_PERIOD starts earlier and usually
+                rolls back first. This rollback is the fallback for apps without the OTA component.
+
     endmenu
 
     menu "Local Control and On-Network Challenge Response"

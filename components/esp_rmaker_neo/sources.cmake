@@ -4,6 +4,7 @@ set(RMNG_SRCS
     # Local configuration
     "${RMNG_SRC_DIR}/local_config/local_config.c"
     "${RMNG_SRC_DIR}/esp_rmaker_credentials_provider.c"
+    "${RMNG_SRC_DIR}/credentials/migration.c"
     # Provisioning helpers (glue over network_provisioning on ESP; stub on POSIX)
     "${RMNG_SRC_DIR}/prov_helpers/prov_helpers.c"
     # Network

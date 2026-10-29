@@ -10,6 +10,7 @@ set(TEST_ESP_RMAKER_NEO_SRCS
     "tests_src/local_ctrl/test_local_ctrl_endpoints.c"
     "tests_src/local_ctrl/test_local_ctrl_sec2_cache.c"
     "tests_src/claim/test_claim.c"
+    "tests_src/credentials/test_migration.c"
     "tests_src/util/test_checksum_impl.c"
     "tests_src/util/test_trigger_codec.c"
     "tests_src/core/test_core_pre_prov.c"
@@ -67,11 +68,40 @@ else ()
     add_executable(${TEST_ESP_RMAKER_NEO_TARGET} ${TEST_ESP_RMAKER_NEO_SRCS} test_runner_posix.c)
     target_include_directories(${TEST_ESP_RMAKER_NEO_TARGET} PUBLIC ${TEST_ESP_RMAKER_NEO_INCLUDE_DIRS})
     target_include_directories(${TEST_ESP_RMAKER_NEO_TARGET} PRIVATE ${TEST_ESP_RMAKER_NEO_PRIV_INCLUDE_DIRS})
+    # The migration flow tests stage OTA slot states, which only the POSIX shim exposes.
+    target_include_directories(
+        ${TEST_ESP_RMAKER_NEO_TARGET} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../osal/ota/priv_include"
+    )
 
     # Link dependencies
     target_link_libraries(${TEST_ESP_RMAKER_NEO_TARGET} PRIVATE ${TEST_ESP_RMAKER_NEO_PRIV_REQUIRES} unity::framework)
 
     add_test(NAME ${TEST_ESP_RMAKER_NEO_TARGET} COMMAND ${TEST_ESP_RMAKER_NEO_TARGET})
+
+    # The migration rollback stub replaces the real function, which exits the process. Linux: linker --wrap. Apple: a
+    # stub library with the real symbol name, inserted at load time.
+    if (APPLE)
+        add_library(
+            migration_test_stubs_apple SHARED
+            "${CMAKE_CURRENT_LIST_DIR}/tests_src/credentials/migration_test_stubs_apple.c"
+        )
+        target_include_directories(
+            migration_test_stubs_apple PRIVATE $<TARGET_PROPERTY:osal,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        # g_test_migration_rollback_count is defined in test_migration.c. Resolve at load time.
+        target_link_options(migration_test_stubs_apple PRIVATE "LINKER:-undefined,dynamic_lookup")
+        target_link_options(${TEST_ESP_RMAKER_NEO_TARGET} PRIVATE "LINKER:-flat_namespace,-interposable")
+        add_dependencies(${TEST_ESP_RMAKER_NEO_TARGET} migration_test_stubs_apple)
+        set_tests_properties(
+            ${TEST_ESP_RMAKER_NEO_TARGET}
+            PROPERTIES ENVIRONMENT
+                       "DYLD_INSERT_LIBRARIES=$<TARGET_FILE:migration_test_stubs_apple>;DYLD_FORCE_FLAT_NAMESPACE=1"
+        )
+    else ()
+        target_link_options(
+            ${TEST_ESP_RMAKER_NEO_TARGET} PRIVATE "LINKER:--wrap=osal_ota_mark_app_invalid_rollback_and_reboot"
+        )
+    endif ()
 
     # Add post-build factory NVS partition message
     set(RMNG_TOOL_FACTORY_NVS_GEN_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../tools/factory_nvs_gen)

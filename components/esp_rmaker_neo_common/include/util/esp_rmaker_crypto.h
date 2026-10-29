@@ -199,6 +199,18 @@ esp_rmaker_error_t esp_rmaker_crypto_sign_data(const uint8_t *private_key,
  */
 esp_rmaker_error_t esp_rmaker_crypto_esp_key_bin_to_der(const uint8_t *key, size_t key_len, uint8_t **der, size_t *der_len);
 
+/**
+ * @brief Get the subject Common Name of a certificate.
+ *
+ * @param[in]  cert     PEM- or DER-encoded certificate. For PEM, @p cert_len must include the NUL.
+ * @param[in]  cert_len The length of the certificate.
+ * @param[out] p_cn     The NUL-terminated Common Name. Must be freed by the caller.
+ * @return ESP_RMAKER_OK on success, ESP_RMAKER_INVALID_ARG on invalid args,
+ *         ESP_RMAKER_INVALID_STATE if the certificate does not parse,
+ *         ESP_RMAKER_NOT_FOUND if the subject has no Common Name, ESP_RMAKER_NO_MEM on allocation failure.
+ */
+esp_rmaker_error_t esp_rmaker_crypto_get_cert_cn(const uint8_t *cert, size_t cert_len, char **p_cn);
+
 #ifdef __cplusplus
 }
 #endif

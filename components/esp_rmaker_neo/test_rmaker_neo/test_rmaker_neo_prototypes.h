@@ -249,6 +249,92 @@ void test_claim_verify_request(void);
  */
 void test_claim_fragment_sequencing(void);
 
+/* MQTT host migration ***********************************************************/
+
+/**
+ * @brief Test that the migration check rejects a NULL or empty target host.
+ */
+void test_migration_rejects_empty_target(void);
+
+/**
+ * @brief Test that a stored host equal to the target needs no migration.
+ */
+void test_migration_same_host_does_nothing(void);
+
+/**
+ * @brief Test that a new target host is used in memory and not written.
+ */
+void test_migration_new_host_in_memory_only(void);
+
+/**
+ * @brief Test that the migration takes an app MQTT host provider as the stored host.
+ */
+void test_migration_app_override_is_stored_host(void);
+
+/**
+ * @brief Test that a stored node ID needs no write-back.
+ */
+void test_migration_stored_node_id_needs_no_write(void);
+
+/**
+ * @brief Test that a node ID from the certificate CN needs a write-back.
+ */
+void test_migration_cert_cn_needs_write(void);
+
+/**
+ * @brief Test that a node with no node ID and no certificate fails the migration check.
+ */
+void test_migration_no_node_id_no_cert_fails(void);
+
+/**
+ * @brief Test that a valid image writes back the CN node ID and the host on the first connection.
+ */
+void test_migration_flow_valid_connect_writes_back(void);
+
+/**
+ * @brief Test that a valid image with no connection posts the timeout event and writes nothing.
+ */
+void test_migration_flow_valid_no_connect_times_out(void);
+
+/**
+ * @brief Test that the first connection cancels the target host timeout.
+ */
+void test_migration_flow_connect_cancels_timeout(void);
+
+/**
+ * @brief Test that a reboot before the first connection runs the migration again.
+ */
+void test_migration_flow_reboot_before_connect_retries(void);
+
+#ifndef ESP_PLATFORM
+/* POSIX only: the fixtures stage a pending verify image in the POSIX OTA config. */
+
+/**
+ * @brief Test that a pending image writes back only after the connection and the mark-valid.
+ */
+void test_migration_flow_pending_connect_writes_back(void);
+
+/**
+ * @brief Test that a pending image with no connection rolls back with no timeout event and no write.
+ */
+void test_migration_flow_pending_no_connect_rolls_back(void);
+
+/**
+ * @brief Test that an image marked valid after the start times out with no rollback.
+ */
+void test_migration_flow_valid_after_start_no_connect_times_out(void);
+
+/**
+ * @brief Test that an image marked valid without the OSAL call writes back on the connection.
+ */
+void test_migration_flow_raw_mark_valid_connect_writes_back(void);
+
+/**
+ * @brief Test that a power loss after the mark-valid and before the write-back runs the migration again.
+ */
+void test_migration_flow_power_loss_after_mark_valid_retries(void);
+#endif /* ESP_PLATFORM */
+
 /* Utilities - checksum ******************************************************/
 
 /**

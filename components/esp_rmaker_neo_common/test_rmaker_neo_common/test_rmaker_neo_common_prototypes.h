@@ -19,6 +19,21 @@
  */
 void test_credentials_override(void);
 
+/**
+ * @brief Test that the factory client ID does not fall back to the certificate CN.
+ */
+void test_credentials_factory_client_id_no_cn_fallback(void);
+
+/**
+ * @brief Test that the factory client ID is the stored node ID.
+ */
+void test_credentials_factory_client_id_node_id(void);
+
+/**
+ * @brief Test that the factory client ID is not found without a node ID or a certificate.
+ */
+void test_credentials_factory_client_id_not_found(void);
+
 /* Work queue *****************************************************************/
 
 /**
@@ -211,6 +226,11 @@ void test_rmaker_csr_pem_max_len(void);
  * @brief Test the error paths of CSR generation and key-type detection.
  */
 void test_rmaker_gen_csr_pem_errors(void);
+
+/**
+ * @brief Test reading the subject Common Name of a certificate.
+ */
+void test_rmaker_get_cert_cn(void);
 
 /* Retry **********************************************************************/
 

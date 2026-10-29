@@ -83,6 +83,26 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_claim_verify_request);
     RUN_TEST(test_pb_c_resp_pack_to_buffer);
 
+    /* MQTT host migration *********************************************************/
+    RUN_TEST(test_migration_rejects_empty_target);
+    RUN_TEST(test_migration_same_host_does_nothing);
+    RUN_TEST(test_migration_new_host_in_memory_only);
+    RUN_TEST(test_migration_app_override_is_stored_host);
+    RUN_TEST(test_migration_stored_node_id_needs_no_write);
+    RUN_TEST(test_migration_cert_cn_needs_write);
+    RUN_TEST(test_migration_no_node_id_no_cert_fails);
+    RUN_TEST(test_migration_flow_valid_connect_writes_back);
+    RUN_TEST(test_migration_flow_valid_no_connect_times_out);
+    RUN_TEST(test_migration_flow_connect_cancels_timeout);
+    RUN_TEST(test_migration_flow_reboot_before_connect_retries);
+#ifndef ESP_PLATFORM
+    RUN_TEST(test_migration_flow_pending_connect_writes_back);
+    RUN_TEST(test_migration_flow_pending_no_connect_rolls_back);
+    RUN_TEST(test_migration_flow_valid_after_start_no_connect_times_out);
+    RUN_TEST(test_migration_flow_raw_mark_valid_connect_writes_back);
+    RUN_TEST(test_migration_flow_power_loss_after_mark_valid_retries);
+#endif /* ESP_PLATFORM */
+
     /* Utilities - checksum ***********************************************************/
     RUN_TEST(test_checksum_basic);
     RUN_TEST(test_checksum_compare_store);

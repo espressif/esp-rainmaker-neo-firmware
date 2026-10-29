@@ -8,8 +8,9 @@ endif ()
 set(OSAL_OTA_NAME osal_ota)
 
 add_library(
-    ${OSAL_OTA_NAME} STATIC "${CMAKE_CURRENT_LIST_DIR}/src/osal_ota_posix.c"
-                            "${CMAKE_CURRENT_LIST_DIR}/src/osal_ota_posix_config.c"
+    ${OSAL_OTA_NAME} STATIC
+    "${CMAKE_CURRENT_LIST_DIR}/src/osal_ota_posix.c" "${CMAKE_CURRENT_LIST_DIR}/src/osal_ota_posix_config.c"
+    "${CMAKE_CURRENT_LIST_DIR}/src/osal_ota_events.c"
 )
 target_include_directories(${OSAL_OTA_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 target_include_directories(${OSAL_OTA_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/priv_include)

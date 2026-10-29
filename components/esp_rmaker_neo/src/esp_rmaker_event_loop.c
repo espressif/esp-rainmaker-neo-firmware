@@ -18,12 +18,20 @@
 #include <stddef.h>
 #include <string.h>
 
+/* Platform includes */
+#include "osal_ota.h"
+
 /* Constants **********************************************************************/
 
 /**
  * @brief Event loop base event definition.
  */
 OSAL_EVENT_DEFINE_BASE(RMAKER_EVENT);
+
+/**
+ * @brief Internal event base definition.
+ */
+OSAL_EVENT_DEFINE_BASE(RMAKER_INTERNAL_EVENT);
 
 /**
  * @brief MQTT connection handler.
@@ -51,11 +59,23 @@ esp_rmaker_error_t event_loop_init(osal_event_handler_t mqtt_connection_handler)
         return ESP_RMAKER_FAIL;
     }
     g_mqtt_connection_handler = mqtt_connection_handler;
+
+    osal_ota_event_loop_registration_info_t ota_registration_info = {
+        .event_base = RMAKER_INTERNAL_EVENT,
+        .event_ids = {
+            .app_valid = RMAKER_INTERNAL_EVENT_OTA_APP_VALID,
+        },
+    };
+    if (osal_ota_event_loop_init(&ota_registration_info) != OSAL_ERR_OK) {
+        return ESP_RMAKER_FAIL;
+    }
     return ESP_RMAKER_OK;
 }
 
 esp_rmaker_error_t event_loop_deinit(void)
 {
+    osal_ota_event_loop_init(NULL);
+
     /* Unregister the MQTT connection handler */
     if (g_mqtt_connection_handler) {
         osal_err_t event_loop_err = osal_event_handler_unregister(RMAKER_COMMON_EVENT, RMAKER_MQTT_EVENT_CONNECTED, g_mqtt_connection_handler);

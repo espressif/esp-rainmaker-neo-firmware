@@ -116,6 +116,12 @@ static void esp_rmaker_app_default_event_handler(void *event_handler_arg, osal_e
 #endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_CHAL_RESP_ENABLE */
             break;
 
+        /** MQTT host migration events *************************************************/
+        case RMAKER_EVENT_MQTT_HOST_MIGRATION_TIMEOUT:
+            // Node did not connect to the migration target host in time. MQTT retries continue.
+            OSAL_LOGW(TAG, "MQTT host migration timed out");
+            break;
+
         default:
             // Unknown event.
             OSAL_LOGW(TAG, "Unknown event: %" PRId32, event_id);

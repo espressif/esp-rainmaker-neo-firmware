@@ -112,6 +112,15 @@ typedef enum {
      */
     RMAKER_EVENT_CLAIM_FAILED,
 
+    /* MQTT Host Migration Events **************************************************/
+
+    /** The node did not connect to the migration target host within CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION_TIMEOUT.
+     * The MQTT retries continue, and the factory partition does not change.
+     * A running image that is pending verify rolls back instead, and does not post this event.
+     * Event data will be NULL.
+     */
+    RMAKER_EVENT_MQTT_HOST_MIGRATION_TIMEOUT,
+
 } esp_rmaker_event_t;
 
 #endif /* __ESP_RMAKER_EVENT_LOOP_H__ */

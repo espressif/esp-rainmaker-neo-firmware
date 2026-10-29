@@ -59,6 +59,7 @@
 #include "local_config.h"
 #include "constants/cloud.h"
 #include "esp_rmaker_factory_part.h"
+#include "credentials/migration.h"
 #include "sdkconfig.h"
 
 #if CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM
@@ -638,6 +639,20 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
     }
     priv_data.trackers.core_mqtt_setup_done = true;
 
+#if CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
+    /* Runs after assisted claiming, so a claimed node already has its node ID and host. */
+    ret = esp_rmaker_migration_check(CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION_TARGET);
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "MQTT host migration check failed");
+        goto fail;
+    }
+    ret = esp_rmaker_migration_start();
+    if (ret != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to start the MQTT host migration write-back");
+        goto fail;
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION */
+
     ret = esp_rmaker_credentials_get_mqtt_conn_params(&priv_data.mqtt_conn_params);
     if (ret != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to get MQTT connection parameters");
@@ -740,6 +755,10 @@ static esp_rmaker_error_t esp_rmaker_deinit(void)
         OSAL_LOGE(TAG, "Failed to de-initialize automation service");
         err_out = ESP_RMAKER_FAIL;
     }
+
+#if CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
+    esp_rmaker_migration_stop();
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION */
 
     /* De-initialize MQTT */
     if (priv_data.trackers.core_mqtt_impl_inited) {
@@ -928,6 +947,12 @@ static void esp_rmaker_start_task(void *unused)
      * is acquired (no-op on POSIX), then disarms the trapdoor. */
     OSAL_LOGD(TAG, "Waiting for network connectivity...");
     osal_netstatus_trap();
+
+#if CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION
+    if (esp_rmaker_migration_on_network_up(CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION_TIMEOUT) != ESP_RMAKER_OK) {
+        OSAL_LOGW(TAG, "MQTT host migration timeout is off");
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION */
 
     /* Connect to MQTT */
     OSAL_LOGD(TAG, "Connecting to MQTT broker...");

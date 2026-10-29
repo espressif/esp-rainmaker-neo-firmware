@@ -22,6 +22,23 @@
 /* Error includes */
 #include "esp_rmaker_error_types.h"
 
+/* Declarations *******************************************************/
+
+/**
+ * @brief Event base for events that only the core posts and handles.
+ */
+OSAL_EVENT_DECLARE_BASE(RMAKER_INTERNAL_EVENT);
+
+/**
+ * @brief Events posted on the ``RMAKER_INTERNAL_EVENT`` base.
+ */
+typedef enum {
+    /** The running image is marked valid and the bootloader rollback is cancelled. No event data. */
+    RMAKER_INTERNAL_EVENT_OTA_APP_VALID,
+    /** The MQTT host migration timeout expired. No event data. */
+    RMAKER_INTERNAL_EVENT_MIGRATION_TIMEOUT,
+} esp_rmaker_internal_event_t;
+
 /* Public function definitions ****************************************************/
 
 #ifdef __cplusplus
