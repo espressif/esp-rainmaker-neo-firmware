@@ -130,9 +130,15 @@ bool osal_ext_io_read_until_sync(uint8_t *buffer, size_t max_buffer_length, uint
     }
 
     uint8_t *cur = buffer;
-    const uint8_t *end = buffer + max_buffer_length; // maximum writable position
+    /* The last byte is kept for the NUL terminator. */
+    const uint8_t *last = buffer + max_buffer_length - 1;
 
     while (1) {
+        if (cur == last) {
+            // Buffer full: stop before reading a byte that cannot be stored, so
+            // the rest of the line is read by the next call.
+            break;
+        }
         uint8_t byte = 0;
         ssize_t n = read(s_master_fd, &byte, 1);
         if (n < 0) {
@@ -153,24 +159,13 @@ bool osal_ext_io_read_until_sync(uint8_t *buffer, size_t max_buffer_length, uint
         }
 
         if (byte == until_char) {
-            // Null-terminate if there is space
-            if (cur < end) {
-                *cur = '\0';
-            } else if (max_buffer_length > 0) {
-                buffer[max_buffer_length - 1] = '\0';
-            }
             break;
         }
 
-        if (cur < end - 1) { // reserve room for '\0'
-            *cur++ = byte;
-        } else {
-            // Buffer full; terminate and stop
-            buffer[max_buffer_length - 1] = '\0';
-            break;
-        }
+        *cur++ = byte;
     }
 
+    *cur = '\0';
     if (read_length) {
         *read_length = (size_t)(cur - buffer);
     }

@@ -41,12 +41,14 @@ bool osal_ext_io_deinit(void);
 bool osal_ext_io_write_line(const char *line, size_t line_length);
 
 /**
- * @brief Get the external I/O interface until a certain character is sent, or max_buffer_length is reached.
- * @note This blocks until the until_char is sent or max_buffer_length is reached.
+ * @brief Get the external I/O interface until a certain character is sent, or the buffer is full.
+ * @note This blocks until the until_char is sent or the buffer is full.
+ * @note The input is NUL-terminated, so it holds at most max_buffer_length - 1 bytes. A longer line is cut to fit,
+ *       and the next call returns the rest. A line that fills the buffer exactly is followed by an empty line.
  * @param[out] buffer The buffer to store the input
- * @param[in] max_buffer_length The maximum length of the buffer
- * @param[in] until_char The character to stop at
- * @param[out] read_length The length of the input
+ * @param[in] max_buffer_length The size of the buffer, the NUL terminator included
+ * @param[in] until_char The character to stop at. It is not stored.
+ * @param[out] read_length The length of the input, without the NUL terminator
  * @return true if successful, false otherwise
  */
 bool osal_ext_io_read_until_sync(uint8_t *buffer, size_t max_buffer_length, uint8_t until_char, size_t *read_length);
