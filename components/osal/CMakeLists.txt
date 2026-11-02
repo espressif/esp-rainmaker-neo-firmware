@@ -114,7 +114,8 @@ list(APPEND OSAL_PRIV_INCLUDE_DIRS "${OSAL_DIR}/ota/priv_include")
 # ESP-IDF Platform ###
 if (ESP_PLATFORM)
     # The ESP-IDF linux target runs the FreeRTOS POSIX port on a host: keep the FreeRTOS/ESP-IDF primitives, and take
-    # the host implementation for what has no ESP-IDF counterpart there (Wi-Fi/Thread netstatus, lwIP SNTP). No OTA.
+    # the host implementation for what has no ESP-IDF counterpart there (Wi-Fi/Thread netstatus, lwIP SNTP). OTA is a
+    # stub there: it has no app partitions.
     set(OSAL_IDF_LINUX OFF)
     if (IDF_TARGET STREQUAL "linux")
         set(OSAL_IDF_LINUX ON)
@@ -146,7 +147,7 @@ if (ESP_PLATFORM)
     )
     if (OSAL_IDF_LINUX)
         list(APPEND OSAL_SRCS "${OSAL_DIR}/timesync/src/time_posix.c" "${OSAL_DIR}/netstatus/src/netstatus_posix.c"
-             "${OSAL_DIR}/storage/src/flash_image_linux.c"
+             "${OSAL_DIR}/storage/src/flash_image_linux.c" "${OSAL_DIR}/ota/src/osal_ota_stub.c"
         )
     else ()
         list(APPEND OSAL_SRCS "${OSAL_DIR}/timesync/src/time_esp.c" "${OSAL_DIR}/netstatus/src/netstatus_esp.c"
