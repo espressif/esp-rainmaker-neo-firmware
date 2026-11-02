@@ -60,6 +60,7 @@ typedef struct osal_http_handle {
 
     /* Read callback for response data */
     osal_http_read_callback_t read_callback;
+    void *read_user_data;
 
     /* Headers for API compatibility */
     header_entry_t headers[MAX_HEADERS];
@@ -492,7 +493,8 @@ osal_err_t http_libcurl_set_request_body(osal_http_handle_t handle_in, const uin
 /**
  * Set read callback for libcurl HTTP client
  */
-osal_err_t http_libcurl_set_read_callback(osal_http_handle_t handle_in, osal_http_read_callback_t read_callback)
+osal_err_t http_libcurl_set_read_callback(osal_http_handle_t handle_in, osal_http_read_callback_t read_callback,
+        void *user_data)
 {
     http_libcurl_handle_t *handle = (http_libcurl_handle_t *)handle_in;
 
@@ -502,6 +504,7 @@ osal_err_t http_libcurl_set_read_callback(osal_http_handle_t handle_in, osal_htt
     }
 
     handle->read_callback = read_callback;
+    handle->read_user_data = user_data;
     return OSAL_ERR_OK;
 }
 
@@ -598,7 +601,8 @@ static size_t write_callback(void *ptr, size_t size, size_t nmemb, void *userdat
 
     /* Call the read callback if set */
     if (handle->read_callback) {
-        int bytes_processed = handle->read_callback((uint8_t *)ptr, total_size, handle->content_length);
+        int bytes_processed = handle->read_callback((uint8_t *)ptr, total_size, handle->content_length,
+                              handle->read_user_data);
         if (bytes_processed != (int)total_size) {
             /* Callback didn't process all data - this is an error */
             OSAL_LOGE(TAG, "Read callback failed to process all data: expected %zu, got %d", total_size, bytes_processed);

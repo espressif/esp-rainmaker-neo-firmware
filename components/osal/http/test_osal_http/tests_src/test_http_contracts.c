@@ -23,7 +23,7 @@ static osal_http_impl_t http_impl;
 static uint8_t response_buffer[TEST_OSAL_HTTP_BUFFER_SIZE];
 static size_t response_buffer_pos;
 
-static int collect_response(uint8_t *data, size_t data_len, int64_t content_length)
+static int collect_response(uint8_t *data, size_t data_len, int64_t content_length, void *user_data)
 {
     if (response_buffer_pos + data_len >= sizeof(response_buffer)) {
         return -1;
@@ -52,7 +52,7 @@ static osal_http_handle_t open_echo_handle(osal_http_method_t method)
 
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.init(&config, &handle));
     TEST_ASSERT_NOT_NULL(handle);
-    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.set_read_callback(handle, collect_response));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.set_read_callback(handle, collect_response, NULL));
     return handle;
 }
 

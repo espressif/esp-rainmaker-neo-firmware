@@ -40,6 +40,7 @@ typedef struct header_key_node {
 typedef struct {
     esp_http_client_handle_t esp_client;
     osal_http_read_callback_t read_callback;
+    void *read_user_data;
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0)
     header_key_node_t *current_keys; /* Cache of header keys for delete_all_headers workaround */
 #endif /* ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0) */
@@ -392,7 +393,7 @@ osal_err_t http_esp_set_request_body(osal_http_handle_t handle, const uint8_t *b
     }
     return OSAL_ERR_OK;
 }
-osal_err_t http_esp_set_read_callback(osal_http_handle_t handle, osal_http_read_callback_t read_callback)
+osal_err_t http_esp_set_read_callback(osal_http_handle_t handle, osal_http_read_callback_t read_callback, void *user_data)
 {
     http_esp_handle_t *esp_handle = (http_esp_handle_t *)handle;
     if (esp_handle == NULL) {
@@ -400,6 +401,7 @@ osal_err_t http_esp_set_read_callback(osal_http_handle_t handle, osal_http_read_
         return OSAL_ERR_INVALID_ARG;
     }
     esp_handle->read_callback = read_callback;
+    esp_handle->read_user_data = user_data;
     return OSAL_ERR_OK;
 }
 
@@ -472,7 +474,8 @@ static esp_err_t event_handler(esp_http_client_event_t *event)
     case HTTP_EVENT_ON_DATA:
         if (esp_handle->read_callback) {
             int64_t content_length = esp_http_client_get_content_length(event->client);
-            int bytes_read = esp_handle->read_callback((uint8_t *)event->data, event->data_len, content_length);
+            int bytes_read = esp_handle->read_callback((uint8_t *)event->data, event->data_len, content_length,
+                             esp_handle->read_user_data);
             if (bytes_read != event->data_len) {
                 return ESP_ERR_INVALID_STATE; /* Abort the operation */
             }

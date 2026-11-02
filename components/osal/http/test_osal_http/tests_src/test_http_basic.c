@@ -60,7 +60,7 @@ static uint8_t response_buffer[TEST_OSAL_HTTP_BUFFER_SIZE];
 static size_t response_buffer_pos = 0;
 
 /* Read callback function for collecting response data */
-static int test_read_callback(uint8_t *data, size_t data_len, int64_t content_length)
+static int test_read_callback(uint8_t *data, size_t data_len, int64_t content_length, void *user_data)
 {
     /* Make sure we don't overflow the buffer */
     if (response_buffer_pos + data_len > sizeof(response_buffer)) {
@@ -92,7 +92,7 @@ static void _http_get_basic_no_close(osal_http_handle_t handle, int request_id, 
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Set read callback */
-    status = http_impl.set_read_callback(handle, test_read_callback);
+    status = http_impl.set_read_callback(handle, test_read_callback, NULL);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     response_buffer_pos = 0;
 
@@ -145,7 +145,7 @@ static void _http_post_basic_no_close(osal_http_handle_t handle, int request_id,
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Set read callback */
-    status = http_impl.set_read_callback(handle, test_read_callback);
+    status = http_impl.set_read_callback(handle, test_read_callback, NULL);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Perform the request synchronously */
@@ -268,7 +268,7 @@ void test_http_streaming(void)
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Set read callback */
-    status = http_impl.set_read_callback(handle, test_read_callback);
+    status = http_impl.set_read_callback(handle, test_read_callback, NULL);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Perform the request synchronously */
@@ -310,7 +310,7 @@ void test_http_head_method(void)
     TEST_ASSERT_NOT_NULL(handle);
 
     /* Set read callback (should not be called for HEAD) */
-    status = http_impl.set_read_callback(handle, test_read_callback);
+    status = http_impl.set_read_callback(handle, test_read_callback, NULL);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Perform the request synchronously */
@@ -355,7 +355,7 @@ void test_http_options_method(void)
     TEST_ASSERT_NOT_NULL(handle);
 
     /* Set read callback */
-    status = http_impl.set_read_callback(handle, test_read_callback);
+    status = http_impl.set_read_callback(handle, test_read_callback, NULL);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Perform the request synchronously */
@@ -403,7 +403,7 @@ void test_http_put_method(void)
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Set read callback */
-    status = http_impl.set_read_callback(handle, test_read_callback);
+    status = http_impl.set_read_callback(handle, test_read_callback, NULL);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Perform the request synchronously */
@@ -458,7 +458,7 @@ void test_http_patch_method(void)
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Set read callback */
-    status = http_impl.set_read_callback(handle, test_read_callback);
+    status = http_impl.set_read_callback(handle, test_read_callback, NULL);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Perform the request synchronously */
@@ -513,7 +513,7 @@ void test_http_delete_method(void)
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Set read callback */
-    status = http_impl.set_read_callback(handle, test_read_callback);
+    status = http_impl.set_read_callback(handle, test_read_callback, NULL);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
 
     /* Perform the request synchronously */

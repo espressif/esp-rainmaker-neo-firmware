@@ -190,21 +190,23 @@ typedef osal_err_t (*osal_http_set_request_body_t)(osal_http_handle_t handle, co
  * @param[in] buffer Buffer to read from.
  * @param[in] len Maximum length to read.
  * @param[in] content_length Content length.
+ * @param[in] user_data The pointer given to set_read_callback().
  *
  * @return Number of bytes processed. If this mismatches the length, the operation will be aborted.
  */
-typedef int (*osal_http_read_callback_t)(uint8_t *buffer, size_t len, int64_t content_length);
+typedef int (*osal_http_read_callback_t)(uint8_t *buffer, size_t len, int64_t content_length, void *user_data);
 
 /**
  * @brief HTTP Set Read Callback function prototype
  *
  * @param[in] handle The HTTP client handle.
  * @param[in] read_callback The read callback function.
+ * @param[in] user_data Passed to each call of read_callback. Can be NULL.
  *
  * @return OSAL_ERR_OK on success.
  * @return error in case of any error.
  */
-typedef osal_err_t (*osal_http_set_read_callback_t)(osal_http_handle_t handle, osal_http_read_callback_t read_callback);
+typedef osal_err_t (*osal_http_set_read_callback_t)(osal_http_handle_t handle, osal_http_read_callback_t read_callback, void *user_data);
 
 /** HTTP Perform function prototype
  * - Performs the HTTP request.

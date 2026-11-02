@@ -85,14 +85,14 @@ For each HTTP request, follow these steps:
 4. **Set response callback**: Register a callback function to receive response data as it arrives.
 
    ```c
-   int my_read_callback(uint8_t *data, size_t data_len, int64_t content_length) {
+   int my_read_callback(uint8_t *data, size_t data_len, int64_t content_length, void *user_data) {
        // Process the received data chunk
        printf("Received %zu bytes of data\n", data_len);
        // Return the number of bytes processed (typically data_len)
        return data_len;
    }
 
-   status = http_impl.set_read_callback(handle, my_read_callback);
+   status = http_impl.set_read_callback(handle, my_read_callback, my_context); // Each call gets my_context
    if (status != OSAL_ERR_OK) {
        // Handle error
    }
@@ -146,7 +146,7 @@ osal_http_handle_t handle;
 http_impl.init(&config, &handle);
 
 // 3. Set read callback (once per handle)
-http_impl.set_read_callback(handle, my_callback);
+http_impl.set_read_callback(handle, my_callback, my_context);
 
 // Loop for multiple requests (steps 4-5 can be repeated)
 // 4. Configure request (URL, method, headers, body)
