@@ -1,0 +1,2 @@
+# ignore copied Kconfig files from rmaker_aws_sign component
+Kconfig*

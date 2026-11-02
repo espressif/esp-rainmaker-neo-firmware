@@ -6,6 +6,7 @@
 
 #include "unity.h"
 #include "test_rmaker_neo_common_prototypes.h"
+#include "sdkconfig.h"
 
 int test_rmaker_neo_common_all_tests_unity(void)
 {
@@ -68,6 +69,20 @@ int test_rmaker_neo_common_all_tests_unity(void)
     RUN_TEST(test_backoff_race_reset_vs_retry);
     RUN_TEST(test_backoff_race_concurrent_schedule);
     RUN_TEST(test_backoff_race_reset_during_retry);
+
+    /* rmaker_aws_sign osal port **************************************************/
+#if CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT
+    RUN_TEST(test_aws_sign_port_table);
+    RUN_TEST(test_aws_sign_port_long_content_type);
+    RUN_TEST(test_aws_sign_port_json_reads_nested_and_root);
+    RUN_TEST(test_aws_sign_port_json_refuses_bad_documents);
+#ifndef ESP_PLATFORM
+    RUN_TEST(test_aws_sign_port_hint_before_body);
+    RUN_TEST(test_aws_sign_port_hint_on_empty_body);
+    RUN_TEST(test_aws_sign_port_hint_aborts);
+    RUN_TEST(test_aws_sign_port_post_body_and_content_type);
+#endif /* ESP_PLATFORM */
+#endif /* CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT */
 
     return UNITY_END();
 }

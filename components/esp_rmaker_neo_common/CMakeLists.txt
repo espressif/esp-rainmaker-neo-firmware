@@ -1,5 +1,22 @@
 include("${CMAKE_CURRENT_LIST_DIR}/sources.cmake")
 
+# Add the rmaker_aws_sign osal port. A signing feature selects ESP_RMAKER_NEO_AWS_SIGN_PORT in Kconfig.
+if (NOT DEFINED RMNG_AWS_SIGN_PORT)
+    set(RMNG_AWS_SIGN_PORT OFF)
+endif ()
+if (DEFINED CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT)
+    set(RMNG_AWS_SIGN_PORT ${CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT})
+endif ()
+message(STATUS "RMNG_AWS_SIGN_PORT: ${RMNG_AWS_SIGN_PORT}")
+if (RMNG_AWS_SIGN_PORT)
+    list(APPEND RMNG_COMMON_SRCS ${RMNG_AWS_SIGN_PORT_SRCS})
+    list(APPEND RMNG_COMMON_PRIV_INCLUDE_DIRS ${RMNG_AWS_SIGN_PORT_PRIV_INCLUDE_DIRS})
+    list(APPEND RMNG_COMMON_PRIV_REQUIRES ${RMNG_AWS_SIGN_PORT_PRIV_REQUIRES})
+
+    # Mirrored from the Kconfig select, so the osal subdirectory added below sees it either way.
+    set(OSAL_INCLUDE_HTTP ON)
+endif ()
+
 # ESP-IDF Platform ###
 if (ESP_PLATFORM)
     idf_component_register(
@@ -37,6 +54,11 @@ else ()
     # Add dependencies.
     if (NOT TARGET osal)
         add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../osal ${CMAKE_BINARY_DIR}/lib/osal)
+    endif ()
+    if (RMNG_AWS_SIGN_PORT)
+        add_subdirectory(
+            ${CMAKE_CURRENT_LIST_DIR}/overrides/rmaker_aws_sign ${CMAKE_BINARY_DIR}/overrides/rmaker_aws_sign
+        )
     endif ()
 
     target_link_libraries(${RMNG_COMMON_NAME} PUBLIC ${RMNG_COMMON_REQUIRES})

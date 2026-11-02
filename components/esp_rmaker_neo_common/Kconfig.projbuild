@@ -99,6 +99,22 @@ menu "ESP RainMaker Neo Common Component Configuration"
 
     endmenu
 
+    menu "AWS Request Signing"
+
+        config ESP_RMAKER_NEO_AWS_SIGN_PORT
+            bool
+            default n
+            select OSAL_INCLUDE_HTTP
+            help
+                Compile the rmaker_aws_sign osal port: the SigV4 signer and the IoT Credential
+                Provider client that signed REST calls ride on.
+
+                Not user-selectable. A feature that signs requests selects it, which also pulls in
+                osal's HTTP client that the port needs. Testing selects it too, so that the unit
+                tests build the port. An image with no such feature pays for neither.
+
+    endmenu
+
     menu "MQTT Credentials"
 
         config ESP_RMAKER_NEO_MQTT_SKIP_CREDENTIALS_CHECK

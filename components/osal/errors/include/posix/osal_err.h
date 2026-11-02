@@ -30,6 +30,8 @@ typedef int32_t osal_err_t;
 #define OSAL_ERR_NOT_FOUND             ((osal_err_t)OSAL_ERR_VAL_NOT_FOUND)
 #define OSAL_ERR_NOT_SUPPORTED         ((osal_err_t)OSAL_ERR_VAL_NOT_SUPPORTED)
 #define OSAL_ERR_INVALID_RESPONSE      ((osal_err_t)OSAL_ERR_VAL_INVALID_RESPONSE)
+#define OSAL_ERR_INVALID_SIZE          ((osal_err_t)OSAL_ERR_VAL_INVALID_SIZE)
+#define OSAL_ERR_NOT_FINISHED          ((osal_err_t)OSAL_ERR_VAL_NOT_FINISHED)
 
 #define OSAL_ERR_HTTP_CONNECTION_FAILED    ((osal_err_t)OSAL_ERR_VAL_HTTP_CONNECTION_FAILED)
 

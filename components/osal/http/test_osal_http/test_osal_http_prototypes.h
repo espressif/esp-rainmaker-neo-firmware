@@ -113,6 +113,36 @@ void test_http_contract_empty_body_sends_length_zero(void);
  */
 void test_http_contract_method_not_stale(void);
 
+/**
+ * @brief The headers callback runs once, before the first read callback
+ */
+void test_http_contract_headers_callback_before_body(void);
+
+/**
+ * @brief The headers callback runs for a response with no body
+ */
+void test_http_contract_headers_callback_on_empty_body(void);
+
+/**
+ * @brief A non-zero return from the headers callback aborts the perform
+ */
+void test_http_contract_headers_callback_aborts(void);
+
+/**
+ * @brief A reused handle gives the read callback the new content length
+ */
+void test_http_contract_content_length_not_stale(void);
+
+/**
+ * @brief Each callback gets the user data given to its setter
+ */
+void test_http_contract_callbacks_get_user_data(void);
+
+/**
+ * @brief cleanup() refuses a NULL handle
+ */
+void test_http_contract_cleanup_null_handle(void);
+
 /* --- All tests --- */
 
 /**

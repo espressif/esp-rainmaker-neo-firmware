@@ -15,6 +15,7 @@ menu "ESP RainMaker Neo Configuration"
             bool "Enable testing"
             default n
             select OSAL_USING_VIRTUAL_SCHEDULER
+            select ESP_RMAKER_NEO_AWS_SIGN_PORT
             help
                 If set to true, then ESP RainMaker Neo testing is enabled.
 

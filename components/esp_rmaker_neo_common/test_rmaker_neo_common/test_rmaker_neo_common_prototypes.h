@@ -254,6 +254,48 @@ void test_backoff_race_concurrent_schedule(void);
  */
 void test_backoff_race_reset_during_retry(void);
 
+/* rmaker_aws_sign osal port **************************************************/
+
+/**
+ * @brief Test that the port table sets its ops and is the same on each call.
+ */
+void test_aws_sign_port_table(void);
+
+/**
+ * @brief Test that set_header() refuses a content type that it must truncate.
+ */
+void test_aws_sign_port_long_content_type(void);
+
+/**
+ * @brief Test that the JSON op reads nested and root string fields.
+ */
+void test_aws_sign_port_json_reads_nested_and_root(void);
+
+/**
+ * @brief Test that the JSON op refuses malformed documents.
+ */
+void test_aws_sign_port_json_refuses_bad_documents(void);
+
+/**
+ * @brief Test that the length hint comes before the body.
+ */
+void test_aws_sign_port_hint_before_body(void);
+
+/**
+ * @brief Test that the length hint comes for an empty body.
+ */
+void test_aws_sign_port_hint_on_empty_body(void);
+
+/**
+ * @brief Test that an error from the hint aborts the perform.
+ */
+void test_aws_sign_port_hint_aborts(void);
+
+/**
+ * @brief Test that a POST sends its body and content type.
+ */
+void test_aws_sign_port_post_body_and_content_type(void);
+
 /* All tests ******************************************************************/
 
 /**

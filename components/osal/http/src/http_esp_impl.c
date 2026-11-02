@@ -40,6 +40,11 @@ typedef struct header_key_node {
 typedef struct {
     esp_http_client_handle_t esp_client;
     osal_http_read_callback_t read_callback;
+    void *read_user_data;
+    osal_http_headers_callback_t headers_callback;
+    void *headers_user_data;
+    bool headers_reported; /* The headers callback ran in this perform */
+    bool headers_aborted;  /* The headers callback asked to abort */
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0)
     header_key_node_t *current_keys; /* Cache of header keys for delete_all_headers workaround */
 #endif /* ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0) */
@@ -47,6 +52,7 @@ typedef struct {
 
 /** Static function declarations */
 static esp_err_t event_handler(esp_http_client_event_t *event);
+static void report_headers(http_esp_handle_t *esp_handle, int status_code, int64_t content_length);
 static esp_http_client_method_t convert_method(osal_http_method_t method);
 static esp_http_client_transport_t convert_transport_type(osal_http_transport_t transport_type);
 static osal_err_t convert_esp_err(esp_err_t err);
@@ -144,13 +150,12 @@ osal_err_t http_esp_init(const osal_http_config_t *config, osal_http_handle_t *h
 osal_err_t http_esp_cleanup(osal_http_handle_t handle)
 {
     http_esp_handle_t *esp_handle = (http_esp_handle_t *)handle;
-    esp_http_client_handle_t esp_client = esp_handle->esp_client;
-    if (esp_handle == NULL || esp_client == NULL) {
+    if (esp_handle == NULL || esp_handle->esp_client == NULL) {
         ESP_LOGE(TAG, "Invalid handle");
         return OSAL_ERR_INVALID_ARG;
     }
 
-    esp_http_client_cleanup(esp_client);
+    esp_http_client_cleanup(esp_handle->esp_client);
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0)
     /* Free header keys cache */
@@ -393,7 +398,7 @@ osal_err_t http_esp_set_request_body(osal_http_handle_t handle, const uint8_t *b
     }
     return OSAL_ERR_OK;
 }
-osal_err_t http_esp_set_read_callback(osal_http_handle_t handle, osal_http_read_callback_t read_callback)
+osal_err_t http_esp_set_read_callback(osal_http_handle_t handle, osal_http_read_callback_t read_callback, void *user_data)
 {
     http_esp_handle_t *esp_handle = (http_esp_handle_t *)handle;
     if (esp_handle == NULL) {
@@ -401,6 +406,19 @@ osal_err_t http_esp_set_read_callback(osal_http_handle_t handle, osal_http_read_
         return OSAL_ERR_INVALID_ARG;
     }
     esp_handle->read_callback = read_callback;
+    esp_handle->read_user_data = user_data;
+    return OSAL_ERR_OK;
+}
+
+osal_err_t http_esp_set_headers_callback(osal_http_handle_t handle, osal_http_headers_callback_t headers_callback, void *user_data)
+{
+    http_esp_handle_t *esp_handle = (http_esp_handle_t *)handle;
+    if (esp_handle == NULL) {
+        ESP_LOGE(TAG, "Invalid handle");
+        return OSAL_ERR_INVALID_ARG;
+    }
+    esp_handle->headers_callback = headers_callback;
+    esp_handle->headers_user_data = user_data;
     return OSAL_ERR_OK;
 }
 
@@ -418,10 +436,19 @@ osal_err_t http_esp_perform(osal_http_handle_t handle)
     }
 
     /* Perform the request */
+    esp_handle->headers_reported = false;
+    esp_handle->headers_aborted = false;
     esp_err_t err = esp_http_client_perform(esp_client);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "HTTP perform failed: (%d) %s", err, esp_err_to_name(err));
         return convert_esp_err(err);
+    }
+    /* Covers a response with neither headers nor a body */
+    report_headers(esp_handle, esp_http_client_get_status_code(esp_client),
+                   esp_http_client_get_content_length(esp_client));
+    if (esp_handle->headers_aborted) {
+        ESP_LOGE(TAG, "Headers callback aborted the request");
+        return OSAL_ERR_FAIL;
     }
     return OSAL_ERR_OK;
 }
@@ -469,11 +496,29 @@ static esp_err_t event_handler(esp_http_client_event_t *event)
     }
 
     switch (event->event_id) {
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+    case HTTP_EVENT_ON_HEADERS_COMPLETE:
+        report_headers(esp_handle, esp_http_client_get_status_code(event->client),
+                       esp_http_client_get_content_length(event->client));
+        break;
+#else
+    /* No headers-complete event before IDF 6.0, and the status and length are not parsed yet */
+    case HTTP_EVENT_ON_HEADER:
+        report_headers(esp_handle, -1, -1);
+        break;
+#endif /* ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0) */
     /* Data received */
     case HTTP_EVENT_ON_DATA:
+        /* Covers a response with no headers */
+        report_headers(esp_handle, esp_http_client_get_status_code(event->client),
+                       esp_http_client_get_content_length(event->client));
+        if (esp_handle->headers_aborted) {
+            return ESP_ERR_INVALID_STATE; /* Abort the operation */
+        }
         if (esp_handle->read_callback) {
             int64_t content_length = esp_http_client_get_content_length(event->client);
-            int bytes_read = esp_handle->read_callback((uint8_t *)event->data, event->data_len, content_length);
+            int bytes_read = esp_handle->read_callback((uint8_t *)event->data, event->data_len, content_length,
+                             esp_handle->read_user_data);
             if (bytes_read != event->data_len) {
                 return ESP_ERR_INVALID_STATE; /* Abort the operation */
             }
@@ -485,6 +530,18 @@ static esp_err_t event_handler(esp_http_client_event_t *event)
     }
 
     return ESP_OK;
+}
+
+static void report_headers(http_esp_handle_t *esp_handle, int status_code, int64_t content_length)
+{
+    if (esp_handle->headers_callback == NULL || esp_handle->headers_reported) {
+        return;
+    }
+    esp_handle->headers_reported = true;
+    if (esp_handle->headers_callback(status_code, content_length < 0 ? -1 : content_length,
+                                     esp_handle->headers_user_data) != 0) {
+        esp_handle->headers_aborted = true;
+    }
 }
 
 static esp_http_client_method_t convert_method(osal_http_method_t method)
@@ -541,6 +598,7 @@ osal_err_t osal_http_impl_setup(osal_http_impl_t *http_impl)
     http_impl->delete_all_headers = http_esp_delete_all_headers;
     http_impl->set_request_body = http_esp_set_request_body;
     http_impl->set_read_callback = http_esp_set_read_callback;
+    http_impl->set_headers_callback = http_esp_set_headers_callback;
 
     http_impl->perform = http_esp_perform;
     http_impl->get_status_code = http_esp_get_status_code;
