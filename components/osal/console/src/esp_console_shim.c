@@ -215,11 +215,8 @@ static void repl_task(void *arg)
     osal_task_delete(NULL);
 }
 
-esp_err_t esp_console_new_repl_uart(const esp_console_dev_uart_config_t *dev_config,
-                                    const esp_console_repl_config_t *repl_config,
-                                    esp_console_repl_t **ret_repl)
+esp_err_t esp_console_new_repl_stdio(const esp_console_repl_config_t *repl_config, esp_console_repl_t **ret_repl)
 {
-    (void) dev_config; /* stdin is always used on POSIX */
     if (!ret_repl) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -245,7 +242,7 @@ esp_err_t esp_console_new_repl_uart(const esp_console_dev_uart_config_t *dev_con
     snprintf(s_repl.prompt, sizeof(s_repl.prompt), "%s", prompt);
     s_repl.task = NULL;
 
-    /* On ESP-IDF, esp_console_new_repl_uart() sets up the console (incl. the built-in help command)
+    /* On ESP-IDF, esp_console_new_repl_stdio() sets up the console (incl. the built-in help command)
      * internally. Mirror that here so `help` is available regardless of caller ordering. */
     esp_console_register_help_command();
 

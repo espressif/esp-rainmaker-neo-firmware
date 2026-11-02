@@ -18,10 +18,7 @@ set(TEST_APP_PRIV_REQUIRES
     "test_rmaker_neo"
 )
 
-if (IDF_TARGET STREQUAL "linux")
-    # Only main's dependency tree is built there, so pull in esp_http_client for osal's HTTP area explicitly.
-    list(APPEND TEST_APP_PRIV_REQUIRES "esp_http_client")
-else ()
+if (NOT IDF_TARGET STREQUAL "linux")
     # The linux target has no Wi-Fi / BLE provisioning and no OTA.
     list(APPEND TEST_APP_PRIV_REQUIRES "app_network" "test_rmaker_neo_ota")
 endif ()

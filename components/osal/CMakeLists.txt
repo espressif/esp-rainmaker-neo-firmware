@@ -195,6 +195,10 @@ if (ESP_PLATFORM)
     if (NOT OSAL_IDF_LINUX)
         list(APPEND OSAL_REQUIRES esp_netif)
         list(APPEND OSAL_PRIV_REQUIRES app_update)
+    else ()
+        # A linux-target app sets COMPONENTS to main, so the optional esp_http_client requirement below would not find
+        # the component. Require it here instead.
+        list(APPEND OSAL_PRIV_REQUIRES esp_http_client)
     endif ()
     idf_component_register(
         SRCS ${OSAL_SRCS}

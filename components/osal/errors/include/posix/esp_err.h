@@ -30,6 +30,11 @@ typedef osal_err_t esp_err_t;
 #define ESP_ERR_NOT_FINISHED OSAL_ERR_NOT_FINISHED
 #define ESP_ERR_TIMEOUT      OSAL_ERR_TIMEOUT
 
+static inline const char *esp_err_to_name(esp_err_t code)
+{
+    return osal_err_strerror(code);
+}
+
 /**
  * @brief Abort if @p x is not ESP_OK, mirroring ESP-IDF's ESP_ERROR_CHECK for vendored code.
  */

@@ -16,7 +16,7 @@ The target has:
 ## Application Requirements
 
 - `CONFIG_ESP_SCHEDULE_DISABLE_DEFAULT_PORT=y` and `CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=4096`, for example in `sdkconfig.defaults.linux`.
-- `esp_http_client` in the `PRIV_REQUIRES` of `main`, if the app sets `CONFIG_OSAL_INCLUDE_HTTP=y`. The linux target needs `set(COMPONENTS main)`, so osal does not find `esp_http_client` without it.
+- `set(COMPONENTS main)` in the project `CMakeLists.txt`, so that only what `main` needs is built. Most chip drivers do not build for the target.
 - A `fctry` partition, and a flash image that holds the partition table and the node's [factory NVS](https://docs.neo.rainmaker.espressif.com/docs/firmware/device-credentials/factory-nvs). Name the image in `RMNG_FLASH_IMAGE` when starting the app; the SDK loads it before `app_main()`. The app writes its NVS into the image, so run it on a copy. For example, with the partition table at `0x8000` and `fctry` at `0x10000`:
 
   ```sh

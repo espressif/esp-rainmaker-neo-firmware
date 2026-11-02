@@ -73,22 +73,6 @@ typedef struct {
         .max_cmdline_length = 256,         \
     }
 
-/** @brief UART REPL device configuration. Accepted and ignored on POSIX (stdin is always used). */
-typedef struct {
-    int channel;
-    int baud_rate;
-    int tx_gpio_num;
-    int rx_gpio_num;
-} esp_console_dev_uart_config_t;
-
-#define ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT()  \
-    {                                          \
-        .channel = 0,                          \
-        .baud_rate = 115200,                   \
-        .tx_gpio_num = -1,                     \
-        .rx_gpio_num = -1,                     \
-    }
-
 /** @brief Opaque REPL handle. */
 typedef struct esp_console_repl_s esp_console_repl_t;
 
@@ -132,21 +116,18 @@ esp_err_t esp_console_cmd_register(const esp_console_cmd_t *cmd);
 esp_err_t esp_console_run(const char *cmdline, int *cmd_ret);
 
 /**
- * @brief Create a REPL backed by stdin (the UART device config is ignored on POSIX).
+ * @brief Create a REPL backed by stdin, as esp_console_new_repl_stdio() on the ESP-IDF v6.1 linux target.
  *
- * @param[in]  dev_config  Accepted for source compatibility; ignored.
  * @param[in]  repl_config REPL configuration.
  * @param[out] ret_repl    Receives the REPL handle.
  * @return ESP_OK on success.
  */
-esp_err_t esp_console_new_repl_uart(const esp_console_dev_uart_config_t *dev_config,
-                                    const esp_console_repl_config_t *repl_config,
-                                    esp_console_repl_t **ret_repl);
+esp_err_t esp_console_new_repl_stdio(const esp_console_repl_config_t *repl_config, esp_console_repl_t **ret_repl);
 
 /**
  * @brief Start the REPL: spawns a thread that reads lines from stdin and dispatches them.
  *
- * @param[in] repl REPL handle from esp_console_new_repl_uart().
+ * @param[in] repl REPL handle from esp_console_new_repl_stdio().
  * @return ESP_OK on success.
  */
 esp_err_t esp_console_start_repl(esp_console_repl_t *repl);
