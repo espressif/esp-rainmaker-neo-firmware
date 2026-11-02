@@ -44,6 +44,19 @@ idf.py build flash monitor
 Per-target overrides are merged from `sdkconfig.defaults.<target>` next to the
 base `sdkconfig.defaults`; `idf.py menuconfig` exposes the RMNG options.
 
+## Build — ESP-IDF linux target
+
+Every example also builds for ESP-IDF's `linux` target (ESP-IDF v6.0 and v6.1) and runs on a host:
+
+```sh
+idf.py --preview set-target linux
+idf.py build
+```
+
+The app reads its factory NVS from a flash image. See
+[ESP-IDF Linux Target](../docs/en/specs/linux_target.md) for how to run it, and
+for what the target lacks.
+
 ## Build — POSIX (Host Testing)
 
 The POSIX build runs the same example against mocked hardware; it is currently

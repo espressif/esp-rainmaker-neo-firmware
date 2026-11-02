@@ -3,12 +3,14 @@ set(APP_NETWORK_NAME "app_network")
 set(APP_NETWORK_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/include")
 
 # ESP-IDF Platform ###
-if (ESP_PLATFORM)
+if (ESP_PLATFORM AND NOT IDF_TARGET STREQUAL "linux")
     set(srcs "src/app_network_neo.c" "src/app_network_provision.c")
     set(pub_req rmaker_app_network esp_event osal)
     # app_network_provision.c drives the RMNG pre-provisioning flow (esp_rmaker_flow.h) and the provisioning manager;
     # neither appears in the public header, so both are private.
     set(priv_req esp_rmaker_neo network_provisioning)
+    # esp_wifi must be in the build for its Kconfig (ESP_WIFI_ENABLED) to exist, even on a Thread-only target.
+    list(APPEND priv_req esp_wifi)
 
     if (CONFIG_APP_NETWORK_OVER_WIFI)
         list(APPEND opt_priv_req "esp_wifi")
@@ -48,6 +50,16 @@ if (ESP_PLATFORM)
     if (opt_priv_req)
         idf_component_optional_requires(PRIVATE ${opt_priv_req})
     endif ()
+
+    # ESP-IDF linux target ###
+elseif (ESP_PLATFORM)
+    # No Wi-Fi or Thread on the host: build the same no-op stub as POSIX.
+    idf_component_register(
+        SRCS "src/posix/app_network_posix.c"
+        INCLUDE_DIRS "include"
+        REQUIRES osal
+    )
+    set(APP_NETWORK_NAME ${COMPONENT_TARGET})
 
     # Normal CMake Platform ###
 else ()

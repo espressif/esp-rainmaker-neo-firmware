@@ -3,7 +3,7 @@ set(APP_BUTTON_NAME "app_button")
 set(APP_BUTTON_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/include")
 
 # ESP-IDF Platform ###
-if (ESP_PLATFORM)
+if (ESP_PLATFORM AND NOT IDF_TARGET STREQUAL "linux")
     set(APP_BUTTON_SRCS "${CMAKE_CURRENT_LIST_DIR}/src/esp/app_button.c")
     # osal_err.h is part of the public app_button.h surface, so osal stays public. app_reset is used only by
     # app_button.c and appears nowhere in the public header, so it is private -- the same public/private split
@@ -16,6 +16,17 @@ if (ESP_PLATFORM)
         INCLUDE_DIRS ${APP_BUTTON_INCLUDE_DIRS}
         REQUIRES ${APP_BUTTON_REQUIRES}
         PRIV_REQUIRES ${APP_BUTTON_PRIV_REQUIRES}
+    )
+    set(APP_BUTTON_NAME ${COMPONENT_TARGET})
+
+    # ESP-IDF linux target ###
+elseif (ESP_PLATFORM)
+    # No physical button on the host: build the same no-op stub as POSIX.
+    idf_component_register(
+        SRCS "${CMAKE_CURRENT_LIST_DIR}/src/posix/app_button_posix.c"
+        INCLUDE_DIRS ${APP_BUTTON_INCLUDE_DIRS}
+        REQUIRES "osal"
+        PRIV_REQUIRES "app_reset"
     )
     set(APP_BUTTON_NAME ${COMPONENT_TARGET})
 

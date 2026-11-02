@@ -11,8 +11,8 @@
  * One surface the example body can call unconditionally:
  *  - ESP-IDF: Wi-Fi/Thread provisioning, via the espressif/rmaker_app_network
  *    component, wrapped around the RMNG pre-provisioning flow.
- *  - POSIX:   there is no provisioning and no credentials, so the calls are
- *             successful no-ops.
+ *  - POSIX and the ESP-IDF linux target: there is no provisioning and no
+ *    credentials, so the calls are successful no-ops.
  *
  * ::app_network_provision collapses the ESP four-step sequence
  * (pre_prov_init -> set_custom_mfg_data -> start_neo -> pre_prov_deinit) into a
@@ -28,17 +28,22 @@
 #include "osal_err.h"
 
 #ifdef ESP_PLATFORM
+#include "sdkconfig.h"
+#endif /* ESP_PLATFORM */
+
+/* The ESP-IDF linux target has no radio, so it takes the POSIX path below. */
+#if defined(ESP_PLATFORM) && !CONFIG_IDF_TARGET_LINUX
 /* espressif/rmaker_app_network: brings app_network_init() and the
  * MFG_DATA_DEVICE_TYPE_* / MFG_DATA_DEVICE_SUBTYPE_* macros reused below. */
 #include "app_network.h"
-#endif /* ESP_PLATFORM */
+#endif /* ESP_PLATFORM && !CONFIG_IDF_TARGET_LINUX */
 
 /* --- Supported device types and subtypes --- */
 /* ESP RainMaker types and subtypes are reused whenever possible. On POSIX there is no
  * BLE advertisement to carry them, so they exist only to keep the example source
  * portable. */
 
-#ifdef ESP_PLATFORM
+#if defined(ESP_PLATFORM) && !CONFIG_IDF_TARGET_LINUX
 /* Light */
 #define NEO_MFG_DATA_DEVICE_TYPE_LIGHT               (MFG_DATA_DEVICE_TYPE_LIGHT)
 #define NEO_MFG_DATA_DEVICE_SUBTYPE_LIGHT            (MFG_DATA_DEVICE_SUBTYPE_LIGHT)
@@ -50,7 +55,7 @@
 #define NEO_MFG_DATA_DEVICE_SUBTYPE_LIGHT            (0)
 #define NEO_MFG_DATA_DEVICE_TYPE_SWITCH              (0)
 #define NEO_MFG_DATA_DEVICE_SUBTYPE_SWITCH           (0)
-#endif /* ESP_PLATFORM */
+#endif /* ESP_PLATFORM && !CONFIG_IDF_TARGET_LINUX */
 
 /* Sentinel device type: pass this to app_network_provision() to skip setting custom
  * manufacturer data entirely (no BLE advertisement filter), matching the bring-up of
@@ -62,16 +67,16 @@
 extern "C" {
 #endif
 
-#ifndef ESP_PLATFORM
+#if !defined(ESP_PLATFORM) || CONFIG_IDF_TARGET_LINUX
 /**
  * @brief Initialise the network stack.
  *
  * No-op on POSIX. On ESP-IDF this comes from espressif/rmaker_app_network.
  */
 void app_network_init(void);
-#endif /* !ESP_PLATFORM */
+#endif /* !ESP_PLATFORM || CONFIG_IDF_TARGET_LINUX */
 
-#ifdef ESP_PLATFORM
+#if defined(ESP_PLATFORM) && !CONFIG_IDF_TARGET_LINUX
 /**
  * @brief Set the custom manufacturer data for RMNG.
  *
@@ -96,7 +101,7 @@ osal_err_t app_network_set_custom_mfg_data_neo(uint16_t device_type, uint8_t dev
  * @return OSAL_ERR_OK on success, otherwise an error code.
  */
 osal_err_t app_network_start_neo(void);
-#endif /* ESP_PLATFORM */
+#endif /* ESP_PLATFORM && !CONFIG_IDF_TARGET_LINUX */
 
 /**
  * @brief Reset the network credentials.

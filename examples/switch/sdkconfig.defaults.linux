@@ -1,0 +1,9 @@
+# ESP-IDF linux target: the example runs on a host (see docs/en/specs/linux_target.md).
+# The SDK installs its own osal-backed esp_schedule port; the component's ESP-IDF one needs lwIP SNTP.
+CONFIG_ESP_SCHEDULE_DISABLE_DEFAULT_PORT=y
+# The SDK's timer callbacks run on the FreeRTOS timer task, which needs a larger stack on the host.
+CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=4096
+# Silent HAL assertions link with "-u abort", which a macOS host linker does not resolve.
+CONFIG_HAL_ASSERTION_DISABLE=y
+# From ESP-IDF v6.1, the VFS wraps open() and does not open host files.
+# CONFIG_VFS_SUPPORT_IO is not set

@@ -4,7 +4,7 @@ set(APP_LED_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/include")
 set(APP_LED_PRIV_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/priv_include")
 
 # ESP-IDF Platform ###
-if (ESP_PLATFORM)
+if (ESP_PLATFORM AND NOT IDF_TARGET STREQUAL "linux")
     set(APP_LED_SRCS "${CMAKE_CURRENT_LIST_DIR}/src/esp/common.c")
     set(APP_LED_REQUIRES "osal") # osal_err.h is part of the public app_led.h surface
     set(APP_LED_PRIV_REQUIRES "led_strip" "esp_driver_ledc")
@@ -24,6 +24,16 @@ if (ESP_PLATFORM)
         PRIV_INCLUDE_DIRS ${APP_LED_PRIV_INCLUDE_DIRS}
         REQUIRES ${APP_LED_REQUIRES}
         PRIV_REQUIRES ${APP_LED_PRIV_REQUIRES}
+    )
+    set(APP_LED_NAME ${COMPONENT_TARGET})
+
+    # ESP-IDF linux target ###
+elseif (ESP_PLATFORM)
+    # No physical LED on the host: build the same no-op stub as POSIX.
+    idf_component_register(
+        SRCS "${CMAKE_CURRENT_LIST_DIR}/src/posix/app_led_posix.c"
+        INCLUDE_DIRS ${APP_LED_INCLUDE_DIRS}
+        REQUIRES "osal"
     )
     set(APP_LED_NAME ${COMPONENT_TARGET})
 

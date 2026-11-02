@@ -3,7 +3,7 @@ set(APP_RESET_NAME "app_reset")
 set(APP_RESET_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/include")
 
 # ESP-IDF Platform ###
-if (ESP_PLATFORM)
+if (ESP_PLATFORM AND NOT IDF_TARGET STREQUAL "linux")
     idf_component_register(
         SRCS "${CMAKE_CURRENT_LIST_DIR}/src/esp/app_reset.c"
         INCLUDE_DIRS ${APP_RESET_INCLUDE_DIRS}
@@ -17,6 +17,16 @@ if (ESP_PLATFORM)
     if (CONFIG_APP_RESET_ENABLE)
         idf_component_optional_requires(PRIVATE esp_rmaker_neo app_network)
     endif ()
+
+    # ESP-IDF linux target ###
+elseif (ESP_PLATFORM)
+    # No physical button on the host: build the same no-op stub as POSIX.
+    idf_component_register(
+        SRCS "${CMAKE_CURRENT_LIST_DIR}/src/posix/app_reset_posix.c"
+        INCLUDE_DIRS ${APP_RESET_INCLUDE_DIRS}
+        REQUIRES "osal"
+    )
+    set(APP_RESET_NAME ${COMPONENT_TARGET})
 
     # Normal CMake Platform ###
 else ()

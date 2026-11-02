@@ -6,4 +6,7 @@ dependencies:
   ## Required IDF version
   idf:
     version: '>=5.5'
-  espressif/led_strip: ^3.0.1~1
+  espressif/led_strip:
+    version: ^3.0.1~1
+    rules:
+      - if: "target not in [linux]"
