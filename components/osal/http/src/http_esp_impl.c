@@ -144,13 +144,12 @@ osal_err_t http_esp_init(const osal_http_config_t *config, osal_http_handle_t *h
 osal_err_t http_esp_cleanup(osal_http_handle_t handle)
 {
     http_esp_handle_t *esp_handle = (http_esp_handle_t *)handle;
-    esp_http_client_handle_t esp_client = esp_handle->esp_client;
-    if (esp_handle == NULL || esp_client == NULL) {
+    if (esp_handle == NULL || esp_handle->esp_client == NULL) {
         ESP_LOGE(TAG, "Invalid handle");
         return OSAL_ERR_INVALID_ARG;
     }
 
-    esp_http_client_cleanup(esp_client);
+    esp_http_client_cleanup(esp_handle->esp_client);
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0)
     /* Free header keys cache */

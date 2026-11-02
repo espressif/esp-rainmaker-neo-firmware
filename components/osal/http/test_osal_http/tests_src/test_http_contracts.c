@@ -178,3 +178,9 @@ void test_http_contract_method_not_stale(void)
 
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, http_impl.cleanup(handle));
 }
+
+void test_http_contract_cleanup_null_handle(void)
+{
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_http_impl_setup(&http_impl));
+    TEST_ASSERT_EQUAL(OSAL_ERR_INVALID_ARG, http_impl.cleanup(NULL));
+}

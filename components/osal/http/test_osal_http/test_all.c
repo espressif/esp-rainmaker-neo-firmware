@@ -33,6 +33,7 @@ int test_osal_http_all_tests_unity(void)
     RUN_TEST(test_http_contract_body_keeps_method);
     RUN_TEST(test_http_contract_empty_body_sends_length_zero);
     RUN_TEST(test_http_contract_method_not_stale);
+    RUN_TEST(test_http_contract_cleanup_null_handle);
 
     return UNITY_END();
 }

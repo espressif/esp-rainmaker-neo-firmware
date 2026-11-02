@@ -113,6 +113,11 @@ void test_http_contract_empty_body_sends_length_zero(void);
  */
 void test_http_contract_method_not_stale(void);
 
+/**
+ * @brief cleanup() refuses a NULL handle
+ */
+void test_http_contract_cleanup_null_handle(void);
+
 /* --- All tests --- */
 
 /**
