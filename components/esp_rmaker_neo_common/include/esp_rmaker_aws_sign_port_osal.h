@@ -17,6 +17,10 @@
  * ``esp_rmaker_aws_sign_port_install`` also keeps the component's built-in
  * ESP-IDF port, with its esp_http_client / esp-tls / esp_log dependencies, out
  * of the link.
+ *
+ * Compiled only with ``CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT``, which a feature
+ * that signs requests selects. Such a feature also requires the
+ * ``espressif/rmaker_aws_sign`` component for ``esp_rmaker_aws_sign.h``.
  */
 
 #ifndef __ESP_RMAKER_AWS_SIGN_PORT_OSAL_H__

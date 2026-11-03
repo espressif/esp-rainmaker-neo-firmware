@@ -50,6 +50,10 @@ Crypto
 ------
 .. include-build-file:: inc/esp_rmaker_crypto.inc
 
+AWS Request Signing
+-------------------
+.. include-build-file:: inc/esp_rmaker_aws_sign_port_osal.inc
+
 Conversion Helpers
 ------------------
 .. include-build-file:: inc/esp_rmaker_convert_base64.inc
