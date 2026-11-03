@@ -6,11 +6,11 @@ menu "ESP RainMaker Neo App Network Configuration"
             Network protocol type over which the app will run.
 
         config APP_NETWORK_OVER_WIFI
-            depends on ESP_WIFI_ENABLED
+            depends on OSAL_NETWORK_WIFI_AVAILABLE
             bool "ESP RainMaker Neo over Wi-Fi"
 
         config APP_NETWORK_OVER_THREAD
-            depends on OPENTHREAD_ENABLED
+            depends on OSAL_NETWORK_THREAD_AVAILABLE
             bool "ESP RainMaker Neo over Thread"
     endchoice
 

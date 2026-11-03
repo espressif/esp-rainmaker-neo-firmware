@@ -214,16 +214,13 @@ if (ESP_PLATFORM)
     endif ()
 
     # esp_wifi / openthread are pulled only for the enabled network type (netstatus).
-    if (CONFIG_ESP_WIFI_ENABLED
-        OR CONFIG_ESP32_WIFI_ENABLED
-        OR CONFIG_ESP_WIFI_REMOTE_ENABLED
-    )
+    if (CONFIG_OSAL_NETWORK_WIFI_AVAILABLE)
         idf_component_optional_requires(PRIVATE esp_wifi)
     endif ()
     if (CONFIG_ESP_WIFI_REMOTE_ENABLED)
         idf_component_optional_requires(PRIVATE esp_wifi_remote)
     endif ()
-    if (CONFIG_OPENTHREAD_ENABLED)
+    if (CONFIG_OSAL_NETWORK_THREAD_AVAILABLE)
         idf_component_optional_requires(PRIVATE openthread)
     endif ()
 

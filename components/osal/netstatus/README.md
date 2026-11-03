@@ -22,9 +22,9 @@ are ignored, because steady-state reconnection is the transport's job.
 
 - ESP-IDF: [`src/netstatus_esp.c`](src/netstatus_esp.c) allocates one bit per
   enabled network type — Wi-Fi STA, Thread, Ethernet — each guarded by the
-  corresponding IDF option (`CONFIG_ESP_WIFI_ENABLED` /
-  `CONFIG_ESP32_WIFI_ENABLED` / `CONFIG_ESP_WIFI_REMOTE_ENABLED`,
-  `CONFIG_OPENTHREAD_ENABLED`, `CONFIG_ETH_ENABLED`) and served by its own event
+  corresponding osal option (`CONFIG_OSAL_NETWORK_WIFI_AVAILABLE`,
+  `CONFIG_OSAL_NETWORK_THREAD_AVAILABLE`, `CONFIG_OSAL_NETWORK_ETH_AVAILABLE`)
+  and served by its own event
   handler. `arm()` also latches an interface that is already connected;
   `trap()` unblocks as soon as *any one* network is connected.
 - POSIX: [`src/netstatus_posix.c`](src/netstatus_posix.c) is an intentional

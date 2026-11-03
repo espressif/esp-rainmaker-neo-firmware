@@ -172,6 +172,19 @@ menu "OSAL Optional Features"
 
 endmenu
 
+# Network stacks present in the IDF build; hidden, no prompt.
+config OSAL_NETWORK_WIFI_AVAILABLE
+    bool
+    default y if ESP_WIFI_ENABLED || ESP_HOST_WIFI_ENABLED || ESP_WIFI_REMOTE_ENABLED
+
+config OSAL_NETWORK_THREAD_AVAILABLE
+    bool
+    default y if OPENTHREAD_ENABLED
+
+config OSAL_NETWORK_ETH_AVAILABLE
+    bool
+    default y if ETH_ENABLED
+
 # MQTT client configuration
 rsource "mqtt/Kconfig.mqtt" # codespell:ignore rsource
 
