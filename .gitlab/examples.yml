@@ -53,13 +53,11 @@
     - ccache --zero-stats || true
     - |
       # Auto-discover example dirs once (target-independent): any path containing
-      # a `main/` subdir. Handles arbitrary nesting.
-      # examples/matter/ is excluded: it needs the esp-matter SDK, which this
-      # image does not carry — it is built by the dedicated job in matter.yml.
+      # a `main/` subdir. Handles arbitrary nesting. EXAMPLES_EXCLUDED_DIRS are skipped.
       ALL_DIRS=()
       while IFS= read -r maindir; do
         example_dir="${maindir%/main}"
-        case "$example_dir" in "$ESP_EXAMPLES_DIR"/matter/*) continue ;; esac
+        is_excluded_example "$example_dir" && continue
         ALL_DIRS+=("$example_dir")
       done < <(find "$ESP_EXAMPLES_DIR" -type d -name main)
 
@@ -215,12 +213,11 @@ build_examples_posix:
       # is an app. Mirrors the ESP-IDF discovery above, including the change
       # detection below: apps are tracked as repo-relative PATHS, so an example
       # grouped in a subfolder (examples/advanced/<app>) is handled. Only the
-      # artifact/output directory uses the basename.
-      # examples/matter/ is ESP-IDF-only (needs esp-matter); skip it here.
+      # artifact/output directory uses the basename. EXAMPLES_EXCLUDED_DIRS are skipped.
       ALL_DIRS=()
       while IFS= read -r maindir; do
         example_dir="${maindir%/main}"
-        case "$example_dir" in "$POSIX_EXAMPLES_DIR"/matter/*) continue ;; esac
+        is_excluded_example "$example_dir" && continue
         ALL_DIRS+=("$example_dir")
       done < <(find "$POSIX_EXAMPLES_DIR" -type d -name main)
 

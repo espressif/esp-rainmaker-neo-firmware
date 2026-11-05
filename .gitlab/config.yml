@@ -6,6 +6,10 @@ variables:
   # Must ship Python >= 3.9: docs/requirements.txt pins sphinx-external-toc,
   # which declares requires-python >=3.9.
   ESP_DOCS_ENV_IMAGE: "${CI_REGISTRY}/ci/images/idf-v6.0-docs:1"
+  # Example dirs (and every app under them) that the general example jobs do not build.
+  # examples/camera: camera has its own job in examples_camera.yml.
+  # examples/matter: needs the esp-matter SDK, built by its own job in matter.yml.
+  EXAMPLES_EXCLUDED_DIRS: "examples/camera examples/matter"
 
 stages:
   - prepare
@@ -29,6 +33,15 @@ before_script:
 
       cmake -S "$PROJECT_DIR" -B "$TARGET_BUILD_DIR_ABS" -GNinja $CMAKE_FLAGS
       cmake --build "$TARGET_BUILD_DIR_ABS"
+    }
+  - |
+    # Returns 0 when <dir> is, or sits under, an entry of EXAMPLES_EXCLUDED_DIRS.
+    function is_excluded_example() {
+      local d
+      for d in $EXAMPLES_EXCLUDED_DIRS; do
+        case "$1/" in "$d"/*) return 0 ;; esac
+      done
+      return 1
     }
   - |
     function build_app_posix() {

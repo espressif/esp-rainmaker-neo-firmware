@@ -29,5 +29,6 @@ include:
   - local: .gitlab/unit_tests.yml
   - local: .gitlab/examples.yml
   - local: .gitlab/matter.yml
+  - local: .gitlab/examples_camera.yml
   - local: .gitlab/itests.yml
   - local: .gitlab/docs.yml
