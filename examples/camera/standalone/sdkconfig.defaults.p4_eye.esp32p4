@@ -1,0 +1,58 @@
+#
+# ESP32-P4-EYE and ESP32-P4X-EYE boards. The P4X-EYE has P4 silicon v3 or
+# later. For a P4-EYE with older silicon, add sdkconfig.defaults.pre_v3.esp32p4.
+#
+# Build with:
+#   idf.py -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.p4_eye.esp32p4' set-target esp32p4 build
+#
+
+#
+# Board BSP and the esp_hosted SDIO pins for the on-board C6.
+#
+CONFIG_BSP_SELECT_ESP32_P4_EYE=y
+CONFIG_ESP32P4_EYE_C6_BOARD=y
+
+#
+# 16 MB flash, with app slots large enough for the embedded C6 image.
+#
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.16mb.csv"
+
+#
+# The C6 is on the same PCB and has no USB port. The P4 app embeds the C6
+# network_adapter images from target-firmware/ and writes them to the C6 over
+# UART at boot, when they differ from what the C6 has. Each app OTA brings its
+# own C6 image. The addresses match the network_adapter partition layout
+# (table at 0x8000, first app at 0x10000).
+#
+CONFIG_SLAVE_FLASHER_ENABLE=y
+CONFIG_SLAVE_FLASHER_IMAGE_EMBEDDED=y
+CONFIG_SLAVE_PARTITION_TABLE_ADDRESS=0x8000
+CONFIG_SLAVE_APPLICATION_ADDRESS=0x10000
+CONFIG_SLAVE_UART_RX_PIN=36
+CONFIG_SLAVE_UART_TX_PIN=35
+CONFIG_SLAVE_GPIO0_TRIGGER_PIN=33
+# esp_hosted's auto-init is a C constructor that runs before app_main, so it
+# would reset the C6 and start SDIO enumeration while slave_flasher still holds
+# it in ROM download mode. app_run() brings hosted up itself once flashing is done.
+CONFIG_ESP_HOSTED_AUTO_CALL_INIT_BEFORE_APP_MAIN=n
+
+#
+# OV2710 MIPI-CSI sensor. AE stats every 500 ms (default 120 ms) to cut I2C
+# traffic next to the audio codec.
+#
+CONFIG_CAMERA_OV2710=y
+CONFIG_CAMERA_OV2710_STATS_UPDATE_INTERVAL=500
+
+#
+# Video player canvas sized to the 240x240 LCD.
+#
+CONFIG_MEDIA_STREAM_PLAYER_MAX_WIDTH=240
+
+#
+# LVGL: about 6 fps canvas updates, and a longer task watchdog.
+# The ST7789 panel's byte order is set by the P4-EYE BSP (esp_lvgl_port swap_bytes).
+#
+CONFIG_LV_DEF_REFR_PERIOD=200
+CONFIG_BSP_DISPLAY_LVGL_MAX_SLEEP=100
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=15

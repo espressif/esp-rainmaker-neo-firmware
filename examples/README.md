@@ -16,6 +16,7 @@ useful for development and CI without a device.
 | [`multi_device`](multi_device/) | Light + fan + switch + temperature sensor in one node |
 | [`advanced/`](advanced/README.md) | SDK extension points rather than device types (custom OTA filetypes, custom jobs) |
 | [`matter/`](matter/README.md) | Nodes that support both RainMaker Neo and Matter at once |
+| [`camera/`](camera/README.md) | KVS WebRTC camera for ESP32-P4-EYE / P4X-EYE, standalone or split (C6 signaling + P4 streaming). ESP-IDF only; needs an esp-port-for-amazon-kvs-sdk checkout |
 
 [`common/`](common/) holds the `app_*` helper components the examples share —
 entry point, network/provisioning bring-up, LED, button, hold-to-reset — plus

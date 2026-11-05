@@ -1,0 +1,47 @@
+# ESP32-P4 options for every P4 board. IDF loads this file after
+# sdkconfig.defaults. Board, sensor and silicon overlays go on top.
+
+#
+# esp_hosted: this P4 has no radio, so Wi-Fi and BT come from the co-processor.
+#
+CONFIG_ESP_HOSTED=y
+CONFIG_ESP_HOSTED_HOST=y
+# esp_webrtc_utils pulls in webrtc_bridge on P4, and its hosted path calls the
+# peer-data API, which 3.x gates behind this feature.
+CONFIG_ESP_HOSTED_HOST_FEAT_PEER_DATA=y
+
+#
+# BLE provisioning: the BLE controller is on the hosted co-processor, so NimBLE
+# runs over esp_hosted's HCI transport, not a local UART.
+#
+CONFIG_BT_NIMBLE_TRANSPORT_UART=n
+CONFIG_ESP_HOSTED_HOST_FEAT_BT=y
+
+#
+# PSRAM: malloc() stays in internal RAM. Code that wants PSRAM asks for it
+# with heap_caps_malloc().
+#
+CONFIG_SPIRAM_USE_CAPS_ALLOC=y
+
+#
+# esp_hosted: transport DMA buffers from PSRAM, so they do not use up the internal
+# DMA pool. Packet stats are logged every 30 s.
+#
+CONFIG_EH_HOST_PORT_DMA_PREFER_SPIRAM=y
+CONFIG_ESP_HOSTED_HOST_DEBUG_STATS=y
+
+#
+# Console on the P4's USB Serial/JTAG port.
+#
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+#
+# esp_video: the ISP converts the MIPI-CSI RAW sensor output.
+#
+CONFIG_ESP_VIDEO_ENABLE_ISP_VIDEO_DEVICE=y
+CONFIG_ESP_VIDEO_ENABLE_ISP_PIPELINE_CONTROLLER=y
+CONFIG_ISP_PIPELINE_CONTROLLER_TASK_STACK_USE_PSRAM=y
+
+# LVGL 9's builtin heap is a static 64 KB pool in internal RAM. Allocate from the system
+# heap instead, so LVGL takes only what the video canvas and its labels need.
+CONFIG_LV_USE_CLIB_MALLOC=y
