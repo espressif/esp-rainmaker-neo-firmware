@@ -1,0 +1,10 @@
+# Name,   Type, SubType, Offset,    Size, Flags
+# Partition table at 0xC000 (CONFIG_PARTITION_TABLE_OFFSET) and the app at
+# 0x20000: the P4-EYE streaming_only overlays flash this image onto the
+# on-board C6 via slave_flasher at exactly these offsets. The example does not
+# enable OTA, so a single large app slot leaves headroom for RainMaker Neo + KVS
+# signaling + the hosted co-processor firmware.
+nvs,      data, nvs,     0x10000,   0x6000,
+phy_init, data, phy,     0x16000,   0x1000,
+factory,  app,  factory, 0x20000,   0x3A0000,
+fctry,    data, nvs,     0x3C0000,  0x6000,

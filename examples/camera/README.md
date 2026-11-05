@@ -11,12 +11,12 @@ no POSIX port.
 
 | Mode | Where the node + signaling run | Where media runs | Use it for |
 | --- | --- | --- | --- |
-| [`standalone/`](standalone/README.md) | ESP32-P4 | ESP32-P4 (C6 = plain Wi-Fi/BLE co-processor) | Simplest bring-up, fastest session setup |
-| [`split_mode/`](split_mode/README.md) | ESP32-C6 | ESP32-P4 (KVS `streaming_only`) | P4 can sleep while the C6 keeps the node + signaling online |
+| [`standalone/`](standalone/README.md) | ESP32-P4 or ESP32-S3 | The same chip (on P4, the C6 is a plain Wi-Fi/BLE co-processor) | Simplest bring-up, fastest session setup |
+| [`split_mode/`](split_mode/README.md) | ESP32-C6 or ESP32-C5 | ESP32-P4 (KVS `streaming_only`) | P4 can sleep while the co-processor keeps the node + signaling online |
 
 The example is not tied to a board. Board overlays are provided for the
-**ESP32-P4-EYE** and the **ESP32-P4X-EYE** (`p4_eye` overlays, plus
-`pre_v3` for P4 silicon before v3). Both have an
+**ESP32-S3-EYE** (standalone), the **ESP32-P4-EYE** and the **ESP32-P4X-EYE** (`p4_eye` overlays, plus
+`pre_v3` for P4 silicon before v3). The two P4 boards have an
 on-board ESP32-C6 without its own USB port, so their overlays make the P4 image
 carry the C6 firmware and flash it in-system at boot (`slave_flasher`).
 
@@ -55,9 +55,11 @@ its own peer-connection interface — the local KVS peer connection
 
 ## Notes / current limitations
 
-- **RAW camera sensors stream only on ESP-IDF v5.5.5 for now.** The P4
-  overlays here use RAW MIPI-CSI sensors. Later IDF versions reject the RAW
-  input at CSI init, so video does not start. The fix is espressif/esp-idf!53677.
-  Until it lands, build the P4 image with the v5.5.5 tag.
+- **The standalone P4 camera has no video yet.** The P4 overlays here use RAW
+  MIPI-CSI sensors, and ESP-IDF after v5.5.5 rejects the RAW input at CSI init.
+  This repo needs ESP-IDF v6.0.2 or later, so video does not start until
+  espressif/esp-idf!53677 lands. Split mode is not affected: its P4 image is built
+  from the KVS SDK, which can use v5.5.5. The ESP32-S3 standalone camera is not
+  affected either.
 - WebRTC streaming only: no file or clip upload, no insights, no
   command-response.

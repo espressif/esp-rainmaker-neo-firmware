@@ -66,7 +66,9 @@ repos:
     -   id: insert-license  # Public-domain header for example sources
         name: Insert license header - public (examples .c,.cpp,.h)
         files: ^examples/.*\.(c|cpp|h)$
-        exclude: '(managed_components|build)/'
+        # The split camera's power-save files come from esp_hosted and the KVS SDK,
+        # and keep their upstream Apache-2.0 headers.
+        exclude: '((managed_components|build)/|^examples/camera/split_mode/rmaker_split_camera/main/(power_save_handler|host_ps_integration|cp_light_sleep_controller)\.[ch]$)'
         args:
             - --license-filepath
             - .pre-commit/license_header_public.txt

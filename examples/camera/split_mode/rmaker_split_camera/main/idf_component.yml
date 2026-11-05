@@ -1,0 +1,34 @@
+## IDF Component Manager Manifest File
+dependencies:
+  # RainMaker Neo SDK
+  esp_rmaker_neo:
+    path: ../../../../../components/esp_rmaker_neo
+  esp_rmaker_neo_common:
+    path: ../../../../../components/esp_rmaker_neo_common
+
+  # Common example components
+  app_event_loop:
+    path: ../../../../common/app_event_loop
+  app_entry:
+    path: ../../../../common/app_entry
+  app_network:
+    path: ../../../../common/app_network
+
+  # Camera glue (device + credentials + WebRTC signaling bring-up)
+  rmaker_camera:
+    path: ../../../components/rmaker_camera
+
+  # Split-mode plumbing from the KVS WebRTC SDK (via KVS_SDK_PATH): the
+  # bridge peer connection relays signaling to the streaming chip.
+  signaling_bridge_adapter:
+    path: ${KVS_SDK_PATH}/components/signaling_bridge_adapter
+    version: "*"
+  webrtc_bridge:
+    path: ${KVS_SDK_PATH}/components/webrtc_bridge
+    version: "*"
+  # This chip is the esp_hosted co-processor (C6 or C5) of the streaming P4.
+  # Keep the version in step with the host side (the KVS SDK's streaming_only).
+  espressif/esp_hosted:
+    version: "3.1.0"
+    rules:
+      - if: "target in [esp32c6, esp32c5]"
