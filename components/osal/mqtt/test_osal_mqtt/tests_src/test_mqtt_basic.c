@@ -17,10 +17,13 @@
 #include "osal_event_group.h"
 #include "osal_event_loop.h"
 #include "osal_mem_alloc.h"
+#include "osal_semaphore.h"
 #include "osal_task.h"
 #include "osal_ticks.h"
 
+#include "osal_mqtt_events.h"
 #include "osal_mqtt_impl.h"
+#include "osal_mqtt_core_test_hooks.h"
 #include "test_osal_mqtt_config.h"
 
 #define TIMEOUT_MS_CONNECT 3000
@@ -686,4 +689,194 @@ void test_mqtt_tls_mutual_auth_lwt(void)
         TEST_FAIL_MESSAGE(error_msg);
     }
 #endif
+}
+
+/* A stop between CONNACK and the agent's stop check: a parked, full event loop holds the agent there. */
+
+#ifndef CONFIG_OSAL_MQTT_IMPL_ESP
+#if !CONFIG_OSAL_MQTT_TEST_HOOKS
+#error "test_osal_mqtt needs CONFIG_OSAL_MQTT_TEST_HOOKS"
+#endif
+#define STOP_RACE_BLOCKER_EVENT_ID 0
+#define STOP_RACE_FILLER_EVENT_ID 1
+#define STOP_RACE_QUEUE_FILL_MAX 1024
+
+static OSAL_EVENT_DEFINE_BASE(TEST_OSAL_MQTT_BLOCKER_EVENT_BASE);
+
+typedef struct {
+    osal_semaphore_handle_t entered;
+    osal_semaphore_handle_t release;
+} __event_loop_blocker_t;
+
+static void __event_loop_blocker_handler(void *event_handler_arg, osal_event_base_t event_base, int32_t event_id,
+        void *event_data)
+{
+    (void) event_base;
+    (void) event_data;
+    __event_loop_blocker_t *blocker = (__event_loop_blocker_t *) event_handler_arg;
+    if (event_id == STOP_RACE_BLOCKER_EVENT_ID) {
+        osal_semaphore_give(blocker->entered);
+        osal_semaphore_take(blocker->release, OSAL_MAX_DELAY);
+    }
+}
+#endif /* CONFIG_OSAL_MQTT_IMPL_ESP */
+
+void test_mqtt_tls_server_only_stop_during_connect(void)
+{
+#ifdef CONFIG_OSAL_MQTT_IMPL_ESP
+    TEST_IGNORE_MESSAGE("esp-mqtt stops wait for its task, which blocks on the parked event loop");
+#else
+    static char fail_msg[160];
+    char *error_msg = NULL;
+    const char *stop_name = NULL;
+    osal_err_t status;
+    osal_event_group_bits_t waited_bits;
+    bool inited = false, blocked = false;
+    osal_mqtt_impl_t mqtt_impl;
+
+    osal_mqtt_conn_params_t *conn_params = __setup(false);
+    conn_params->clean_session = true;
+
+    __event_loop_blocker_t blocker = {
+        .entered = osal_semaphore_create_binary(),
+        .release = osal_semaphore_create_binary(),
+    };
+    TEST_ASSERT_NOT_NULL(blocker.entered);
+    TEST_ASSERT_NOT_NULL(blocker.release);
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_event_handler_register(TEST_OSAL_MQTT_BLOCKER_EVENT_BASE, OSAL_EVENT_ID_ANY,
+                      __event_loop_blocker_handler, &blocker));
+
+    /* ---------- Phase 1 - stop while the agent posts CONNECTED, with drop() and then disconnect() ---------- */
+    for (int use_disconnect = 0; use_disconnect <= 1; use_disconnect++) {
+        /* disconnect() is the stop that esp_rmaker_stop() uses. */
+        stop_name = use_disconnect ? "disconnect()" : "drop()";
+
+        status = osal_event_post(TEST_OSAL_MQTT_BLOCKER_EVENT_BASE, STOP_RACE_BLOCKER_EVENT_ID, NULL, 0, OSAL_MAX_DELAY);
+        if (status != OSAL_ERR_OK ||
+                osal_semaphore_take(blocker.entered, osal_ticks_from_ms(TIMEOUT_MS_CONNECT)) != OSAL_ERR_OK) {
+            error_msg = "Event loop did not run the blocker handler";
+            goto stop_race_end;
+        }
+        blocked = true;
+
+        int queued = 0;
+        while (queued < STOP_RACE_QUEUE_FILL_MAX &&
+                osal_event_post(TEST_OSAL_MQTT_BLOCKER_EVENT_BASE, STOP_RACE_FILLER_EVENT_ID, NULL, 0, 0) == OSAL_ERR_OK) {
+            queued++;
+        }
+        if (queued == STOP_RACE_QUEUE_FILL_MAX) {
+            error_msg = "Event loop queue did not fill";
+            goto stop_race_end;
+        }
+
+        status = osal_mqtt_impl_setup(&mqtt_impl);
+        if (status == OSAL_ERR_OK) {
+            status = mqtt_impl.init(conn_params, &__event_loop_info);
+        }
+        if (status != OSAL_ERR_OK) {
+            error_msg = "Phase-1 init failed";
+            goto stop_race_end;
+        }
+        inited = true;
+
+        if (mqtt_impl.connect() != OSAL_ERR_OK) {
+            error_msg = "Phase-1 connect failed";
+            goto stop_race_end;
+        }
+        /* The CONNECTED bit comes before the event post, which now blocks on the full queue. */
+        if (!osal_mqtt_event_wait_client_connected(TIMEOUT_MS_CONNECT)) {
+            error_msg = "Phase-1 agent did not connect";
+            goto stop_race_end;
+        }
+        status = use_disconnect ? mqtt_impl.disconnect() : mqtt_impl.drop();
+        if (status != OSAL_ERR_OK) {
+            error_msg = "Stop returned error";
+            goto stop_race_end;
+        }
+        osal_semaphore_give(blocker.release);
+        blocked = false;
+
+        bool bit_set = osal_mqtt_event_wait_client_has_disconnected(TIMEOUT_MS_CONNECT);
+        waited_bits = __mqtt_common_wait_for_signal(__MQTT_COMMON_SIGNAL_CONNECTED | __MQTT_COMMON_SIGNAL_DISCONNECTED,
+                      TIMEOUT_MS_CONNECT);
+        status = mqtt_impl.deinit();
+        inited = false;
+
+        /* Proof that the stop hit the window: the agent never reached the command loop. */
+        if (osal_mqtt_core_test_get_command_loop_entries() != 0) {
+            error_msg = "Phase-1 agent ran the command loop, so the stop missed the race window";
+            goto stop_race_end;
+        }
+        if (!bit_set) {
+            error_msg = "Stop during connect did not set the client-disconnected bit";
+            goto stop_race_end;
+        }
+        if (waited_bits != (__MQTT_COMMON_SIGNAL_CONNECTED | __MQTT_COMMON_SIGNAL_DISCONNECTED)) {
+            error_msg = "Stop during connect did not signal disconnected";
+            goto stop_race_end;
+        }
+        if (status != OSAL_ERR_OK) {
+            error_msg = "Phase-1 deinit failed";
+            goto stop_race_end;
+        }
+    }
+    stop_name = NULL;
+
+    /* ---------- Phase 2 - the next client must start disconnected ---------- */
+    status = osal_mqtt_impl_setup(&mqtt_impl);
+    if (status == OSAL_ERR_OK) {
+        status = mqtt_impl.init(conn_params, &__event_loop_info);
+    }
+    if (status != OSAL_ERR_OK) {
+        error_msg = "Phase-2 init failed";
+        goto stop_race_end;
+    }
+    inited = true;
+
+    if (mqtt_impl.connect() != OSAL_ERR_OK) {
+        error_msg = "Phase-2 connect failed";
+        goto stop_race_end;
+    }
+    waited_bits = __mqtt_common_wait_for_signal(__MQTT_COMMON_SIGNAL_CONNECTED, TIMEOUT_MS_CONNECT);
+    if (waited_bits != __MQTT_COMMON_SIGNAL_CONNECTED) {
+        /* A healthy agent reaches the command loop only after CONNECTED. */
+        error_msg = osal_mqtt_core_test_get_command_loop_entries() != 0 ?
+                    "Phase-2 client inherited the connected state of phase 1" : "Phase-2 connect timed out";
+        goto stop_race_end;
+    }
+    /* A stale connected flag runs the command loop on a dead socket and posts DISCONNECTED first. */
+    if (__mqtt_common_wait_for_signal(__MQTT_COMMON_SIGNAL_DISCONNECTED, 0) != 0) {
+        error_msg = "Phase-2 client inherited the connected state of phase 1";
+        goto stop_race_end;
+    }
+
+    (void) mqtt_impl.disconnect();
+    waited_bits = __mqtt_common_wait_for_signal(__MQTT_COMMON_SIGNAL_DISCONNECTED, TIMEOUT_MS_CONNECT);
+    if (waited_bits != __MQTT_COMMON_SIGNAL_DISCONNECTED) {
+        error_msg = "Phase-2 disconnect timed out";
+        goto stop_race_end;
+    }
+
+stop_race_end:
+    if (blocked) {
+        osal_semaphore_give(blocker.release);
+    }
+    if (inited) {
+        /* TERMINATE wakes an agent that waits in the command loop, so deinit() cannot hang. */
+        (void) mqtt_impl.drop();
+        (void) mqtt_impl.deinit();
+    }
+    osal_event_handler_unregister(TEST_OSAL_MQTT_BLOCKER_EVENT_BASE, OSAL_EVENT_ID_ANY, __event_loop_blocker_handler);
+    osal_semaphore_delete(blocker.entered);
+    osal_semaphore_delete(blocker.release);
+    __teardown(conn_params);
+
+    if (error_msg) {
+        if (stop_name) {
+            snprintf(fail_msg, sizeof(fail_msg), "%s: %s", stop_name, error_msg);
+            TEST_FAIL_MESSAGE(fail_msg);
+        }
+        TEST_FAIL_MESSAGE(error_msg);
+    }
+#endif /* CONFIG_OSAL_MQTT_IMPL_ESP */
 }

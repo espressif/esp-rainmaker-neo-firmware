@@ -5,6 +5,7 @@ set(TEST_OSAL_MQTT_SOURCES
 set(TEST_OSAL_MQTT_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR})
 
 set(TEST_OSAL_MQTT_PRIV_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/config)
+set(OSAL_MQTT_PRIV_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/../priv_include")
 
 # ESP-IDF platform ###
 if (ESP_PLATFORM)
@@ -14,6 +15,8 @@ if (ESP_PLATFORM)
         PRIV_INCLUDE_DIRS ${TEST_OSAL_MQTT_PRIV_INCLUDE_DIRS}
         PRIV_REQUIRES unity osal
     )
+    # osal's priv_include is attached after register so IDF's component validation does not warn.
+    target_include_directories(${COMPONENT_LIB} PRIVATE ${OSAL_MQTT_PRIV_INCLUDE_DIRS})
     set(TEST_OSAL_MQTT_BINARY_TARGET ${COMPONENT_TARGET})
 
     # POSIX platform ###
@@ -22,6 +25,7 @@ else ()
     add_executable(${TEST_OSAL_MQTT_TARGET} ${TEST_OSAL_MQTT_SOURCES} test_runner_posix.c)
     target_include_directories(
         ${TEST_OSAL_MQTT_TARGET} PRIVATE ${TEST_OSAL_MQTT_INCLUDE_DIRS} ${TEST_OSAL_MQTT_PRIV_INCLUDE_DIRS}
+                                         ${OSAL_MQTT_PRIV_INCLUDE_DIRS}
     )
     target_link_libraries(${TEST_OSAL_MQTT_TARGET} PRIVATE osal_mqtt unity::framework)
 

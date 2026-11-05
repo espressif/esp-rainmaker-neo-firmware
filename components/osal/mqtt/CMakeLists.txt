@@ -16,6 +16,7 @@ add_subdirectory(libraries/coreMQTT-Agent)
 
 add_library(${OSAL_MQTT_NAME} STATIC ${OSAL_MQTT_SRCS})
 target_include_directories(${OSAL_MQTT_NAME} PUBLIC ${OSAL_MQTT_INCLUDE_DIRS})
+target_include_directories(${OSAL_MQTT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/priv_include)
 target_link_libraries(${OSAL_MQTT_NAME} PUBLIC ${OSAL_MQTT_REQUIRES})
 target_link_libraries(${OSAL_MQTT_NAME} PRIVATE ${OSAL_MQTT_PRIV_REQUIRES})
 

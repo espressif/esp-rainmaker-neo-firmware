@@ -59,5 +59,8 @@ int test_osal_mqtt_all_tests_unity(void)
     RUN_TEST(test_mqtt_tls_mutual_auth_retain);
     RUN_TEST(test_mqtt_tls_mutual_auth_lwt);
 
+    /* --- Integration: agent lifecycle races --- */
+    RUN_TEST(test_mqtt_tls_server_only_stop_during_connect);
+
     return UNITY_END();
 }

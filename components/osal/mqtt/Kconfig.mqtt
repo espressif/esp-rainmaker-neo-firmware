@@ -17,6 +17,12 @@ menu "OSAL MQTT Interface"
             bool "esp-mqtt"
     endchoice
 
+    config OSAL_MQTT_TEST_HOOKS
+        bool
+        default n
+        help
+            Build the internal hooks that the OSAL MQTT unit tests read.
+
     config OSAL_MQTT_FORCE_USE_CERTIFICATE_BUNDLE
         bool
         default y
