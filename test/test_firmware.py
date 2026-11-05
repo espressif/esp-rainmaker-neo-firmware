@@ -49,6 +49,7 @@ from helpers.scheduling import (
 from helpers.webhook_mock import (
     TEST_INFRA_STACK,
     webhook_mock_infra,
+    webhook_mock_mark_endpoints,
     webhook_mock_validate,
 )
 from helpers.fixtures import (
@@ -267,7 +268,7 @@ def node_host_ctrl_basic_ingest_variants(
 @pytest.fixture(scope="session")
 def webhook_mock_setup():
     """
-    Marks tests that need the notifications webhook mock. Actual enable/disable runs
+    Marks tests that need the notifications webhook mock. The Alexa client setup runs
     once per test session on the xdist controller (see test/conftest.py).
 
     Skips when the mock's stack is not deployed: without it the notifications Lambda
@@ -280,6 +281,19 @@ def webhook_mock_setup():
             "run `make itest-setup` in the backend repo"
         )
     yield
+
+
+@pytest.fixture
+def integration_endpoints():
+    """Collect ``(user, platform_type, endpoint_id)``; unregister each one at teardown."""
+    endpoints = []
+    yield endpoints
+    for user, platform_type, endpoint_id in endpoints:
+        response = user.unregister_client(platform_type, endpoint_id)
+        if not response.ok:
+            print(
+                f"Warning: failed to unregister {platform_type} endpoint {endpoint_id}"
+            )
 
 
 @pytest.fixture(scope="function")
@@ -3689,7 +3703,17 @@ def test_firmware_timeseries(
     print("   - Unauthorized access blocking ✅")
 
 
-def _firmware_alexa_prepare_light_discovered(node_host_ctrl, user, group_id):
+def _register_clients(user, platform_types, creds, endpoints):
+    """Register a fake link per platform type and record each one for cleanup."""
+    for platform_type in platform_types:
+        endpoint_id = user.register_client(
+            platform_type=platform_type, mobile_device_token=json.dumps(creds)
+        )
+        assert endpoint_id, f"Failed to register {platform_type} client"
+        endpoints.append((user, platform_type, endpoint_id))
+
+
+def _firmware_alexa_prepare_light_discovered(node_host_ctrl, user, group_id, endpoints):
     """
     Shared setup for firmware Alexa tests: webhook/alexa client registration, lightbulb config,
     node start, Discovery, and wait until the node is Alexa-enabled.
@@ -3711,12 +3735,8 @@ def _firmware_alexa_prepare_light_discovered(node_host_ctrl, user, group_id):
         "expires_at": int(time_sec())
         - (3600 * 24 * 30),  # 1 month before now, so force to refresh
     }
-    user.register_client(
-        platform_type="webhook_mock", mobile_device_token=json.dumps(webhook_creds)
-    )
-    user.register_client(
-        platform_type="alexa", mobile_device_token=json.dumps(webhook_creds)
-    )
+    _register_clients(user, ("webhook_mock", "alexa"), webhook_creds, endpoints)
+    webhook_mock_mark_endpoints(user, "alexa")
 
     node_config = {
         "devices": [
@@ -3881,7 +3901,7 @@ def _firmware_alexa_validate_change_report_webhook(
     )
 
 
-def _firmware_gva_prepare_light_discovered(node_host_ctrl, user, group_id):
+def _firmware_gva_prepare_light_discovered(node_host_ctrl, user, group_id, endpoints):
     """
     Shared setup for firmware GVA notification tests: webhook / GVA client registration, lightbulb
     (Power only, same as Alexa notification test), node start, SYNC discovery, wait until GVA-enabled.
@@ -3894,12 +3914,7 @@ def _firmware_gva_prepare_light_discovered(node_host_ctrl, user, group_id):
         "access_token": "test_access_token",
         "expires_at": int(time_sec()) - (3600 * 24 * 30),
     }
-    user.register_client(
-        platform_type="webhook_mock", mobile_device_token=json.dumps(webhook_creds)
-    )
-    user.register_client(
-        platform_type="gva", mobile_device_token=json.dumps(webhook_creds)
-    )
+    _register_clients(user, ("webhook_mock", "gva"), webhook_creds, endpoints)
 
     node_config = {
         "devices": [
@@ -3929,6 +3944,8 @@ def _firmware_gva_prepare_light_discovered(node_host_ctrl, user, group_id):
 
     node_host_ctrl.clear_on_gva_enabled()
     discovery_response = user.gva_discover_devices()
+    # SYNC rewrites the link row and drops the mark.
+    webhook_mock_mark_endpoints(user, "gva")
 
     assert "payload" in discovery_response, (
         f"GVA SYNC missing payload: {discovery_response}"
@@ -4017,7 +4034,9 @@ def _firmware_gva_validate_report_state_webhook(
 
 @pytest.mark.firmware
 def test_firmware_alexa_notification(
-    associated_user1_node_host_ctrl_with_user1_connected, webhook_mock_setup
+    associated_user1_node_host_ctrl_with_user1_connected,
+    webhook_mock_setup,
+    integration_endpoints,
 ):
     """
     Verify Alexa ChangeReport notifications: local parameter updates propagate through the shadow
@@ -4029,7 +4048,7 @@ def test_firmware_alexa_notification(
     )
     print("🔄 Starting firmware Alexa notification test...")
     _, thing_name = _firmware_alexa_prepare_light_discovered(
-        node_host_ctrl, user, group_id
+        node_host_ctrl, user, group_id, integration_endpoints
     )
 
     node_host_ctrl.clear_on_state_reported()
@@ -4055,7 +4074,9 @@ def test_firmware_alexa_notification(
 
 @pytest.mark.firmware
 def test_firmware_gva_notification(
-    associated_user1_node_host_ctrl_with_user1_connected, webhook_mock_setup
+    associated_user1_node_host_ctrl_with_user1_connected,
+    webhook_mock_setup,
+    integration_endpoints,
 ):
     """
     Verify GVA report-state notifications: local parameter updates propagate through the shadow
@@ -4066,7 +4087,9 @@ def test_firmware_gva_notification(
         associated_user1_node_host_ctrl_with_user1_connected
     )
     print("🔄 Starting firmware GVA notification test...")
-    thing_name = _firmware_gva_prepare_light_discovered(node_host_ctrl, user, group_id)
+    thing_name = _firmware_gva_prepare_light_discovered(
+        node_host_ctrl, user, group_id, integration_endpoints
+    )
 
     node_host_ctrl.clear_on_state_reported()
     assert node_host_ctrl.update_param("Light", "Power", True), (
@@ -4091,7 +4114,9 @@ def test_firmware_gva_notification(
 
 @pytest.mark.firmware
 def test_firmware_alexa_control(
-    associated_user1_node_host_ctrl_with_user1_connected, webhook_mock_setup
+    associated_user1_node_host_ctrl_with_user1_connected,
+    webhook_mock_setup,
+    integration_endpoints,
 ):
     """
     Verify Alexa skill control path: PowerController TurnOn/TurnOff updates the device and produces
@@ -4102,7 +4127,7 @@ def test_firmware_alexa_control(
     )
     print("🔄 Starting firmware Alexa control test...")
     invoke_region, thing_name = _firmware_alexa_prepare_light_discovered(
-        node_host_ctrl, user, group_id
+        node_host_ctrl, user, group_id, integration_endpoints
     )
 
     cookie = {"groupID": group_id, "paramMap_PowerController": "Power"}
@@ -4194,10 +4219,12 @@ def test_firmware_alexa_control(
 
 
 @pytest.mark.firmware
-def test_firmware_gva_control(associated_user1_node_host_ctrl_with_user1_connected):
+def test_firmware_gva_control(
+    associated_user1_node_host_ctrl_with_user1_connected, integration_endpoints
+):
     """
     GVA firmware control: SYNC discovery, EXECUTE OnOff / BrightnessAbsolute, and QUERY for a light with Power + Brightness.
-    Does not use webhook mock or firmware-side GVA enable flags (none exist).
+    Does not read the webhook mock or use firmware-side GVA enable flags (none exist).
     """
     node_host_ctrl, user, group_id = (
         associated_user1_node_host_ctrl_with_user1_connected
@@ -4240,6 +4267,9 @@ def test_firmware_gva_control(associated_user1_node_host_ctrl_with_user1_connect
 
     start_node_host_ctrl(node_host_ctrl)
     discovery_response = user.gva_discover_devices()
+    # Keeps this test's state reports off the real HomeGraph.
+    for endpoint_id in webhook_mock_mark_endpoints(user, "gva"):
+        integration_endpoints.append((user, "gva", endpoint_id))
 
     assert "payload" in discovery_response, (
         f"GVA SYNC missing payload: {discovery_response}"
