@@ -4,9 +4,7 @@
 
 import pytest
 import boto3
-import subprocess
 import os
-from botocore.exceptions import ClientError
 import sys
 import time
 from pathlib import Path
@@ -21,7 +19,6 @@ from esptool.cmds import detect_flash_size, attach_flash
 # test/ and tools/common reach sys.path via ``pythonpath`` in pytest.ini.
 
 from rmng_backend import (
-    DRX_PATH,
     User,
     Group,
     generate_random_email,
@@ -376,99 +373,25 @@ def _webhook_mock_session_ids_need_mock(ids) -> bool:
     )
 
 
-def _webhook_mock_retryable_client_error(exc: ClientError) -> bool:
-    code = exc.response.get("Error", {}).get("Code", "")
-    return code in (
-        "Throttling",
-        "ThrottlingException",
-        "TooManyRequestsException",
-        "ProvisionedThroughputExceededException",
-        "ServiceUnavailable",
-        "InternalServerError",
-        "RequestTimeout",
-        "PriorRequestNotComplete",
-        "ConnectionError",
-    )
-
-
-def _webhook_mock_enable():
-    """
-    Point rmng-notifications at the in-cloud webhook mock, and ensure dummy Alexa SSM
-    params exist.
-
-    The presence of webhook_mock_base_url is the switch the notifications Lambda reads
-    (notifications_main.go resolveMockBaseURL); without it, proactive Alexa/GVA reports go
-    to the real Amazon/Google endpoints and never reach the mock. webhook_mock_api_key is
-    the gateway API key the Lambda must send with each delivery.
-
-    No-op when the test infra is not deployed — the tests that need it skip on the same
-    signal (see webhook_mock_setup in test_firmware.py).
-
-    Always applies enabled state when this runs; we intentionally do not disable webhook mock
-    on teardown because the deployment may be shared by concurrent test runs.
-
-    Retries with exponential backoff when another process is updating the same deployment.
-    """
-    infra = webhook_mock_infra()
-    if infra is None:
+def _webhook_mock_prepare():
+    """Ensure the dummy Alexa client SSM params exist; the Alexa token refresh reads them.
+    No-op when the mock is not deployed, because the tests that need it skip."""
+    if webhook_mock_infra() is None:
         print(
-            f"Webhook mock not enabled: stack {TEST_INFRA_STACK} is not deployed "
+            f"Webhook mock not deployed: stack {TEST_INFRA_STACK} is absent "
             "(run `make itest-setup` in the backend repo). Alexa/GVA tests will skip."
         )
         return
-    base_url, api_key = infra
 
-    max_attempts = 10
-    base_delay_s = 1.0
-    max_delay_s = 60.0
-    cmd = [
-        "python",
-        DRX_PATH,
-        "update-env",
-        "rmng-notifications",
-        f"webhook_mock_base_url={base_url}",
-        f"webhook_mock_api_key={api_key}",
-    ]
-    last_exc: Optional[BaseException] = None
-
-    for attempt in range(max_attempts):
+    ssm = boto3.client("ssm", region_name=RM_CONFIG["StackRegion"])
+    for name, value in (
+        ("/rmng/alexa/client_id", "dummy_client_id"),
+        ("/rmng/alexa/client_secret", "dummy_client_secret"),
+    ):
         try:
-            if attempt == 0:
-                print(
-                    "Ensuring webhook mock is enabled for Alexa/GVA testing "
-                    "(controller; retries with backoff if deployment is busy)..."
-                )
-            subprocess.run(cmd, check=True)
-            ssm = boto3.client("ssm", region_name=RM_CONFIG["StackRegion"])
-
-            def set_ssm_if_not_exists(name, value):
-                try:
-                    ssm.get_parameter(Name=name, WithDecryption=True)
-                except ssm.exceptions.ParameterNotFound:
-                    ssm.put_parameter(
-                        Name=name, Value=value, Type="String", Overwrite=True
-                    )
-
-            set_ssm_if_not_exists("/rmng/alexa/client_id", "dummy_client_id")
-            set_ssm_if_not_exists("/rmng/alexa/client_secret", "dummy_client_secret")
-            return
-        except subprocess.CalledProcessError as e:
-            last_exc = e
-        except ClientError as e:
-            if not _webhook_mock_retryable_client_error(e):
-                raise
-            last_exc = e
-
-        delay_s = min(base_delay_s * (2**attempt), max_delay_s)
-        if attempt + 1 < max_attempts:
-            print(
-                f"webhook_mock enable attempt {attempt + 1}/{max_attempts} failed, "
-                f"retrying in {delay_s:.1f}s: {last_exc}"
-            )
-            time.sleep(delay_s)
-
-    assert last_exc is not None
-    raise last_exc
+            ssm.get_parameter(Name=name, WithDecryption=True)
+        except ssm.exceptions.ParameterNotFound:
+            ssm.put_parameter(Name=name, Value=value, Type="String", Overwrite=True)
 
 
 def pytest_collection_finish(session):
@@ -484,8 +407,8 @@ def pytest_collection_finish(session):
         return
     if not _webhook_mock_session_items_need_mock(session.items):
         return
-    _webhook_mock_enable()
-    session.config._webhook_mock_enabled_for_session = True
+    _webhook_mock_prepare()
+    session.config._webhook_mock_prepared_for_session = True
 
 
 def pytest_xdist_node_collection_finished(node, ids):
@@ -497,10 +420,10 @@ def pytest_xdist_node_collection_finished(node, ids):
         return
     if not _webhook_mock_session_ids_need_mock(ids):
         return
-    if getattr(node.config, "_webhook_mock_enabled_for_session", False):
+    if getattr(node.config, "_webhook_mock_prepared_for_session", False):
         return
-    _webhook_mock_enable()
-    node.config._webhook_mock_enabled_for_session = True
+    _webhook_mock_prepare()
+    node.config._webhook_mock_prepared_for_session = True
 
 
 def _resolved_max_concurrent_build_jobs(config) -> int:

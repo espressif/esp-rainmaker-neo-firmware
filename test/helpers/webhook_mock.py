@@ -17,11 +17,13 @@ machine that ran the deploy, which is not the machine running these tests.
 
 import boto3
 import requests
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from credentials_store import RM_CONFIG
 
 TEST_INFRA_STACK = "rmng-test-infra-base"
+USER_ENDPOINTS_TABLE = "rmng-user-endpoints"
 
 # (base_url, api_key) once resolved; False once known-absent, so a missing stack is
 # not re-queried on every call.
@@ -65,6 +67,29 @@ def webhook_mock_infra():
     )["SecretString"]
     _infra = (base_url.rstrip("/"), api_key)
     return _infra
+
+
+def webhook_mock_mark_endpoints(user, integration_id: str):
+    """Set ``test_mock`` on each ``integration_id`` endpoint of ``user`` and return their IDs.
+    The backend sends only marked endpoints to the mock; a re-link drops the mark."""
+    table = boto3.resource("dynamodb", region_name=RM_CONFIG["StackRegion"]).Table(
+        USER_ENDPOINTS_TABLE
+    )
+    rows = table.query(
+        KeyConditionExpression=Key("user_id").eq(user.sub)
+        & Key("integration_endpoint").begins_with(f"{integration_id}#"),
+    )["Items"]
+    assert rows, f"no {integration_id} endpoint to mark for user {user.sub}"
+    for row in rows:
+        table.update_item(
+            Key={
+                "user_id": row["user_id"],
+                "integration_endpoint": row["integration_endpoint"],
+            },
+            UpdateExpression="SET test_mock = :on",
+            ExpressionAttributeValues={":on": True},
+        )
+    return [row["integration_endpoint"].split("#", 1)[1] for row in rows]
 
 
 def webhook_mock_validate(channel: str, uuid: str, timeout: int = 10):
