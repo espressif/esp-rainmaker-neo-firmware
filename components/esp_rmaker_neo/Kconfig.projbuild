@@ -149,6 +149,24 @@ menu "ESP RainMaker Neo Configuration"
 
     menu "System Control"
 
+        config ESP_RMAKER_NEO_SYSTEM_CTRL_RESET_TASK_STACK_SIZE
+            int "Delayed reset task stack size"
+            default 3072
+            help
+                Stack size of the task that runs delayed network, data and factory resets. The task is
+                created on the first delayed reset and kept after.
+
+                A factory reset runs the node_reset notification, the NVS erases and every registered
+                factory reset participant's wipe on this stack. The default matches the FreeRTOS timer
+                task stack these resets used to run on. Increase it if a participant's wipe is heavy, for
+                example a Matter or Zigbee stack's own factory reset.
+
+        config ESP_RMAKER_NEO_SYSTEM_CTRL_RESET_TASK_PRIORITY
+            int "Delayed reset task priority"
+            default 10
+            help
+                Priority of the task that runs delayed network, data and factory resets.
+
         config ESP_RMAKER_NEO_SYSTEM_CTRL_RESET_PARTICIPANTS_MAX
             int "Maximum factory reset participants"
             default 4

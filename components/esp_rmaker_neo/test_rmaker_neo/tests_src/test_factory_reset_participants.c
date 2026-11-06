@@ -12,11 +12,14 @@
 #include "unity.h"
 #include "test_rmaker_neo_prototypes.h"
 
+#include <stdatomic.h>
 #include <stddef.h>
 #include <string.h>
 
 #include "esp_rmaker_system_ctrl.h"
 #include "system_ctrl_internal.h"
+#include "osal_task.h"
+#include "osal_ticks.h"
 
 /* Recording *******************************************************************/
 
@@ -428,4 +431,79 @@ void test_factory_reset_with_wipe_nested_skips_extra(void)
 
     TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_system_ctrl_factory_reset_participant_unregister(__wipe_starts_clear_claim));
     __teardown();
+}
+
+/* Delayed resets **************************************************************/
+
+/* Delayed resets run on the worker task, so their effects are counted atomically and polled. */
+static atomic_uint __delayed_wipe_runs;
+static atomic_uint __delayed_network_resets;
+
+static esp_rmaker_error_t __wipe_delayed(void *priv)
+{
+    (void) priv;
+    atomic_fetch_add(&__delayed_wipe_runs, 1);
+    return ESP_RMAKER_OK;
+}
+
+static esp_rmaker_error_t __counting_network_reset(void)
+{
+    atomic_fetch_add(&__delayed_network_resets, 1);
+    return ESP_RMAKER_OK;
+}
+
+/* Poll until @p counter reaches @p target or @p timeout_ms passes; returns the final value. */
+static unsigned __wait_for_count(atomic_uint *counter, unsigned target, uint32_t timeout_ms)
+{
+    for (uint32_t waited = 0; atomic_load(counter) < target && waited < timeout_ms; waited += 50) {
+        osal_task_delay(osal_ticks_from_ms(50));
+    }
+    return atomic_load(counter);
+}
+
+void test_factory_reset_delayed_runs_participants_after_delay(void)
+{
+    atomic_store(&__delayed_wipe_runs, 0);
+    esp_rmaker_system_ctrl_factory_reset_participant_t delayed = __participant("delayed", __wipe_delayed, false);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_system_ctrl_factory_reset_participant_register(&delayed));
+
+    /* The first delayed reset starts the worker task, with no esp_rmaker_init() needed. */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_system_ctrl_factory_reset(1, -1, __fake_network_reset));
+    TEST_ASSERT_EQUAL_UINT(0, atomic_load(&__delayed_wipe_runs));
+
+    TEST_ASSERT_EQUAL_UINT(1, __wait_for_count(&__delayed_wipe_runs, 1, 5000));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_system_ctrl_factory_reset_participant_unregister(__wipe_delayed));
+}
+
+void test_system_ctrl_delayed_reset_repeat_replaces_pending(void)
+{
+    atomic_store(&__delayed_network_resets, 0);
+
+    /* A repeated request (a QoS1 redelivery, an app retry) replaces the pending one. */
+    for (int i = 0; i < 3; i++) {
+        TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_system_ctrl_network_reset(1, -1, __counting_network_reset));
+    }
+
+    TEST_ASSERT_EQUAL_UINT(1, __wait_for_count(&__delayed_network_resets, 1, 3000));
+    /* Give any wrongly kept duplicate time to run too. */
+    osal_task_delay(osal_ticks_from_ms(1500));
+    TEST_ASSERT_EQUAL_UINT(1, atomic_load(&__delayed_network_resets));
+}
+
+void test_system_ctrl_delayed_resets_of_different_types_do_not_stack(void)
+{
+    atomic_store(&__delayed_network_resets, 0);
+    atomic_store(&__delayed_wipe_runs, 0);
+    esp_rmaker_system_ctrl_factory_reset_participant_t delayed = __participant("delayed", __wipe_delayed, false);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_system_ctrl_factory_reset_participant_register(&delayed));
+
+    /* Both delays count from the request: both run at ~2 s, not one at 2 s and the other at 4 s. */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_system_ctrl_network_reset(2, -1, __counting_network_reset));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_system_ctrl_factory_reset(2, -1, __fake_network_reset));
+
+    TEST_ASSERT_EQUAL_UINT(1, __wait_for_count(&__delayed_network_resets, 1, 3000));
+    TEST_ASSERT_EQUAL_UINT(1, __wait_for_count(&__delayed_wipe_runs, 1, 500));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_system_ctrl_factory_reset_participant_unregister(__wipe_delayed));
 }

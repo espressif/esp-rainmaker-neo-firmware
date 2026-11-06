@@ -141,6 +141,8 @@ A reset originating in the external model itself takes the other direction: the 
 
 The entry point runs synchronously on the calling thread, participant wipes included, so the caller must have the stack for them. A factory reset requested while another is running, or after its reboot has been scheduled, runs nothing and returns `ESP_RMAKER_INVALID_STATE` — whether a participant's own `wipe` triggers it in turn or another task asks for one at the same time. Participants do not need their own re-entry guards: one that gets this from inside its own `wipe` can ignore it, since the running reset already includes that wipe. A run that does not reboot, because `reset_reboot_s` is negative or the reboot could not be scheduled, leaves the node resettable again.
 
+A delayed reset (`reset_s` above 0, or a `System` service reset with `reset_seconds` above 0) runs on a dedicated task created on the first such request. Its stack is `CONFIG_ESP_RMAKER_NEO_SYSTEM_CTRL_RESET_TASK_STACK_SIZE` (default 3072, the FreeRTOS timer task stack these resets used to run on); raise it when a participant's `wipe` needs more, for example when it runs another protocol stack's own factory reset.
+
 ### Configuration
 
 The system service is enabled with a configuration struct whose `flags` field selects which params the service exposes. A param that is not selected is not created at all, so it does not appear in the node configuration:

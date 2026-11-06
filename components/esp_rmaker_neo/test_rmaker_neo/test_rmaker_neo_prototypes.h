@@ -180,6 +180,21 @@ void test_factory_reset_with_wipe_runs_extra_before_participants(void);
 void test_factory_reset_with_wipe_nested_skips_extra(void);
 
 /**
+ * @brief Test that a delayed factory reset starts the worker and wipes participants after the delay.
+ */
+void test_factory_reset_delayed_runs_participants_after_delay(void);
+
+/**
+ * @brief Test that a repeated delayed reset replaces the pending one instead of running twice.
+ */
+void test_system_ctrl_delayed_reset_repeat_replaces_pending(void);
+
+/**
+ * @brief Test that delayed resets of different types wait out their delays side by side.
+ */
+void test_system_ctrl_delayed_resets_of_different_types_do_not_stack(void);
+
+/**
  * @brief Test param model create/bounds/update.
  */
 void test_param_model_create_bounds_and_update(void);

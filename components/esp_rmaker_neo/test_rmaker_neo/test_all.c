@@ -52,6 +52,9 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_factory_reset_runs_again_after_a_run_without_reboot);
     RUN_TEST(test_factory_reset_with_wipe_runs_extra_before_participants);
     RUN_TEST(test_factory_reset_with_wipe_nested_skips_extra);
+    RUN_TEST(test_factory_reset_delayed_runs_participants_after_delay);
+    RUN_TEST(test_system_ctrl_delayed_reset_repeat_replaces_pending);
+    RUN_TEST(test_system_ctrl_delayed_resets_of_different_types_do_not_stack);
     RUN_TEST(test_param_model_create_bounds_and_update);
     RUN_TEST(test_param_model_same_value_update_skips_nvs);
     RUN_TEST(test_param_model_store_get_invalid_parent);

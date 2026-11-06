@@ -104,6 +104,8 @@ esp_rmaker_error_t esp_rmaker_system_ctrl_register_network_reset_fn(esp_rmaker_s
  *
  * @param[in] reset_s The timeout in seconds to perform the data reset. 0 means perform it
  *                    synchronously, with no timeout.
+ *                    A value above 0 starts the reset worker task on first use, and fails
+ *                    with ESP_RMAKER_NO_MEM if it cannot be created.
  * @param[in] reset_reboot_s The timeout in seconds to reboot the system after the data reset.
  *                           0 means reboot immediately; a negative value means do not reboot.
  *
@@ -119,6 +121,8 @@ esp_rmaker_error_t esp_rmaker_system_ctrl_data_reset(uint8_t reset_s, int8_t res
  *
  * @param[in] reset_s The timeout in seconds to reset the network credentials. 0 means reset
  *                    synchronously, with no timeout.
+ *                    A value above 0 starts the reset worker task on first use, and fails
+ *                    with ESP_RMAKER_NO_MEM if it cannot be created.
  * @param[in] reset_reboot_s The timeout in seconds to reboot the system after resetting the network
  *                           credentials. 0 means reboot immediately; a negative value means do not
  *                           reboot.
@@ -144,6 +148,8 @@ esp_rmaker_error_t esp_rmaker_system_ctrl_network_reset(uint8_t reset_s, int8_t 
  *
  * @param[in] reset_s The timeout in seconds to factory reset the system. 0 means reset
  *                    synchronously, with no timeout.
+ *                    A value above 0 starts the reset worker task on first use, and fails
+ *                    with ESP_RMAKER_NO_MEM if it cannot be created.
  * @param[in] reset_reboot_s The timeout in seconds to reboot the system after factory reset.
  *                           0 means reboot immediately; a negative value means do not reboot.
  * @param[in] network_reset_fn Function to reset the network credentials. NULL means use the function registered via
