@@ -15,7 +15,7 @@
 #include "osal_ext_io.h"
 #if OSAL_EXT_IO_MULTIPLEXED
 #include "osal_ext_io_packet_constants_esp.h"
-#define OSAL_EXT_IO_RECEIVED_PING_LENGTH sizeof(OSAL_EXT_IO_RECEIVED_PING) - 1
+#define OSAL_EXT_IO_RECEIVED_PING_LENGTH (sizeof(OSAL_EXT_IO_RECEIVED_PING) - 1)
 #define OSAL_EXT_IO_RECEIVED_PING_TIMEOUT_MS 500
 #define OSAL_EXT_IO_RECEIVED_PING_RETRIES 5
 #endif /* OSAL_EXT_IO_MULTIPLEXED */
