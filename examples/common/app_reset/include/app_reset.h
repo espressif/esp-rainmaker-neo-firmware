@@ -32,15 +32,20 @@
 #include "osal_err.h"
 
 #ifdef ESP_PLATFORM
+#include "sdkconfig.h"
+#endif /* ESP_PLATFORM */
+
+/* The ESP-IDF linux target has no button, so it takes the POSIX path below. */
+#if defined(ESP_PLATFORM) && !CONFIG_IDF_TARGET_LINUX
 /* espressif/button: the handle type the reset callbacks are registered against. */
 #include "iot_button.h"
-#endif /* ESP_PLATFORM */
+#endif /* ESP_PLATFORM && !CONFIG_IDF_TARGET_LINUX */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef ESP_PLATFORM
+#if defined(ESP_PLATFORM) && !CONFIG_IDF_TARGET_LINUX
 /**
  * @brief Register the hold-to-reset callbacks on an existing button.
  *
@@ -58,7 +63,7 @@ extern "C" {
  *         otherwise an error code.
  */
 osal_err_t app_reset_button_register(button_handle_t btn_handle);
-#endif /* ESP_PLATFORM */
+#endif /* ESP_PLATFORM && !CONFIG_IDF_TARGET_LINUX */
 
 /**
  * @brief Whether the current button hold has already crossed a reset threshold.

@@ -60,6 +60,10 @@ git clone https://github.com/espressif/esp-rainmaker-neo-firmware.git
 [firmware guides](https://docs.neo.rainmaker.espressif.com/docs/firmware/)
 for setup, configuration, device credentials, and network provisioning.
 
+### ESP-IDF linux target
+
+This SDK also supports the `linux` target on ESP-IDF, with some limitations. See [ESP-IDF linux target](https://docs.espressif.com/projects/esp-rainmaker-neo-firmware/en/latest/specs/linux_target.html) for more details.
+
 ## Organization
 
 ```

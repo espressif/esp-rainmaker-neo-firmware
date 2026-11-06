@@ -128,9 +128,13 @@ if (ESP_PLATFORM)
     if (RMNG_HOST_CTRL)
         list(APPEND RMNG_SRCS ${CMAKE_CURRENT_LIST_DIR}/src/host_ctrl/host_ctrl_esp.c)
     endif ()
-    list(APPEND RMNG_SRCS ${CMAKE_CURRENT_LIST_DIR}/src/prov_helpers/prov_helpers_esp.c)
-    list(APPEND RMNG_PRIV_REQUIRES network_provisioning)
-
+    if (IDF_TARGET STREQUAL "linux")
+        # The host is already on a network, so there is no Wi-Fi / BLE provisioning.
+        list(APPEND RMNG_SRCS ${CMAKE_CURRENT_LIST_DIR}/src/prov_helpers/prov_helpers_posix.c)
+    else ()
+        list(APPEND RMNG_SRCS ${CMAKE_CURRENT_LIST_DIR}/src/prov_helpers/prov_helpers_esp.c)
+        list(APPEND RMNG_PRIV_REQUIRES network_provisioning)
+    endif ()
     idf_component_register(
         SRCS ${RMNG_SRCS}
         REQUIRES ${RMNG_REQUIRES}

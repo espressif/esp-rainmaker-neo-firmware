@@ -8,6 +8,7 @@
 #include "osal_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "ticks_esp_priv.h"
 
 static const char *TAG = "osal_event_group";
 
@@ -49,7 +50,7 @@ osal_event_group_bits_t osal_event_group_wait_bits(
                bits_to_wait_for,
                clear_on_exit ? pdTRUE : pdFALSE,
                wait_for_all_bits ? pdTRUE : pdFALSE,
-               ticks_to_wait
+               osal_ticks_to_rtos(ticks_to_wait)
            );
 }
 
@@ -87,5 +88,5 @@ osal_event_group_bits_t osal_event_group_sync(
 )
 {
     EVENT_GROUP_NULL_GUARD();
-    return xEventGroupSync(event_group, bits_to_set, bits_to_wait_for, ticks_to_wait);
+    return xEventGroupSync(event_group, bits_to_set, bits_to_wait_for, osal_ticks_to_rtos(ticks_to_wait));
 }

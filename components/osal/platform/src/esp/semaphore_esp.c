@@ -8,6 +8,7 @@
 #include "osal_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "ticks_esp_priv.h"
 
 static const char *TAG = "osal_semaphore";
 
@@ -54,7 +55,7 @@ void osal_semaphore_delete(osal_semaphore_handle_t semaphore_handle)
 osal_err_t osal_semaphore_take(osal_semaphore_handle_t semaphore_handle, osal_tick_type_t ticks_to_wait)
 {
     SEMAPHORE_NULL_GUARD();
-    if (xSemaphoreTake(semaphore_handle, ticks_to_wait) == pdTRUE) {
+    if (xSemaphoreTake(semaphore_handle, osal_ticks_to_rtos(ticks_to_wait)) == pdTRUE) {
         return OSAL_ERR_OK;
     } else {
         return OSAL_ERR_TIMEOUT;
@@ -74,7 +75,7 @@ osal_err_t osal_semaphore_give(osal_semaphore_handle_t semaphore_handle)
 osal_err_t osal_semaphore_take_recursive(osal_semaphore_handle_t semaphore_handle, osal_tick_type_t ticks_to_wait)
 {
     SEMAPHORE_NULL_GUARD();
-    if (xSemaphoreTakeRecursive((SemaphoreHandle_t) semaphore_handle, (TickType_t) ticks_to_wait) != pdTRUE) {
+    if (xSemaphoreTakeRecursive((SemaphoreHandle_t) semaphore_handle, osal_ticks_to_rtos(ticks_to_wait)) != pdTRUE) {
         return OSAL_ERR_TIMEOUT;
     }
     return OSAL_ERR_OK;

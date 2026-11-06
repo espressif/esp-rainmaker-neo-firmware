@@ -10,12 +10,15 @@ runs unchanged on the host.
 ESP-IDF names and layouts rather than introducing `osal_*` ones:
 
 - Types: `esp_console_cmd_t`, `esp_console_cmd_func_t`, `esp_console_config_t`,
-  `esp_console_repl_config_t`, `esp_console_dev_uart_config_t`,
-  `esp_console_repl_t`, plus the `*_DEFAULT()` initializer macros.
+  `esp_console_repl_config_t`, `esp_console_repl_t`, plus the `*_DEFAULT()`
+  initializer macros.
 - Registry: `esp_console_init()`, `esp_console_deinit()`,
   `esp_console_cmd_register()`, `esp_console_register_help_command()`,
   `esp_console_run()`.
-- REPL: `esp_console_new_repl_uart()`, `esp_console_start_repl()`.
+- REPL: `esp_console_new_repl_stdio()`, `esp_console_start_repl()`, as on the
+  ESP-IDF v6.1 linux target.
+- `linenoise/linenoise.h`: `linenoiseSetReadFunction()`, which does nothing,
+  because the REPL reads `stdin` itself.
 
 ## Per-platform implementations
 
@@ -28,8 +31,7 @@ path.
 Behavioural gaps versus ESP-IDF, all documented in the header: no line editing,
 history or hints (`max_history_len`, `history_save_path`, `hint_color`,
 `hint_bold` are accepted and ignored); `esp_console_cmd_t.argtable` is accepted
-for source compatibility but unused; the UART device config is ignored because
-`stdin` is always the input. Only the line/argument limits from
+for source compatibility but unused; `stdin` is always the input. Only the line/argument limits from
 `esp_console_config_t` and the REPL prompt/stack/priority are honoured.
 
 ## Build gating

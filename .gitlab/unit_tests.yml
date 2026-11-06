@@ -1,6 +1,7 @@
 variables:
   POSIX_UNIT_TEST_DIR: "test/apps/posix"
   ESP_UNIT_TEST_DIR: "test/apps/esp-idf"
+  ESP_LINUX_UNIT_TEST_BUILD_DIR: "$CI_PROJECT_DIR/test/apps/esp-idf/build_linux"
   POSIX_UNIT_TEST_ARTIFACTS_BUILD_DIR: "$CI_PROJECT_DIR/unit_test_posix_build"
   TEST_OSAL_MQTT_CERTS_DEST_DIR: "$CI_PROJECT_DIR/components/osal/mqtt/test_osal_mqtt/certs"
   # Filenames test_osal_mqtt/CMakeLists.txt expects.
@@ -162,6 +163,34 @@ unit_tests_posix:
       - "$HTTPBIN_LOG"
     expire_in: 1 week
 
+# Build-only certs for test/apps/esp-idf, shared by the ESP-IDF unit-test jobs below.
+.esp_unit_test_certs:
+  script:
+    - |
+      # sdkconfig.defaults points CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH at the
+      # test_osal_mqtt test certs, and test_osal_mqtt/CMakeLists.txt embeds the client
+      # cert/key as binary data. Those are generated at run time (the dir is gitignored)
+      # by mosquitto_setup_conf.sh, which only exists in the posix_test image. This job
+      # never talks to a broker — the build just needs parseable PEMs at those paths, so
+      # mint throwaway ones with the same names/roles as the posix_test image.
+      mkdir -p "$TEST_OSAL_MQTT_CERTS_DEST_DIR"
+      if [ ! -s "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CLIENT_CERT" ]; then
+        (
+          cd "$TEST_OSAL_MQTT_CERTS_DEST_DIR"
+          # CA (doubles as the server/host cert bundle, as in the posix_test image)
+          openssl genrsa -out ci_build_only_ca.key 2048
+          openssl req -new -x509 -days 1 -key ci_build_only_ca.key \
+            -out "$TEST_OSAL_MQTT_CA_CERT" -subj "/C=US/ST=Test/L=Test/O=Test/CN=TestCA"
+          # Client cert/key signed by that CA
+          openssl genrsa -out "$TEST_OSAL_MQTT_CLIENT_KEY" 2048
+          openssl req -new -out ci_build_only_client.csr -key "$TEST_OSAL_MQTT_CLIENT_KEY" \
+            -subj "/C=US/ST=Test/L=Test/O=Test/CN=client"
+          openssl x509 -req -in ci_build_only_client.csr -CA "$TEST_OSAL_MQTT_CA_CERT" \
+            -CAkey ci_build_only_ca.key -CAcreateserial -out "$TEST_OSAL_MQTT_CLIENT_CERT" -days 1
+          rm -f ci_build_only_ca.key ci_build_only_client.csr "${TEST_OSAL_MQTT_CA_CERT%.*}.srl"
+        )
+      fi
+
 # Build-only gate for the unified ESP-IDF on-device test app. There is no hardware in
 # CI, so nothing is run — compiling and linking is the point. The POSIX unit-test build
 # cannot cover this: on POSIX each test-*/test_* dir is add_subdirectory'd from its area's
@@ -192,30 +221,7 @@ build_unit_tests_esp_idf:
   script:
     # The image entrypoint (which sources export.sh) is bypassed by GitLab CI.
     - command -v idf.py >/dev/null 2>&1 || . "${IDF_PATH}/export.sh"
-    - |
-      # sdkconfig.defaults points CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH at the
-      # test_osal_mqtt test certs, and test_osal_mqtt/CMakeLists.txt embeds the client
-      # cert/key as binary data. Those are generated at run time (the dir is gitignored)
-      # by mosquitto_setup_conf.sh, which only exists in the posix_test image. This job
-      # never talks to a broker — the build just needs parseable PEMs at those paths, so
-      # mint throwaway ones with the same names/roles as the posix_test image.
-      mkdir -p "$TEST_OSAL_MQTT_CERTS_DEST_DIR"
-      if [ ! -s "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CLIENT_CERT" ]; then
-        (
-          cd "$TEST_OSAL_MQTT_CERTS_DEST_DIR"
-          # CA (doubles as the server/host cert bundle, as in the posix_test image)
-          openssl genrsa -out ci_build_only_ca.key 2048
-          openssl req -new -x509 -days 1 -key ci_build_only_ca.key \
-            -out "$TEST_OSAL_MQTT_CA_CERT" -subj "/C=US/ST=Test/L=Test/O=Test/CN=TestCA"
-          # Client cert/key signed by that CA
-          openssl genrsa -out "$TEST_OSAL_MQTT_CLIENT_KEY" 2048
-          openssl req -new -out ci_build_only_client.csr -key "$TEST_OSAL_MQTT_CLIENT_KEY" \
-            -subj "/C=US/ST=Test/L=Test/O=Test/CN=client"
-          openssl x509 -req -in ci_build_only_client.csr -CA "$TEST_OSAL_MQTT_CA_CERT" \
-            -CAkey ci_build_only_ca.key -CAcreateserial -out "$TEST_OSAL_MQTT_CLIENT_CERT" -days 1
-          rm -f ci_build_only_ca.key ci_build_only_client.csr "${TEST_OSAL_MQTT_CA_CERT%.*}.srl"
-        )
-      fi
+    - !reference [.esp_unit_test_certs, script]
     - |
       cd "$CI_PROJECT_DIR/$ESP_UNIT_TEST_DIR"
       idf.py set-target "$IDF_TARGET"
@@ -227,3 +233,83 @@ build_unit_tests_esp_idf:
     paths:
       - ${ESP_UNIT_TEST_REPORTS_DIR}/
     expire_in: 1 week
+
+# Runs test/apps/esp-idf on the CI host, built for the ESP-IDF linux target: the SDK's own unit tests on the ESP-IDF
+# code path (FreeRTOS POSIX port, nvs_flash, esp_event), which the chip build above can only compile. Suites that need a
+# broker or an HTTP server (mqtt-common, http-common) are not run; neither is OTA, which the linux target lacks. Build and
+# run are separate jobs, as for the POSIX unit tests.
+build_unit_tests_esp_idf_linux:
+  timeout: 1h
+  extends:
+    - .build_template
+    - .esp_env_template
+  rules:
+    - !reference [.rules_tests_gate, rules]
+  parallel:
+    matrix:
+      - IDF_VERSION: ["release-v6.0", "release-v6.1"]
+  script:
+    - command -v idf.py >/dev/null 2>&1 || . "${IDF_PATH}/export.sh"
+    - !reference [.esp_unit_test_certs, script]
+    - |
+      cd "$CI_PROJECT_DIR/$ESP_UNIT_TEST_DIR"
+      idf.py --preview -B "$ESP_LINUX_UNIT_TEST_BUILD_DIR" set-target linux
+      idf.py --preview -B "$ESP_LINUX_UNIT_TEST_BUILD_DIR" build
+    - |
+      # The app reads its partition table from the absolute build path at run time; record it for the run job.
+      echo "$ESP_LINUX_UNIT_TEST_BUILD_DIR" > "$ESP_LINUX_UNIT_TEST_BUILD_DIR/.build_abs_path"
+    - |
+      # Flash image with a factory NVS, as the POSIX unit tests get one: the credential tests read and reset to it.
+      # The partition names come from sdkconfig.defaults, and 0x210000 is fctry in partitions.csv.
+      cat > "$ESP_LINUX_UNIT_TEST_BUILD_DIR/factory_nvs_input.json" << EOF
+      {
+          "client_key": "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CLIENT_KEY",
+          "client_cert": "$TEST_OSAL_MQTT_CERTS_DEST_DIR/$TEST_OSAL_MQTT_CLIENT_CERT",
+          "mqtt_host": "localhost",
+          "node_id": "test_client",
+          "client_user": "test_user",
+          "client_pass": "test_pass"
+      }
+      EOF
+      cd "$ESP_LINUX_UNIT_TEST_BUILD_DIR"
+      python3 "$FACTORY_NVS_GEN_DIR/factory_nvs_gen.py" fctry rmaker_creds factory_nvs_input.json
+      esptool --chip esp32 merge-bin --pad-to-size 4MB -o flash.img \
+        0x8000 partition_table/partition-table.bin 0x210000 out/factory_nvs_input/esp-idf/fctry.bin
+  artifacts:
+    paths:
+      - ${ESP_LINUX_UNIT_TEST_BUILD_DIR}/test-app-esp-idf.elf
+      - ${ESP_LINUX_UNIT_TEST_BUILD_DIR}/partition_table/partition-table.bin
+      - ${ESP_LINUX_UNIT_TEST_BUILD_DIR}/flash.img
+      - ${ESP_LINUX_UNIT_TEST_BUILD_DIR}/.build_abs_path
+    expire_in: 1 day
+
+unit_tests_esp_idf_linux:
+  extends:
+    - .test_template
+    - .esp_env_template
+  rules:
+    - !reference [.rules_tests_gate, rules]
+  parallel:
+    matrix:
+      - IDF_VERSION: ["release-v6.0", "release-v6.1"]
+  # Each run job takes the artifacts of the build job for its own IDF version.
+  needs:
+    - job: build_unit_tests_esp_idf_linux
+      parallel:
+        matrix:
+          - IDF_VERSION: $[[ matrix.IDF_VERSION ]]
+  script:
+    - |
+      # Same as unit_tests_posix: recreate the build path if this runner mounts the workspace elsewhere.
+      ORIG_BUILD_DIR="$(cat "$ESP_LINUX_UNIT_TEST_BUILD_DIR/.build_abs_path")"
+      if [ "$ORIG_BUILD_DIR" != "$ESP_LINUX_UNIT_TEST_BUILD_DIR" ]; then
+        mkdir -p "$(dirname "$ORIG_BUILD_DIR")"
+        ln -sfn "$ESP_LINUX_UNIT_TEST_BUILD_DIR" "$ORIG_BUILD_DIR"
+      fi
+    - |
+      # The tests write to the image, so they get their own copy.
+      cp "$ESP_LINUX_UNIT_TEST_BUILD_DIR/flash.img" "$ESP_LINUX_UNIT_TEST_BUILD_DIR/flash_run.img"
+      export RMNG_FLASH_IMAGE="$ESP_LINUX_UNIT_TEST_BUILD_DIR/flash_run.img"
+      python3 "$CI_PROJECT_DIR/tools/ci/run_idf_linux_unit_tests.py" "$ESP_LINUX_UNIT_TEST_BUILD_DIR/test-app-esp-idf.elf" \
+        "[platform-common]" "[nvs-common]" "[json-common]" "[timesync-common]" \
+        "[esp_rmaker_neo_common]" "[esp_rmaker_neo]"

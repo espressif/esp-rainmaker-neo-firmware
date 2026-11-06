@@ -5,7 +5,6 @@ set(LIGHT_PRIV_REQUIRES
     "esp_rmaker_neo_ota"
     # Network (provisioning + the RMNG pre-provisioning bring-up)
     "app_network"
-    "esp_wifi"
     # Event loop
     "app_event_loop"
     # Peripheral drivers

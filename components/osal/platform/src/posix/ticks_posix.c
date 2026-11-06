@@ -10,7 +10,7 @@
 
 osal_tick_type_t osal_get_max_delay(void)
 {
-    return UINT32_MAX;
+    return OSAL_MAX_DELAY;
 }
 
 osal_tick_type_t osal_ticks_from_ms(uint32_t ms)

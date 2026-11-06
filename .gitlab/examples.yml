@@ -120,17 +120,32 @@
         # grouped one like examples/advanced/<app>. Both are passed; per app exactly one
         # resolves to an existing file and the other silently matches nothing, so the
         # duplicated config names never collide. Add a level here if examples nest deeper.
-        idf-build-apps build --config-rules \
-          "../common/ci-sdkconfig/sdkconfig.ci.psram_octal=psram_octal" \
-          "../common/ci-sdkconfig/sdkconfig.ci.on_network_chal_resp=on_network_chal_resp" \
-          "../common/ci-sdkconfig/sdkconfig.ci.local_ctrl_chal_resp=local_ctrl_chal_resp" \
-          "../../common/ci-sdkconfig/sdkconfig.ci.psram_octal=psram_octal" \
-          "../../common/ci-sdkconfig/sdkconfig.ci.on_network_chal_resp=on_network_chal_resp" \
-          "../../common/ci-sdkconfig/sdkconfig.ci.local_ctrl_chal_resp=local_ctrl_chal_resp" \
-          "sdkconfig.ci.*=" "sdkconfig.defaults=default" \
+        CONFIG_RULES=(
+          "../common/ci-sdkconfig/sdkconfig.ci.psram_octal=psram_octal"
+          "../common/ci-sdkconfig/sdkconfig.ci.on_network_chal_resp=on_network_chal_resp"
+          "../common/ci-sdkconfig/sdkconfig.ci.local_ctrl_chal_resp=local_ctrl_chal_resp"
+          "../../common/ci-sdkconfig/sdkconfig.ci.psram_octal=psram_octal"
+          "../../common/ci-sdkconfig/sdkconfig.ci.on_network_chal_resp=on_network_chal_resp"
+          "../../common/ci-sdkconfig/sdkconfig.ci.local_ctrl_chal_resp=local_ctrl_chal_resp"
+          "sdkconfig.ci.*=" "sdkconfig.defaults=default"
+        )
+        BUILD_ARGS=()
+        if [ "$IDF_TARGET" = "linux" ]; then
+          # linux is a preview target, which idf-build-apps skips without the flag. The shared
+          # variants cover PSRAM and challenge response, which the target does not have.
+          CONFIG_RULES=("sdkconfig.ci.*=" "sdkconfig.defaults=default")
+          BUILD_ARGS+=(--enable-preview-targets)
+        fi
+        idf-build-apps build --config-rules "${CONFIG_RULES[@]}" \
+          "${BUILD_ARGS[@]}" \
           --target "$IDF_TARGET" \
           --path "${BUILD_DIRS[@]}" \
           --build-dir "${ESP_TEMP_BUILD_DIR}/@n_@w"
+
+        # The linux target has no app partition, so no size report and no free-space check.
+        if [ "$IDF_TARGET" = "linux" ]; then
+          continue
+        fi
 
         # Collect a per-app size-components report (text) per built app; binaries
         # are discarded (too large to upload).
@@ -166,6 +181,9 @@ build_examples_esp_idf:
           - "esp32 esp32s3"              # Xtensa
           - "esp32c2 esp32c3 esp32c6"    # RISC-V (classic)
           - "esp32c5"                    # RISC-V (newer)
+      # The examples run on a host there.
+      - IDF_VERSION: ["release-v6.0", "release-v6.1"]
+        IDF_TARGET_GROUP: ["linux"]
   rules:
     - !reference [.rules_build_gate, rules]
 

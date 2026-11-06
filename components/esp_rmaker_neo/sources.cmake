@@ -53,11 +53,17 @@ set(RMNG_PRIV_STUB_HOST_CTRL_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/priv_include
 
 set(RMNG_REQUIRES osal esp_rmaker_neo_common)
 set(RMNG_PRIV_REQUIRES mbedtls protobuf-c esp_rmaker_neo_common)
-if (ESP_PLATFORM)
+# Local endpoints service: local control and/or challenge-response on one protocomm instance
+if (ESP_PLATFORM AND IDF_TARGET STREQUAL "linux")
+    # ESP-IDF's protocomm does not build for the linux target.
+    list(APPEND RMNG_SRCS "${RMNG_SRC_DIR}/services/svc_local_endpoints_stub.c")
+elseif (ESP_PLATFORM)
+    list(APPEND RMNG_SRCS "${RMNG_SRC_DIR}/services/svc_local_endpoints.c")
     list(APPEND RMNG_PRIV_REQUIRES protocomm)
 else ()
     # protocomm-posix is a separate static lib built by osal; the local endpoints service is its only consumer, so link
     # it here rather than making every osal consumer pay for it.
+    list(APPEND RMNG_SRCS "${RMNG_SRC_DIR}/services/svc_local_endpoints.c")
     list(APPEND RMNG_PRIV_REQUIRES protocomm-posix)
 endif ()
 # esp_schedule is the same target name on both platforms now: the managed espressif/esp_schedule component on ESP-IDF
@@ -136,8 +142,7 @@ set(RMNG_DATA_MODEL_SRCS
     "${RMNG_DATA_MODEL_SRC_BASE_DIR}/service_creation/dm_svc_timezone.c"
     "${RMNG_SRC_DIR}/services/svc_system.c"
     "${RMNG_DATA_MODEL_SRC_BASE_DIR}/service_creation/dm_svc_system.c"
-    # Local endpoints service: local control and/or challenge-response on one protocomm instance
-    "${RMNG_SRC_DIR}/services/svc_local_endpoints.c"
+    # Local endpoints service (svc_local_endpoints.c is added per platform above)
     "${RMNG_DATA_MODEL_SRC_BASE_DIR}/service_creation/dm_svc_local_ctrl.c"
     "${RMNG_SRC_DIR}/local_ctrl/local_ctrl_endpoints.c"
     "${RMNG_SRC_DIR}/local_ctrl/local_ctrl_pb-c.c"

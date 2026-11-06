@@ -21,6 +21,12 @@ if (ESP_PLATFORM)
     target_include_directories(${COMPONENT_LIB} PUBLIC ${RMNG_OTA_INCLUDE_DIRS})
     target_include_directories(${COMPONENT_LIB} PRIVATE ${RMNG_OTA_PRIV_INCLUDE_DIRS})
 
+    # glibc's C23 <stddef.h> defines unreachable(), which tinycbor defines again; keep that warning off -Werror.
+    if (IDF_TARGET STREQUAL "linux")
+        idf_component_get_property(cbor_lib espressif__cbor COMPONENT_LIB)
+        target_compile_options(${cbor_lib} PRIVATE "-Wno-error")
+    endif ()
+
     # Normal CMake Platform ###
 else ()
     include("${CMAKE_CURRENT_LIST_DIR}/sources.cmake")

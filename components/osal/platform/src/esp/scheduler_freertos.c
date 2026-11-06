@@ -29,7 +29,9 @@
 #include "freertos/timers.h"
 
 /* ESP-IDF includes */
+#if !CONFIG_IDF_TARGET_LINUX
 #include "esp_timer.h"
+#endif
 
 /* Standard includes */
 #include <stdlib.h>
@@ -139,7 +141,12 @@ static TickType_t __period_ticks(uint64_t total_ticks)
  */
 static uint64_t __now_ticks(void)
 {
+#if CONFIG_IDF_TARGET_LINUX
+    /* The linux port's TickType_t is 64-bit, so its tick count does not wrap; it has no esp_timer. */
+    return (uint64_t) xTaskGetTickCount();
+#else
     return ((uint64_t) esp_timer_get_time() * configTICK_RATE_HZ) / 1000000ULL;
+#endif
 }
 
 /**

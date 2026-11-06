@@ -19,7 +19,9 @@
 #include "esp_event.h"
 #include "nvs_flash.h"
 
+#if !CONFIG_IDF_TARGET_LINUX
 #include "app_network.h"
+#endif
 
 #include "test_osal_platform_prototypes.h"
 #include "test_osal_storage_prototypes.h"
@@ -29,7 +31,9 @@
 #include "test_osal_timesync_prototypes.h"
 #include "test_rmaker_neo_common_prototypes.h"
 #include "test_rmaker_neo_prototypes.h"
+#if !CONFIG_IDF_TARGET_LINUX
 #include "test_rmaker_neo_ota_prototypes.h"
+#endif
 
 /* Constants ******************************************************************/
 
@@ -64,6 +68,7 @@ void tearDown(void)
     }
 }
 
+#if !CONFIG_IDF_TARGET_LINUX /* no OTA on the linux target */
 /* Run one suite with its fixtures installed, then uninstall them so the next
  * TEST_CASE doesn't inherit them (Unity keeps running after a failed assert). */
 static int run_suite_with_fixtures(void (*suite_set_up)(void), void (*suite_tear_down)(void), int (*suite_run)(void))
@@ -75,6 +80,7 @@ static int run_suite_with_fixtures(void (*suite_set_up)(void), void (*suite_tear
     s_suite_tear_down = NULL;
     return failures;
 }
+#endif
 
 static void nvs_setup(void)
 {
@@ -96,8 +102,11 @@ static void wifi_setup(void)
     }
     nvs_setup();
     ESP_LOGI(TAG, "wifi_setup");
+#if !CONFIG_IDF_TARGET_LINUX
+    /* The linux target runs on a host that is already on a network. */
     app_network_init();
     app_network_start(POP_TYPE_MAC);
+#endif
     s_wifi_setup = true;
 }
 
@@ -147,10 +156,12 @@ TEST_CASE("All esp_rmaker_neo tests", "[esp_rmaker_neo]")
     test_rmaker_neo_all_tests_unity();
 }
 
+#if !CONFIG_IDF_TARGET_LINUX /* no OTA on the linux target */
 TEST_CASE("All esp_rmaker_neo_ota tests", "[esp_rmaker_neo_ota]")
 {
     (void)run_suite_with_fixtures(test_rmaker_neo_ota_jobs_setUp, test_rmaker_neo_ota_jobs_tearDown, test_rmaker_neo_ota_all_tests_unity);
 }
+#endif
 
 /* Main ***********************************************************************/
 

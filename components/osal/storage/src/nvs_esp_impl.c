@@ -131,7 +131,11 @@ osal_err_t osal_storage_open(const char *partition_label, const char *name_space
         partition_label_to_use = NVS_DEFAULT_PART_NAME;
     }
     nvs_open_mode_t esp_mode = (mode == OSAL_STORAGE_OPEN_READONLY) ? NVS_READONLY : NVS_READWRITE;
-    esp_err_t err = nvs_open_from_partition(partition_label_to_use, name_space, esp_mode, (nvs_handle_t *) p_handle);
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open_from_partition(partition_label_to_use, name_space, esp_mode, &nvs_handle);
+    if (err == ESP_OK) {
+        *p_handle = (osal_storage_handle_t)(uintptr_t) nvs_handle;
+    }
     if (err == ESP_ERR_NVS_NOT_FOUND) {
         return OSAL_ERR_NVS_NAMESPACE_NOT_FOUND;
     }
@@ -143,7 +147,7 @@ osal_err_t osal_storage_open(const char *partition_label, const char *name_space
 
 osal_err_t osal_storage_close(osal_storage_handle_t handle)
 {
-    nvs_close((nvs_handle_t) handle);
+    nvs_close((nvs_handle_t)(uintptr_t) handle);
     return OSAL_ERR_OK;
 }
 
@@ -155,18 +159,18 @@ osal_err_t osal_storage_get(osal_storage_handle_t handle, const char *key, void 
     esp_err_t err;
     switch (type) {
     case OSAL_STORAGE_TYPE_BINARY:
-        err = nvs_get_blob((nvs_handle_t) handle, key, value, p_value_len);
+        err = nvs_get_blob((nvs_handle_t)(uintptr_t) handle, key, value, p_value_len);
         break;
     case OSAL_STORAGE_TYPE_U8:
-        err = nvs_get_u8((nvs_handle_t) handle, key, (uint8_t *) value);
+        err = nvs_get_u8((nvs_handle_t)(uintptr_t) handle, key, (uint8_t *) value);
         *p_value_len = sizeof(uint8_t);
         break;
     case OSAL_STORAGE_TYPE_U16:
-        err = nvs_get_u16((nvs_handle_t) handle, key, (uint16_t *) value);
+        err = nvs_get_u16((nvs_handle_t)(uintptr_t) handle, key, (uint16_t *) value);
         *p_value_len = sizeof(uint16_t);
         break;
     case OSAL_STORAGE_TYPE_I32:
-        err = nvs_get_i32((nvs_handle_t) handle, key, (int32_t *) value);
+        err = nvs_get_i32((nvs_handle_t)(uintptr_t) handle, key, (int32_t *) value);
         *p_value_len = sizeof(int32_t);
         break;
     default:
@@ -191,22 +195,22 @@ osal_err_t osal_storage_set(osal_storage_handle_t handle, const char *key, const
     esp_err_t err;
     switch (type) {
     case OSAL_STORAGE_TYPE_BINARY:
-        err = nvs_set_blob((nvs_handle_t) handle, key, value, value_len);
+        err = nvs_set_blob((nvs_handle_t)(uintptr_t) handle, key, value, value_len);
         break;
     case OSAL_STORAGE_TYPE_U8:
         if (value_len != sizeof(uint8_t)) {
             return OSAL_ERR_INVALID_ARG;
         }
-        err = nvs_set_u8((nvs_handle_t) handle, key, *((uint8_t *) value));
+        err = nvs_set_u8((nvs_handle_t)(uintptr_t) handle, key, *((uint8_t *) value));
         break;
     case OSAL_STORAGE_TYPE_U16:
         if (value_len != sizeof(uint16_t)) {
             return OSAL_ERR_INVALID_ARG;
         }
-        err = nvs_set_u16((nvs_handle_t) handle, key, *((uint16_t *) value));
+        err = nvs_set_u16((nvs_handle_t)(uintptr_t) handle, key, *((uint16_t *) value));
         break;
     case OSAL_STORAGE_TYPE_I32:
-        err = nvs_set_i32((nvs_handle_t) handle, key, *((int32_t *) value));
+        err = nvs_set_i32((nvs_handle_t)(uintptr_t) handle, key, *((int32_t *) value));
         break;
     default:
         return OSAL_ERR_INVALID_ARG;
@@ -219,7 +223,7 @@ osal_err_t osal_storage_erase(osal_storage_handle_t handle, const char *key)
     if ( handle == NULL || key == NULL ) {
         return OSAL_ERR_INVALID_ARG;
     }
-    esp_err_t err = nvs_erase_key((nvs_handle_t) handle, key);
+    esp_err_t err = nvs_erase_key((nvs_handle_t)(uintptr_t) handle, key);
     if (err == ESP_ERR_NVS_NOT_FOUND) {
         return OSAL_ERR_NVS_KEY_NOT_FOUND;
     }
@@ -231,7 +235,7 @@ osal_err_t osal_storage_erase_all(osal_storage_handle_t handle)
     if ( handle == NULL ) {
         return OSAL_ERR_INVALID_ARG;
     }
-    return to_nvs_common_error(nvs_erase_all((nvs_handle_t) handle));
+    return to_nvs_common_error(nvs_erase_all((nvs_handle_t)(uintptr_t) handle));
 }
 
 osal_err_t osal_storage_commit(osal_storage_handle_t handle)
@@ -239,7 +243,7 @@ osal_err_t osal_storage_commit(osal_storage_handle_t handle)
     if ( handle == NULL ) {
         return OSAL_ERR_INVALID_ARG;
     }
-    return to_nvs_common_error(nvs_commit((nvs_handle_t) handle));
+    return to_nvs_common_error(nvs_commit((nvs_handle_t)(uintptr_t) handle));
 }
 
 osal_err_t osal_storage_entry_find(const char *partition_label, const char *name_space, osal_storage_type_t type, osal_storage_iterator_t *iterator)

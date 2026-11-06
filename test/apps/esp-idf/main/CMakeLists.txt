@@ -5,7 +5,6 @@ set(TEST_APP_PRIV_REQUIRES
     "unity"
     "nvs_flash"
     "esp_event"
-    "app_network"
     # osal test subcomponents
     "test_osal_platform"
     "test_osal_storage"
@@ -17,9 +16,12 @@ set(TEST_APP_PRIV_REQUIRES
     "test_rmaker_neo_common"
     # esp_rmaker_neo test
     "test_rmaker_neo"
-    # esp_rmaker_neo_ota test
-    "test_rmaker_neo_ota"
 )
+
+if (NOT IDF_TARGET STREQUAL "linux")
+    # The linux target has no Wi-Fi / BLE provisioning and no OTA.
+    list(APPEND TEST_APP_PRIV_REQUIRES "app_network" "test_rmaker_neo_ota")
+endif ()
 
 idf_component_register(
     SRCS ${TEST_APP_SOURCES}

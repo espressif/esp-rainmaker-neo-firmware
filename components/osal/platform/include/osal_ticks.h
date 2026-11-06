@@ -20,7 +20,11 @@ extern "C" {
 
 typedef uint32_t osal_tick_type_t;
 
-#define OSAL_MAX_DELAY (osal_get_max_delay())
+/** @brief Largest osal_tick_type_t value. */
+#define OSAL_TICK_MAX UINT32_MAX
+
+/** @brief Wait without a timeout. */
+#define OSAL_MAX_DELAY OSAL_TICK_MAX
 
 /**
  * @brief Get the maximum delay.

@@ -7,6 +7,8 @@ dependencies:
   espressif/rmaker_app_network:
     version: "^1.4.5"
     require: public
+    rules:
+      - if: "target not in [linux]"
   # app_network_provision.c drives the RMNG pre-provisioning flow.
   esp_rmaker_neo:
     path: ../../../components/esp_rmaker_neo
