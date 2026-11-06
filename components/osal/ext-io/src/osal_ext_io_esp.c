@@ -222,9 +222,24 @@ bool osal_ext_io_write_line(const char *line, size_t line_length)
 
 bool osal_ext_io_read_until_sync(uint8_t *buffer, size_t max_buffer_length, uint8_t until_char, size_t *read_length)
 {
+    if (read_length) {
+        *read_length = 0;
+    }
+    if (buffer == NULL || max_buffer_length == 0) {
+        return false;
+    }
+
     uint8_t *cur = buffer;
+    /* The last byte is kept for the NUL terminator, as in the POSIX port. */
+    const uint8_t *last = buffer + max_buffer_length - 1;
     while (1) {
-        int len = uart_read_bytes(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM, cur, 1, 50 / portTICK_PERIOD_MS);
+        if (cur == last) {
+            /* Buffer full: stop before reading a byte that cannot be stored, so
+             * the rest of the line is read by the next call. */
+            break;
+        }
+        uint8_t byte = 0;
+        int len = uart_read_bytes(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM, &byte, 1, 50 / portTICK_PERIOD_MS);
         if (len < 0) {
             return false;
         }
@@ -232,21 +247,16 @@ bool osal_ext_io_read_until_sync(uint8_t *buffer, size_t max_buffer_length, uint
             continue;
         }
 
-        if ((*cur == '\b' || *cur == '\x7f') && cur > buffer) {
+        if ((byte == '\b' || byte == '\x7f') && cur > buffer) {
             cur--;
             continue;
         }
 
-        if (*cur == until_char) {
-            *cur = '\0';
+        if (byte == until_char) {
             break;
         }
 
-        if (cur - buffer >= max_buffer_length) {
-            break;
-        }
-
-        cur++;
+        *cur++ = byte;
 
 #if OSAL_EXT_IO_MULTIPLEXED
         /* Strip any host ping marker that lands in the command stream. The host
@@ -263,6 +273,9 @@ bool osal_ext_io_read_until_sync(uint8_t *buffer, size_t max_buffer_length, uint
 #endif /* OSAL_EXT_IO_MULTIPLEXED */
     }
 
-    *read_length = (size_t)(cur - buffer);
+    *cur = '\0';
+    if (read_length) {
+        *read_length = (size_t)(cur - buffer);
+    }
     return true;
 }
