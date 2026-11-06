@@ -129,6 +129,18 @@ All parameters have properties: `read`, `write`.
 - After successful parameter writes, the node reports the parameter value back in the named shadow under `params : { "System": { ... } }`
 - Indexed shadow is not used for system parameters unless explicitly marked `indexed` in node configuration (default: not indexed)
 
+### Factory reset participants
+
+A factory reset clears the data the SDK owns: the RainMaker Neo NVS namespaces, the stored per-device parameter values and the network credentials. A component that derives another protocol's data model from the RainMaker Neo one holds persistent state the SDK knows nothing about — pairings, credentials, access control entries. Left behind, that state outlives the reset: the node comes back up factory-new to the cloud while the other protocol's controllers still hold valid credentials for it.
+
+Such a component registers a *factory reset participant* with `esp_rmaker_system_ctrl_factory_reset_participant_register()`, supplying a `wipe` callback that erases its own state. `esp_rmaker_system_ctrl_factory_reset()` runs every registered participant after clearing the SDK's own data, in registration order, and reboots afterwards. A failing `wipe` is logged and does not stop the remaining participants. Registration is not thread-safe: register and unregister from one task while no reset can run, before `esp_rmaker_start()` or after `esp_rmaker_stop()`.
+
+A participant whose reset primitive restarts the system rather than returning — because the external stack owns its own restart — sets `reboots_on_wipe`. It is wiped last, after every other participant, because an earlier restart would strand their wipes. At most one participant may claim this; a second registration is rejected.
+
+A reset originating in the external model itself takes the other direction: the model has already committed to wiping its own state, so it calls `esp_rmaker_system_ctrl_factory_reset_from_participant()`, passing its own `wipe` as `self`. That clears the SDK's side and wipes every *other* participant, so a single reset still reaches all of them whichever side started it. Passing a negative `reset_reboot_s` leaves the restart to the caller, for a stack that reboots itself.
+
+The entry point runs synchronously on the calling thread, participant wipes included, so the caller must have the stack for them. A factory reset requested while another is running, or after its reboot has been scheduled, runs nothing and returns `ESP_RMAKER_INVALID_STATE` — whether a participant's own `wipe` triggers it in turn or another task asks for one at the same time. Participants do not need their own re-entry guards: one that gets this from inside its own `wipe` can ignore it, since the running reset already includes that wipe. A run that does not reboot, because `reset_reboot_s` is negative or the reboot could not be scheduled, leaves the node resettable again.
+
 ### Configuration
 
 The system service is enabled with a configuration struct whose `flags` field selects which params the service exposes. A param that is not selected is not created at all, so it does not appear in the node configuration:

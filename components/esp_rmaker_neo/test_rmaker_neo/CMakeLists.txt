@@ -5,6 +5,7 @@ set(TEST_ESP_RMAKER_NEO_SRCS
     # All test sources
     "tests_src/test_node_model.c"
     "tests_src/test_introspect.c"
+    "tests_src/test_factory_reset_participants.c"
     "tests_src/test_timeseries.c"
     "tests_src/chal_resp/test_pb_c.c"
     "tests_src/local_ctrl/test_local_ctrl_endpoints.c"

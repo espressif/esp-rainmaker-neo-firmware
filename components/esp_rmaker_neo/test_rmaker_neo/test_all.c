@@ -36,6 +36,22 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_introspect_metadata_getters);
     RUN_TEST(test_introspect_param_update_observer);
     RUN_TEST(test_introspect_device_write_params);
+
+    /* Factory reset participants **************************************************/
+    RUN_TEST(test_factory_reset_participant_register_arg_validation);
+    RUN_TEST(test_factory_reset_participant_register_rejects_second_rebooting);
+    RUN_TEST(test_factory_reset_participant_register_table_full);
+    RUN_TEST(test_factory_reset_participant_reregister_updates_in_place);
+    RUN_TEST(test_factory_reset_participants_wiped_in_registration_order);
+    RUN_TEST(test_factory_reset_participants_rebooting_wiped_last);
+    RUN_TEST(test_factory_reset_participants_wipe_failure_does_not_stop_others);
+    RUN_TEST(test_factory_reset_from_participant_skips_only_the_originator);
+    RUN_TEST(test_factory_reset_from_participant_null_self_wipes_all);
+    RUN_TEST(test_factory_reset_reentrant_request_is_a_noop);
+    RUN_TEST(test_factory_reset_participants_unregister_preserves_order);
+    RUN_TEST(test_factory_reset_runs_again_after_a_run_without_reboot);
+    RUN_TEST(test_factory_reset_with_wipe_runs_extra_before_participants);
+    RUN_TEST(test_factory_reset_with_wipe_nested_skips_extra);
     RUN_TEST(test_param_model_create_bounds_and_update);
     RUN_TEST(test_param_model_same_value_update_skips_nvs);
     RUN_TEST(test_param_model_store_get_invalid_parent);

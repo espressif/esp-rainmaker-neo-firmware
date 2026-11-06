@@ -147,6 +147,19 @@ menu "ESP RainMaker Neo Configuration"
 
     endmenu
 
+    menu "System Control"
+
+        config ESP_RMAKER_NEO_SYSTEM_CTRL_RESET_PARTICIPANTS_MAX
+            int "Maximum factory reset participants"
+            default 4
+            range 1 16
+            help
+                Maximum number of factory reset participants that can be registered. Each component that
+                keeps another protocol's persistent state (for example a Matter or Zigbee bridge) registers
+                one.
+
+    endmenu
+
     menu "MQTT"
 
         config ESP_RMAKER_NEO_MQTT_USE_PERSISTENT_SESSION

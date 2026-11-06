@@ -20,24 +20,28 @@ extern "C" {
 #endif
 
 /**
- * @brief Perform the factory-reset wipe immediately, without rebooting.
+ * @brief Factory reset now, with an extra wipe of SDK-internal state.
  *
- * Notifies the cloud that the node is resetting itself (best-effort, bounded wait), resets the
- * network credentials and clears the NVS namespaces owned by RainMaker Neo - everything
- * esp_rmaker_system_ctrl_factory_reset() does except the reboot, which is left to the caller.
+ * Runs the same reset as esp_rmaker_system_ctrl_factory_reset_from_participant() with no originator,
+ * using the registered network reset function, plus @p extra_wipe. The extra wipe runs after the
+ * node_reset notification and the RainMaker Neo data clear, and before the participants, so it can
+ * erase state the notification needs and still run before a participant that restarts the node.
  *
- * Shared by the public factory reset and by the clear-claim-data console command: erasing the claim
- * credentials invalidates the node's cloud identity, so all the data keyed to it must go too.
+ * If no network reset function is registered, the network reset is skipped and reported as an error;
+ * every other step still runs. Posts RMAKER_EVENT_FACTORY_RESET when called. If a factory reset is
+ * already running or its reboot is scheduled, this runs nothing else, extra wipe included, and returns
+ * ESP_RMAKER_INVALID_STATE.
  *
- * Best-effort: every step runs even if an earlier one failed, and the first error is returned.
+ * @param[in] extra_wipe The extra wipe. Must not be NULL.
+ * @param[in] extra_priv Argument passed to @p extra_wipe.
+ * @param[in] reset_reboot_s Reboot timeout in seconds; 0 means reboot immediately, a negative value
+ *            means do not reboot.
  *
- * @param[in] network_reset_fn Function to reset the network credentials. NULL means use the function
- *            registered via esp_rmaker_system_ctrl_register_network_reset_fn(); if nothing is
- *            registered either, the network reset is skipped (logged) and the data is still cleared.
- *
- * @return ESP_RMAKER_OK if everything succeeded, otherwise the first error encountered.
+ * @return ESP_RMAKER_OK if every step succeeded, ESP_RMAKER_INVALID_STATE if a factory reset is already
+ *         running or its reboot is scheduled (nothing is run), otherwise the first error encountered.
  */
-esp_rmaker_error_t esp_rmaker_system_ctrl_factory_reset_no_reboot(esp_rmaker_system_ctrl_network_reset_fn_t network_reset_fn);
+esp_rmaker_error_t esp_rmaker_system_ctrl_factory_reset_with_wipe(esp_rmaker_system_ctrl_factory_reset_wipe_fn_t extra_wipe,
+        void *extra_priv, int8_t reset_reboot_s);
 
 /**
  * @brief Clear the RainMaker Neo-owned data NVS namespaces.
