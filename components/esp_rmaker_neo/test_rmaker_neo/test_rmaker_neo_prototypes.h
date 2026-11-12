@@ -107,6 +107,93 @@ void test_introspect_param_update_observer(void);
  */
 void test_introspect_device_write_params(void);
 
+/* Factory reset participants **************************************************/
+
+/**
+ * @brief Test factory reset participant register/unregister argument validation.
+ */
+void test_factory_reset_participant_register_arg_validation(void);
+
+/**
+ * @brief Test that only one participant may claim reboots_on_wipe.
+ */
+void test_factory_reset_participant_register_rejects_second_rebooting(void);
+
+/**
+ * @brief Test that the participant table rejects registrations past its capacity.
+ */
+void test_factory_reset_participant_register_table_full(void);
+
+/**
+ * @brief Test that re-registering the same wipe updates the entry instead of adding one.
+ */
+void test_factory_reset_participant_reregister_updates_in_place(void);
+
+/**
+ * @brief Test that participants are wiped in registration order.
+ */
+void test_factory_reset_participants_wiped_in_registration_order(void);
+
+/**
+ * @brief Test that a reboots_on_wipe participant is wiped after all the others.
+ */
+void test_factory_reset_participants_rebooting_wiped_last(void);
+
+/**
+ * @brief Test that a failing participant wipe does not stop the remaining ones.
+ */
+void test_factory_reset_participants_wipe_failure_does_not_stop_others(void);
+
+/**
+ * @brief Test that a participant-originated reset skips only the originator's wipe.
+ */
+void test_factory_reset_from_participant_skips_only_the_originator(void);
+
+/**
+ * @brief Test that a participant-originated reset with no originator wipes every participant.
+ */
+void test_factory_reset_from_participant_null_self_wipes_all(void);
+
+/**
+ * @brief Test that a reset requested from inside a participant's wipe is a no-op.
+ */
+void test_factory_reset_reentrant_request_is_a_noop(void);
+
+/**
+ * @brief Test that unregistering a participant preserves the remaining wipe order.
+ */
+void test_factory_reset_participants_unregister_preserves_order(void);
+
+/**
+ * @brief Test that a factory reset that did not reboot leaves the node resettable again.
+ */
+void test_factory_reset_runs_again_after_a_run_without_reboot(void);
+
+/**
+ * @brief Test that the extra wipe runs after the data clear and before the participants.
+ */
+void test_factory_reset_with_wipe_runs_extra_before_participants(void);
+
+/**
+ * @brief Test that a nested reset with an extra wipe does nothing, extra wipe included.
+ */
+void test_factory_reset_with_wipe_nested_skips_extra(void);
+
+/**
+ * @brief Test that a delayed factory reset starts the worker and wipes participants after the delay.
+ */
+void test_factory_reset_delayed_runs_participants_after_delay(void);
+
+/**
+ * @brief Test that a repeated delayed reset replaces the pending one instead of running twice.
+ */
+void test_system_ctrl_delayed_reset_repeat_replaces_pending(void);
+
+/**
+ * @brief Test that delayed resets of different types wait out their delays side by side.
+ */
+void test_system_ctrl_delayed_resets_of_different_types_do_not_stack(void);
+
 /**
  * @brief Test param model create/bounds/update.
  */
