@@ -6,7 +6,7 @@
 #   $SITE_DIR/<app>/LAUNCHPAD.md                per-firmware readme (copied from the example)
 #   $SITE_DIR/_meta/<app>.factory_offset        fctry partition offset (feeds the site README)
 #   $SITE_DIR/_meta/idf.txt                     resolved IDF version + commit
-#   $SITE_DIR/<app>/<target>/<app>.elf.gz       gzipped app ELF for backtrace decode
+#   $SITE_DIR/<app>/<target>/<app>.elf.gz       gzipped app ELF without DWARF, for backtrace decode
 #
 # _meta/ is consumed and deleted by generate_launchpad_config.sh, so it never ships.
 #
@@ -132,8 +132,9 @@ for build_dir in "$BUILD_TMP"/*; do
   desc="$build_dir/project_description.json"
   project_path=""
   elf=""
+  toolprefix=""
   if [ -f "$desc" ]; then
-    { read -r project_path; read -r elf; } < <(python -c "import json;d=json.load(open('$desc'));print(d.get('project_path',''));print(d.get('app_elf',''))" 2>/dev/null) || true
+    { read -r project_path; read -r elf; read -r toolprefix; } < <(python -c "import json;d=json.load(open('$desc'));print(d.get('project_path',''));print(d.get('app_elf',''));print(d.get('monitor_toolprefix',''))" 2>/dev/null) || true
   fi
 
   out_dir="$SITE_DIR/$app/$IDF_TARGET"
@@ -149,7 +150,14 @@ for build_dir in "$BUILD_TMP"/*; do
     echo "ERROR: no app ELF for $app ($build_dir/$elf)." >&2
     exit 1
   fi
-  gzip -9nc "$build_dir/$elf" > "$out_dir/${app}.elf.gz"
+  if [ -z "$toolprefix" ]; then
+    echo "ERROR: no monitor_toolprefix for $app ($desc)." >&2
+    exit 1
+  fi
+  # Keeps .symtab for function names and .debug_frame for the RISC-V GDB unwind.
+  "${toolprefix}objcopy" --strip-debug --keep-section=.debug_frame \
+    "$build_dir/$elf" "$build_dir/${app}_stripped.elf"
+  gzip -9nc "$build_dir/${app}_stripped.elf" > "$out_dir/${app}.elf.gz"
 
   # Per-app files: identical across targets, so first target to run wins. Artifact
   # merging in the deploy job overwrites them with identical content.
