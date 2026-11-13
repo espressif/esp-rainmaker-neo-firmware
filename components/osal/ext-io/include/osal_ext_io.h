@@ -34,6 +34,8 @@ bool osal_ext_io_deinit(void);
 
 /**
  * @brief Write a line to the external I/O interface (e.g., instructions). This automatically adds a CRLF line terminator.
+ * @note Must be called from the same task as ::osal_ext_io_read_until_sync; a second
+ *       writer would consume the acknowledgement this one waits for.
  * @param[in] line The line to write
  * @param[in] line_length The length of the line (excluding the null terminator)
  * @return true if successful, false otherwise

@@ -16,8 +16,10 @@
 #if OSAL_EXT_IO_MULTIPLEXED
 #include "osal_ext_io_packet_constants_esp.h"
 #define OSAL_EXT_IO_RECEIVED_PING_LENGTH (sizeof(OSAL_EXT_IO_RECEIVED_PING) - 1)
-#define OSAL_EXT_IO_RECEIVED_PING_TIMEOUT_MS 500
+#define OSAL_EXT_IO_RECEIVED_PING_TIMEOUT_MS CONFIG_OSAL_EXT_IO_ESP_ACK_TIMEOUT_MS
 #define OSAL_EXT_IO_RECEIVED_PING_RETRIES 5
+/* Idle poll interval of the command reader while the RX FIFO is empty. */
+#define OSAL_EXT_IO_RX_POLL_MS 10
 #endif /* OSAL_EXT_IO_MULTIPLEXED */
 
 /* Standard */
@@ -35,43 +37,116 @@
 
 /* FreeRTOS */
 #include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
+#include "freertos/stream_buffer.h"
 #include "freertos/task.h"
 
 static const char *TAG = "osal_extio_esp";
 
 #if OSAL_EXT_IO_MULTIPLEXED
-/* When the UART is shared with the console monitor, the framed RPC writer and
- * the ESP-IDF log writer both target the same UART. Without mutual exclusion
- * their bytes interleave: log output lands inside an RPC frame, the host-side
- * demultiplexer can no longer find the trailer at the expected offset, and the
- * whole frame is discarded - surfacing as a corrupt / "invalid command"
- * response. A single recursive mutex serializes every UART write so each frame
- * and each log line is emitted atomically. Recursive so a log emitted from
- * within a locked section (e.g. the UART driver) can never self-deadlock. */
-static SemaphoreHandle_t s_uart_write_mutex;
 /* Stack buffer that holds the vast majority of log lines without touching the
  * heap. Longer lines fall back to a one-shot malloc so nothing is truncated. */
 #define OSAL_EXT_IO_LOG_STACK_BUFFER_SIZE 160
 static vprintf_like_t s_prev_vprintf;
+/* Inbound bytes the frame writer pulled off the UART while waiting for the
+ * host's ACK ping but that turned out not to be part of one. They are command
+ * bytes; hand them to the command reader instead of discarding them. */
+static StreamBufferHandle_t s_pending_rx;
+/* First task to write a frame; later writes must come from it too. */
+static TaskHandle_t s_writer_task;
 
-static inline void osal_ext_io_uart_lock(void)
+/* Frames and commands share one RX stream, so the ACK wait and the command
+ * reader must never run concurrently - which holds only while one task does
+ * both. A second writer would silently steal an ACK and desync the link. */
+static bool osal_ext_io_claim_writer(void)
 {
-    if (s_uart_write_mutex) {
-        xSemaphoreTakeRecursive(s_uart_write_mutex, portMAX_DELAY);
+    TaskHandle_t self_task = xTaskGetCurrentTaskHandle();
+    if (s_writer_task == NULL) {
+        s_writer_task = self_task;
+    } else if (s_writer_task != self_task) {
+        ESP_LOGE(TAG, "write_line is single-writer: bound to '%s', called from '%s'",
+                 pcTaskGetName(s_writer_task), pcTaskGetName(self_task));
+        return false;
+    }
+    return true;
+}
+
+static void osal_ext_io_stash_rx(const void *data, size_t length)
+{
+    if (length == 0 || s_pending_rx == NULL) {
+        return;
+    }
+    if (xStreamBufferSend(s_pending_rx, data, length, 0) != length) {
+        ESP_LOGW(TAG, "Dropped %u inbound byte(s), pending RX buffer full", (unsigned)length);
     }
 }
 
-static inline void osal_ext_io_uart_unlock(void)
+/* Wait for the host's ACK of a just-written frame, matching the ping marker one
+ * byte at a time. Anything that does not advance the match belongs to an
+ * inbound command, so it is stashed rather than consumed - reading the marker
+ * as a fixed-size block would swallow whichever command bytes shared the read
+ * and leave the rest of the marker behind to corrupt the next one. */
+static bool osal_ext_io_await_ping(void)
 {
-    if (s_uart_write_mutex) {
-        xSemaphoreGiveRecursive(s_uart_write_mutex);
+    static const uint8_t ping[] = OSAL_EXT_IO_RECEIVED_PING;
+    size_t matched = 0;
+    TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(OSAL_EXT_IO_RECEIVED_PING_TIMEOUT_MS);
+
+    while (1) {
+        TickType_t now = xTaskGetTickCount();
+        if (now >= deadline) {
+            osal_ext_io_stash_rx(ping, matched);
+            return false;
+        }
+
+        uint8_t byte = 0;
+        int len = uart_read_bytes(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM, &byte, 1, deadline - now);
+        if (len != 1) {
+            osal_ext_io_stash_rx(ping, matched);
+            return false;
+        }
+
+        if (byte == ping[matched]) {
+            if (++matched == OSAL_EXT_IO_RECEIVED_PING_LENGTH) {
+                return true;
+            }
+            continue;
+        }
+
+        /* Mismatch: the bytes matched so far were command bytes after all. The
+         * marker has no self-overlap, so only its first byte can restart it. */
+        osal_ext_io_stash_rx(ping, matched);
+        matched = 0;
+        if (byte == ping[0]) {
+            matched = 1;
+        } else {
+            osal_ext_io_stash_rx(&byte, 1);
+        }
     }
 }
 
-/* vprintf hook: route every ESP-IDF log line through the same UART write lock
- * as the RPC framer so the two never interleave on the wire. Log bytes are
- * written raw (no frame markers) so the host treats them as monitor output. */
+/* Read one inbound byte, stashed leftovers first. Returns 1 on a byte, 0 if
+ * none was available, -1 on error. */
+static int osal_ext_io_read_byte(uint8_t *out)
+{
+    if (s_pending_rx != NULL && xStreamBufferReceive(s_pending_rx, out, 1, 0) == 1) {
+        return 1;
+    }
+
+    size_t available = 0;
+    if (uart_get_buffered_data_len(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM, &available) != ESP_OK) {
+        return -1;
+    }
+    if (available == 0) {
+        vTaskDelay(pdMS_TO_TICKS(OSAL_EXT_IO_RX_POLL_MS));
+        return 0;
+    }
+
+    return uart_read_bytes(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM, out, 1, 0);
+}
+
+/* vprintf hook: emit each log line as one uart_write_bytes, whose driver-level
+ * mutex is what keeps it from splitting an RPC frame. Log bytes carry no frame
+ * markers, so the host treats them as monitor output. */
 static int osal_ext_io_log_vprintf(const char *fmt, va_list ap)
 {
     char stack_buffer[OSAL_EXT_IO_LOG_STACK_BUFFER_SIZE];
@@ -101,9 +176,7 @@ static int osal_ext_io_log_vprintf(const char *fmt, va_list ap)
         }
     }
 
-    osal_ext_io_uart_lock();
     uart_write_bytes(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM, out, (size_t)len);
-    osal_ext_io_uart_unlock();
 
     free(heap_buffer);
     return len;
@@ -147,12 +220,10 @@ bool osal_ext_io_init(void)
     }
 
 #if OSAL_EXT_IO_MULTIPLEXED
-    /* Serialize RPC frames against console logs on the shared UART. Create the
-     * mutex before installing the log hook so the hook never runs lock-less. */
-    if (s_uart_write_mutex == NULL) {
-        s_uart_write_mutex = xSemaphoreCreateRecursiveMutex();
-        if (s_uart_write_mutex == NULL) {
-            ESP_LOGE(TAG, "Failed to create UART write mutex");
+    if (s_pending_rx == NULL) {
+        s_pending_rx = xStreamBufferCreate(CONFIG_OSAL_EXT_IO_ESP_UART_BUFFER_SIZE, 1);
+        if (s_pending_rx == NULL) {
+            ESP_LOGE(TAG, "Failed to create pending RX buffer");
             return false;
         }
     }
@@ -167,6 +238,7 @@ bool osal_ext_io_deinit(void)
 #if OSAL_EXT_IO_MULTIPLEXED
     /* Stop routing logs through the (about-to-be-removed) UART path first. */
     esp_log_set_vprintf(s_prev_vprintf ? s_prev_vprintf : vprintf);
+    s_writer_task = NULL;
 #endif /* OSAL_EXT_IO_MULTIPLEXED */
     uart_driver_delete(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM);
     return true;
@@ -196,20 +268,15 @@ bool osal_ext_io_write_line(const char *line, size_t line_length)
     // Copy trailer
     memcpy(buffer + header_length + length_field_length + line_length, OSAL_EXT_IO_TRAILER, trailer_length);
 
-    int retries = 0, read_len = 0;
-    char ping_buffer[OSAL_EXT_IO_RECEIVED_PING_LENGTH];
-    osal_ext_io_uart_lock();
-    do {
+    if (!osal_ext_io_claim_writer()) {
+        return false;
+    }
+    for (int retries = 0; retries < OSAL_EXT_IO_RECEIVED_PING_RETRIES; retries++) {
         uart_write_bytes(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM, buffer, buffer_length);
-        read_len = uart_read_bytes(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM, ping_buffer, OSAL_EXT_IO_RECEIVED_PING_LENGTH, OSAL_EXT_IO_RECEIVED_PING_TIMEOUT_MS / portTICK_PERIOD_MS);
-        if (read_len == OSAL_EXT_IO_RECEIVED_PING_LENGTH && memcmp(ping_buffer, OSAL_EXT_IO_RECEIVED_PING, OSAL_EXT_IO_RECEIVED_PING_LENGTH) == 0) {
-            // Received ping
-            osal_ext_io_uart_unlock();
+        if (osal_ext_io_await_ping()) {
             return true;
         }
-        retries++;
-    } while (retries < OSAL_EXT_IO_RECEIVED_PING_RETRIES);
-    osal_ext_io_uart_unlock();
+    }
 
     // Failed to write line
     return false;
@@ -239,7 +306,11 @@ bool osal_ext_io_read_until_sync(uint8_t *buffer, size_t max_buffer_length, uint
             break;
         }
         uint8_t byte = 0;
+#if OSAL_EXT_IO_MULTIPLEXED
+        int len = osal_ext_io_read_byte(&byte);
+#else /* OSAL_EXT_IO_MULTIPLEXED */
         int len = uart_read_bytes(CONFIG_OSAL_EXT_IO_ESP_UART_PORT_NUM, &byte, 1, 50 / portTICK_PERIOD_MS);
+#endif /* OSAL_EXT_IO_MULTIPLEXED */
         if (len < 0) {
             return false;
         }
@@ -259,13 +330,11 @@ bool osal_ext_io_read_until_sync(uint8_t *buffer, size_t max_buffer_length, uint
         *cur++ = byte;
 
 #if OSAL_EXT_IO_MULTIPLEXED
-        /* Strip any host ping marker that lands in the command stream. The host
-         * ACKs each received frame with a ping; under load it can be slow, the
-         * writer retransmits, and the host then sends one ping per received
-         * copy - leaving stray ping markers in the RX FIFO that would otherwise
-         * prepend the next command and make it parse as invalid. The marker is
-         * a fixed non-ASCII sequence that never occurs in a (printable)
-         * command, so drop it wherever it appears in the inbound stream. */
+        /* Strip host ping markers that arrive with no write waiting on them:
+         * the writer retransmits an unacked frame, and the host then sends one
+         * ping per copy it received. The marker is a fixed non-ASCII sequence
+         * that never occurs in a (printable) command, so drop it wherever it
+         * appears in the inbound stream. */
         if (cur - buffer >= OSAL_EXT_IO_RECEIVED_PING_LENGTH &&
                 memcmp(cur - OSAL_EXT_IO_RECEIVED_PING_LENGTH, OSAL_EXT_IO_RECEIVED_PING, OSAL_EXT_IO_RECEIVED_PING_LENGTH) == 0) {
             cur -= OSAL_EXT_IO_RECEIVED_PING_LENGTH;
