@@ -405,5 +405,14 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_node_config_pending_clear_all_inflight_safe);
 #endif
 
+    /* Host control ******************************************************************/
+#if !CONFIG_ESP_RMAKER_NEO_HOST_CTRL
+    RUN_TEST(test_host_ctrl_seq_response_untagged);
+    RUN_TEST(test_host_ctrl_seq_response_echoes_id);
+    RUN_TEST(test_host_ctrl_seq_take_strips_id);
+    RUN_TEST(test_host_ctrl_seq_take_leaves_untagged_command);
+    RUN_TEST(test_host_ctrl_seq_take_ignores_id_without_command);
+#endif
+
     return UNITY_END();
 }

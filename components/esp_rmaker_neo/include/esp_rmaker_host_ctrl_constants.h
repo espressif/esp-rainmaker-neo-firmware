@@ -19,6 +19,16 @@
 #define RMAKER_HOST_CTRL_END_CHAR                      '\r'
 #define RMAKER_HOST_CTRL_DELIMITER_CHAR                '|'
 
+/* Sequence tagging **********************************************************/
+
+/* Optional correlation id, "#<4 uppercase hex digits>", prefixed to a command
+ * and echoed on its response. Lets the host drop a reply that is not the one it
+ * is waiting for. A command without the prefix is dispatched as before and
+ * answered without one. */
+
+#define RMAKER_HOST_CTRL_SEQ_CHAR                      '#'
+#define RMAKER_HOST_CTRL_SEQ_DIGITS                     4
+
 /* Commands ****************************************************************/
 
 #define RMAKER_HOST_CTRL_COMMAND_CHAR_PING             'p'

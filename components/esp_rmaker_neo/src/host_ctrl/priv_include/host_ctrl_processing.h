@@ -73,6 +73,20 @@ int esp_rmaker_host_ctrl_format_param_value(esp_rmaker_param_val_t *p_param_valu
 bool esp_rmaker_host_ctrl_add_flag_c_to_buffer(char flag_c, char **p_buffer, size_t *p_buffer_length);
 
 /**
+ * @brief Set the correlation id echoed on subsequent responses.
+ * @param[in] seq ::RMAKER_HOST_CTRL_SEQ_DIGITS characters, not NUL-terminated,
+ *                or NULL to answer without a correlation id.
+ */
+void esp_rmaker_host_ctrl_set_response_seq(const char *seq);
+
+/**
+ * @brief Strip an optional "#XXXX" correlation id from a command and set it for the responses.
+ * @param[in,out] p_buffer Command start; moved past the id when one is present.
+ * @param[in,out] p_buffer_length Command length; reduced by the id length when one is present.
+ */
+void esp_rmaker_host_ctrl_take_response_seq(uint8_t **p_buffer, size_t *p_buffer_length);
+
+/**
  * @brief Send a response to the host control.
  * @param[in] response_code The response code.
  */

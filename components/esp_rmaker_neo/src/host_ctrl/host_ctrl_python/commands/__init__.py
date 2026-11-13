@@ -48,6 +48,13 @@ class CommunicationProtocol:
         self.end_char = self._constants.get("RMAKER_HOST_CTRL_END_CHAR")
         self.delimiter_char = self._constants.get("RMAKER_HOST_CTRL_DELIMITER_CHAR")
 
+        # Sequence tagging
+        self.seq_char = self._constants.get("RMAKER_HOST_CTRL_SEQ_CHAR")
+        try:
+            self.seq_digits = int(self._constants.get("RMAKER_HOST_CTRL_SEQ_DIGITS"))
+        except (TypeError, ValueError):
+            self.seq_digits = 0
+
         # Commands
         self.command_ping = self._constants.get("RMAKER_HOST_CTRL_COMMAND_CHAR_PING")
         try:
@@ -440,6 +447,37 @@ class CommunicationProtocol:
             self.cloud_control_event_getTriggerVer: "getTriggerVer",
         }
 
+    @property
+    def seq_supported(self) -> bool:
+        """
+        Whether this build's constants carry the correlation-id definitions.
+        """
+        return bool(self.seq_char) and self.seq_digits > 0
+
+    def format_seq(self, seq: int) -> str:
+        """
+        Render a correlation id as the prefix that goes in front of a command.
+        """
+        return f"{self.seq_char}{seq:0{self.seq_digits}X}"
+
+    def split_seq(self, line: str) -> tuple[Optional[int], str]:
+        """
+        Split a response into its correlation id and the rest.
+
+        Returns ``(None, line)`` for a response that carries no id — a firmware
+        older than the correlation-id protocol, or one answering a command that
+        was sent without a prefix.
+        """
+        if not self.seq_supported or not line.startswith(self.seq_char):
+            return None, line
+        digits = line[1 : 1 + self.seq_digits]
+        if len(digits) < self.seq_digits:
+            return None, line
+        try:
+            return int(digits, 16), line[1 + self.seq_digits :]
+        except ValueError:
+            return None, line
+
     @staticmethod
     def __c_char_to_python(value: str) -> str:
         # Convert a C char literal content (without quotes) to a Python string
@@ -624,6 +662,45 @@ class PortManager:
         self.encoding = "ascii"
         self.connection: Serial = None
         self.timeout = timeout
+        # Wrapping 16-bit correlation id, and a count of responses dropped because
+        # they did not carry the id being waited on. A non-zero count means the
+        # link desynced and some earlier answer was discarded, so it is worth
+        # surfacing rather than swallowing.
+        self._seq = 0
+        self.desync_count = 0
+        # Latched on the first tagged response. Until then the firmware may
+        # predate the correlation-id protocol, so untagged replies are taken at
+        # face value and the input is flushed before each command the way it
+        # used to be. Once the firmware has proven it tags, an untagged reply is
+        # noise and positional pairing is no longer needed.
+        self._peer_seq_aware = False
+
+    def _next_seq(self) -> int:
+        self._seq = (self._seq + 1) & 0xFFFF
+        return self._seq
+
+    def _match_response(self, line: str, seq: int) -> Optional[Response]:
+        """
+        Turn a response line into a Response if it answers ``seq``.
+
+        Returns None for a line to skip: a duplicate frame the firmware
+        retransmitted, or a late answer to a command already given up on.
+        """
+        got, body = self.protocol.split_seq(line)
+        if got is not None:
+            self._peer_seq_aware = True
+            if got == seq:
+                return Response(self.protocol, body)
+        elif not self._peer_seq_aware:
+            return Response(self.protocol, body)
+
+        self.desync_count += 1
+        got_str = "none" if got is None else f"{got:04X}"
+        print(
+            f"WARN: host_ctrl dropped out-of-order response seq={got_str} "
+            f"(waiting on {seq:04X}): {body!r}"
+        )
+        return None
 
     def connect(self) -> bool:
         """
@@ -641,14 +718,38 @@ class PortManager:
             "Subclasses must implement the disconnect method, and set self.connection to None"
         )
 
-    def _send_command(self, command: Command) -> Response:
+    def _build_command(self, command: Command, seq: int) -> bytes:
+        """
+        Render a command on the wire, tagged with its correlation id.
+        """
+        prefix = self.protocol.format_seq(seq) if self.protocol.seq_supported else ""
+        command_str = f"{prefix}{command.build(self.protocol)}{self.protocol.end_char}"
+        return command_str.encode(self.encoding)
+
+    def _write(self, data: bytes) -> None:
+        """
+        Put raw bytes on the wire.
+        """
+        self.connection.write(data)
+        self.connection.flush()  # Ensure command is sent immediately
+
+    def _reset_input(self) -> None:
+        """
+        Drop buffered input so it cannot be read as the next command's reply.
+        """
+        if self.connection is not None:
+            self.connection.reset_input_buffer()
+
+    def _send_command(self, command: Command, seq: int) -> None:
         """
         Send a command to the host control.
         """
-        command_str = f"{command.build(self.protocol)}{self.protocol.end_char}"
-        command_bytes = command_str.encode(self.encoding)
-        self.connection.write(command_bytes)
-        self.connection.flush()  # Ensure command is sent immediately
+        if self.connection is None:
+            raise RuntimeError(
+                f"host_ctrl port manager for {self.port} is not connected; "
+                "connect() must be called before sending commands"
+            )
+        self._write(self._build_command(command, seq))
 
     def send_command(self, command: Command, timeout_ms: int = 2000) -> Response:
         """
@@ -711,28 +812,30 @@ class PortManagerSingle(PortManager):
         return True
 
     def send_command(self, command: Command, timeout_ms: int = 2000) -> Response:
-        self.connection.reset_input_buffer()
-        self._send_command(command)
+        # See PortManagerMultiplexed.send_command: flush only until the firmware
+        # proves it tags responses, then match on the tag instead.
+        if not self._peer_seq_aware:
+            self._reset_input()
+        seq = self._next_seq()
+        self._send_command(command, seq)
 
         # Wait for the response
         timeout_s = timeout_ms / 1000
         old_timeout = self.connection.timeout
         self.connection.timeout = timeout_s
         start_time = time()
-        line = None
-        response = None
-        while not line:
-            if time() - start_time > timeout_s:
-                # Timeout
-                response = Response(self.protocol, self.protocol.response_timeout)
-                break
+        response = Response(self.protocol, self.protocol.response_timeout)
+        while time() - start_time <= timeout_s:
             line = (
                 self.connection.read_until(self.protocol.end_char.encode(self.encoding))
                 .decode(self.encoding)
                 .replace(self.protocol.end_char, "")
             )
-            if line:
-                response = Response(self.protocol, line)
+            if not line:
+                continue
+            matched = self._match_response(line, seq)
+            if matched is not None:
+                response = matched
                 break
 
         # Restore the original timeout
@@ -745,6 +848,15 @@ class PortManagerMultiplexed(PortManager):
     Manages the serial port for the host control.
     Uses a UART multiplexer to split the input stream into monitor and remote streams.
     """
+
+    def _write(self, data: bytes) -> None:
+        """
+        Write through the mux so it is serialised against the mux's ACK writer.
+        """
+        self.mux.write(data, flush=True)
+
+    def _reset_input(self) -> None:
+        self.mux.reset_remote_input()
 
     def __init__(
         self,
@@ -778,31 +890,33 @@ class PortManagerMultiplexed(PortManager):
         """
         Send a command to the host control.
         """
-        self.mux.reset_remote_input()
-        self._send_command(command)
+        # Flushing is only a guess at which response belongs to which command, and
+        # it drops a reply still in flight rather than identifying it. Once the
+        # firmware tags its responses, keep them and match on the tag instead.
+        if not self._peer_seq_aware:
+            self._reset_input()
+        seq = self._next_seq()
+        self._send_command(command, seq)
 
         # Wait for the response
         timeout_s = timeout_ms / 1000
         old_timeout = self.mux.remote_buffer.timeout
         self.mux.remote_buffer.timeout = timeout_s
         start_time = time()
-        line = None
-        response = None
-        while not line:
-            if time() - start_time > timeout_s:
-                # Timeout
-                response = Response(self.protocol, self.protocol.response_timeout)
-                break
+        response = Response(self.protocol, self.protocol.response_timeout)
+        while time() - start_time <= timeout_s:
             read_line = self.mux.read_remote_until(
                 self.protocol.end_char.encode(self.encoding)
             )
-            if read_line:
-                line = read_line.decode(self.encoding).replace(
-                    self.protocol.end_char, ""
-                )
-                if line:
-                    response = Response(self.protocol, line)
-                    break
+            if not read_line:
+                continue
+            line = read_line.decode(self.encoding).replace(self.protocol.end_char, "")
+            if not line:
+                continue
+            matched = self._match_response(line, seq)
+            if matched is not None:
+                response = matched
+                break
 
         # Restore the original timeout
         self.mux.remote_buffer.timeout = old_timeout

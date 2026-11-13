@@ -34,6 +34,12 @@
  */
 static const char *TAG = "rmng_hc_processing";
 
+/**
+ * @brief Correlation id echoed on the next response; empty if the command carried none.
+ * @note One slot only, valid while a single task handles one command at a time.
+ */
+static char __response_seq[RMAKER_HOST_CTRL_SEQ_DIGITS + 1];
+
 /* Private function declarations *********************************************/
 
 bool esp_rmaker_host_ctrl_find_and_nullify_delimiters(uint8_t *buffer, size_t buffer_length, char *p_delimiters[], uint8_t expected_count)
@@ -128,21 +134,50 @@ bool esp_rmaker_host_ctrl_add_flag_c_to_buffer(char flag_c, char **p_buffer, siz
     return true;
 }
 
+void esp_rmaker_host_ctrl_set_response_seq(const char *seq)
+{
+    if (seq == NULL) {
+        __response_seq[0] = '\0';
+        return;
+    }
+    memcpy(__response_seq, seq, RMAKER_HOST_CTRL_SEQ_DIGITS);
+    __response_seq[RMAKER_HOST_CTRL_SEQ_DIGITS] = '\0';
+}
+
+void esp_rmaker_host_ctrl_take_response_seq(uint8_t **p_buffer, size_t *p_buffer_length)
+{
+    esp_rmaker_host_ctrl_set_response_seq(NULL);
+    if (*p_buffer_length > RMAKER_HOST_CTRL_SEQ_DIGITS + 1 && (*p_buffer)[0] == RMAKER_HOST_CTRL_SEQ_CHAR) {
+        esp_rmaker_host_ctrl_set_response_seq((const char *)*p_buffer + 1);
+        *p_buffer += RMAKER_HOST_CTRL_SEQ_DIGITS + 1;
+        *p_buffer_length -= RMAKER_HOST_CTRL_SEQ_DIGITS + 1;
+    }
+}
+
 void esp_rmaker_host_ctrl_send_response(const char response_code)
 {
-    char buffer[2] = { response_code, RMAKER_HOST_CTRL_END_CHAR };
-    OSAL_LOGD(TAG, "Sending response: %c", response_code);
-    osal_ext_io_write_line(buffer, 2);
+    esp_rmaker_host_ctrl_send_response_with_payload(response_code, NULL, 0);
 }
 
 void esp_rmaker_host_ctrl_send_response_with_payload(const char response_code, const char *payload, size_t payload_length)
 {
-    char buffer[payload_length + 3];
-    buffer[0] = response_code;
-    memcpy(buffer + 1, payload, payload_length);
-    buffer[payload_length + 1] = RMAKER_HOST_CTRL_END_CHAR;
-    buffer[payload_length + 2] = '\0';
-    size_t buffer_length = payload_length + 2;
-    OSAL_LOGD(TAG, "Sending response with payload: %s, length: %d", buffer, (int)buffer_length);
+    size_t seq_length = __response_seq[0] != '\0' ? RMAKER_HOST_CTRL_SEQ_DIGITS + 1 : 0;
+    char buffer[seq_length + payload_length + 2];
+    char *cur = buffer;
+
+    if (seq_length > 0) {
+        *cur++ = RMAKER_HOST_CTRL_SEQ_CHAR;
+        memcpy(cur, __response_seq, RMAKER_HOST_CTRL_SEQ_DIGITS);
+        cur += RMAKER_HOST_CTRL_SEQ_DIGITS;
+    }
+    *cur++ = response_code;
+    if (payload != NULL && payload_length > 0) {
+        memcpy(cur, payload, payload_length);
+        cur += payload_length;
+    }
+    *cur++ = RMAKER_HOST_CTRL_END_CHAR;
+
+    size_t buffer_length = (size_t)(cur - buffer);
+    OSAL_LOGD(TAG, "Sending response: %.*s, length: %d", (int)buffer_length, buffer, (int)buffer_length);
     osal_ext_io_write_line(buffer, buffer_length);
 }

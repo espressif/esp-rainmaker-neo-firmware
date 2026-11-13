@@ -539,6 +539,17 @@ void test_cloud_manager_response_without_status_reports_failure(void);
  */
 void test_notify_init_deinit(void);
 
+/* Host control ******************************************************************/
+
+/**
+ * @brief Test the correlation id on host_ctrl commands and responses.
+ */
+void test_host_ctrl_seq_response_untagged(void);
+void test_host_ctrl_seq_response_echoes_id(void);
+void test_host_ctrl_seq_take_strips_id(void);
+void test_host_ctrl_seq_take_leaves_untagged_command(void);
+void test_host_ctrl_seq_take_ignores_id_without_command(void);
+
 /* Schedules *********************************************************************/
 
 /**

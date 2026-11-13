@@ -52,6 +52,14 @@ if (CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE)
     )
 endif ()
 
+# The test compiles the host_ctrl response code in, so it builds only when host_ctrl is not linked.
+if (NOT CONFIG_ESP_RMAKER_NEO_HOST_CTRL)
+    list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/test_host_ctrl_seq.c")
+    list(APPEND TEST_ESP_RMAKER_NEO_PRIV_INCLUDE_DIRS ${RMNG_HOST_CTRL_PRIV_INCLUDE_DIRS}
+         "${CMAKE_CURRENT_LIST_DIR}/../../osal/ext-io/include"
+    )
+endif ()
+
 # These tests need protocomm, which the ESP-IDF linux target does not have.
 if (NOT IDF_TARGET STREQUAL "linux")
     list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/local_ctrl/test_local_ctrl_sec2_cache.c"
