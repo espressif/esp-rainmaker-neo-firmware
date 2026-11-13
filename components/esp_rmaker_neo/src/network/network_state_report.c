@@ -663,6 +663,14 @@ static void __state_report_scheduler_task(void *unused)
     esp_rmaker_error_t err = esp_rmaker_work_queue_add_task(__state_report_task, NULL);
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to add state report task to work queue with esp_rmaker_error_t: %d", err);
+        /* Retry a full work queue; a parked queue after stop gets no retry. */
+        if (!esp_rmaker_should_do_work()) {
+            return;
+        }
+        esp_rmaker_error_t retry_err = esp_rmaker_backoff_retry(&__state_retry_contexts.state_report, __state_report_scheduler_task, NULL);
+        if (retry_err != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Failed to schedule state report enqueue retry: %d", retry_err);
+        }
     }
 }
 
@@ -727,14 +735,17 @@ static void __publish_node_locked(const esp_rmaker_node_t *node_handle, state_re
     }
 
     esp_rmaker_error_t err;
+    /* Stays true on alloc failure, so the kept update list gets a retry. */
+    bool ctx_failed = true;
     char *named_payload = NULL, *indexed_payload = NULL;
     size_t named_payload_len = 0, indexed_payload_len = 0;
 
     /* Size pass. */
     err = __populate_shadow_payloads(node_handle, named_payload, &named_payload_len, indexed_payload, &indexed_payload_len, tags_changed, p_notify_info);
     if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to get shadow payload sizes (ctx thing=%s): %d", ctx_tag, err);
-        goto end;
+        OSAL_LOGE(TAG, "Failed to get shadow payload sizes (ctx thing=%s): %d; dropping its updates", ctx_tag, err);
+        ctx_failed = false;
+        goto drop;
     }
 
     if (named_payload_len > STATE_SHADOW_PAYLOAD_MIN_SIZE) {
@@ -755,8 +766,9 @@ static void __publish_node_locked(const esp_rmaker_node_t *node_handle, state_re
     /* Fill pass. */
     err = __populate_shadow_payloads(node_handle, named_payload, &named_payload_len, indexed_payload, &indexed_payload_len, tags_changed, p_notify_info);
     if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to populate payloads (ctx thing=%s): %d", ctx_tag, err);
-        goto end;
+        OSAL_LOGE(TAG, "Failed to populate payloads (ctx thing=%s): %d; dropping its updates", ctx_tag, err);
+        ctx_failed = false;
+        goto drop;
     }
 
     bool has_named_payload = named_payload_len > STATE_SHADOW_PAYLOAD_MIN_SIZE;
@@ -765,7 +777,7 @@ static void __publish_node_locked(const esp_rmaker_node_t *node_handle, state_re
 
     char topic[MQTT_TOPIC_BUFFER_SIZE];
     int topic_len;
-    bool ctx_failed = false;
+    ctx_failed = false;
 
     osal_mqtt_event_loop_channel_t channel = {
         .main = MQTT_CHANNEL_MAIN_STATE_CHANGES,
@@ -853,13 +865,16 @@ static void __publish_node_locked(const esp_rmaker_node_t *node_handle, state_re
         }
     }
 
+drop:
+    /* A size or fill failure repeats on retry, so drop the list as on success. */
     if (!ctx_failed) {
         __reset_node_update_list_locked(node_handle);
-    } else if (out_failed_any) {
-        *out_failed_any = true;
     }
 
 end:
+    if (ctx_failed && out_failed_any) {
+        *out_failed_any = true;
+    }
     if (named_payload) {
         free(named_payload);
     }
