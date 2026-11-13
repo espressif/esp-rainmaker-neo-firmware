@@ -17,6 +17,7 @@
 /* Standard includes. */
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 /* Error includes. */
 #include "esp_rmaker_error_types.h"
@@ -174,6 +175,52 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_service_enable(void);
  * @return error on failure
  */
 esp_rmaker_error_t esp_rmaker_local_ctrl_service_disable(void);
+
+/**
+ * @brief Handler for an application-defined local control endpoint.
+ *
+ * Same contract as a protocomm request handler: decode `inbuf`, allocate the
+ * response into `*outbuf` (freed by the transport), set `*outlen`, return 0 on
+ * success. Any other return value fails the request and ends the session.
+ */
+typedef int (*esp_rmaker_local_ctrl_ep_handler_t)(uint32_t session_id, const uint8_t *inbuf, ssize_t inlen,
+        uint8_t **outbuf, ssize_t *outlen, void *priv_data);
+
+/**
+ * @brief Register an application-defined endpoint on the Local Control service.
+ *
+ * The endpoint is served by the same secured protocomm HTTP instance as the
+ * standard `get_params` / `set_params` / `get_config` endpoints, so the phone app
+ * reaches it through its existing local-control session. Typical use: a camera
+ * exposing WebRTC signaling (`webrtc_signal`) over the LAN.
+ *
+ * @note Call from the RMAKER_EVENT_LOCAL_CTRL_STARTED handler; disabling the service removes the endpoint.
+ * @note Keep `priv_data` valid until the service stops: remove does not wait for a running handler.
+ * @note Do not call add or remove at the same time as each other or as the service enable or disable.
+ * @note The endpoint uses the configured session security, and the handler runs on the HTTP server task.
+ *
+ * @param[in] ep_name Endpoint name (URI path component under the HTTP server).
+ * @param[in] handler Request handler.
+ * @param[in] priv_data Passed back to the handler on every request.
+ *
+ * @return ESP_RMAKER_OK on success
+ * @return ESP_RMAKER_INVALID_ARG on NULL/empty name or NULL handler
+ * @return ESP_RMAKER_INVALID_STATE if the service is not running
+ * @return ESP_RMAKER_NO_MEM when the endpoint table is full or allocation fails
+ * @return ESP_RMAKER_FAIL if protocomm refused the endpoint, for example a duplicate name
+ */
+esp_rmaker_error_t esp_rmaker_local_ctrl_add_endpoint(const char *ep_name, esp_rmaker_local_ctrl_ep_handler_t handler,
+        void *priv_data);
+
+/**
+ * @brief Unregister an endpoint added with esp_rmaker_local_ctrl_add_endpoint().
+ *
+ * @param[in] ep_name Endpoint name.
+ *
+ * @return ESP_RMAKER_OK on success
+ * @return ESP_RMAKER_NOT_FOUND if no such endpoint is registered
+ */
+esp_rmaker_error_t esp_rmaker_local_ctrl_remove_endpoint(const char *ep_name);
 
 /**
  * @brief Enable the Challenge-Response endpoint

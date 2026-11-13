@@ -221,6 +221,13 @@ static uint16_t s_local_ctrl_http_port_override;
  */
 static char *__custom_pop = NULL;
 
+/**
+ * @brief Names of application endpoints attached while local control is active.
+ */
+#define LOCAL_CTRL_MAX_CUSTOM_ENDPOINTS 4
+
+static char *__custom_ep_names[LOCAL_CTRL_MAX_CUSTOM_ENDPOINTS];
+
 /* Private function declarations *******************************************************/
 
 static esp_rmaker_error_t __core_refresh_advert(void);
@@ -885,6 +892,76 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_set_http_port_from_host_ctrl(int port)
 }
 #endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 
+/* Custom endpoints *******************************************************/
+
+/**
+ * @brief Detach and forget every application endpoint.
+ */
+static void __custom_endpoints_remove_all(void)
+{
+    for (size_t i = 0; i < LOCAL_CTRL_MAX_CUSTOM_ENDPOINTS; i++) {
+        if (__custom_ep_names[i] == NULL) {
+            continue;
+        }
+        protocomm_remove_endpoint(__priv_data->pc, __custom_ep_names[i]);
+        free(__custom_ep_names[i]);
+        __custom_ep_names[i] = NULL;
+    }
+}
+
+esp_rmaker_error_t esp_rmaker_local_ctrl_add_endpoint(const char *ep_name, esp_rmaker_local_ctrl_ep_handler_t handler,
+        void *priv_data)
+{
+    if (ep_name == NULL || ep_name[0] == '\0' || handler == NULL) {
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    if (__priv_data == NULL || !__priv_data->local_ctrl_active) {
+        return ESP_RMAKER_INVALID_STATE;
+    }
+    char **slot = NULL;
+    for (size_t i = 0; i < LOCAL_CTRL_MAX_CUSTOM_ENDPOINTS && slot == NULL; i++) {
+        if (__custom_ep_names[i] == NULL) {
+            slot = &__custom_ep_names[i];
+        }
+    }
+    if (slot == NULL) {
+        OSAL_LOGE(TAG, "No free slot for endpoint '%s' (max %d)", ep_name, LOCAL_CTRL_MAX_CUSTOM_ENDPOINTS);
+        return ESP_RMAKER_NO_MEM;
+    }
+    char *name = OSAL_STRDUP_EXTRAM(ep_name);
+    if (name == NULL) {
+        return ESP_RMAKER_NO_MEM;
+    }
+    /* protocomm rejects duplicates, which also covers the standard endpoint names */
+    if (protocomm_add_endpoint(__priv_data->pc, name, (protocomm_req_handler_t) handler, priv_data) != ESP_OK) {
+        OSAL_LOGE(TAG, "Failed to register endpoint '%s'", ep_name);
+        free(name);
+        return ESP_RMAKER_FAIL;
+    }
+    *slot = name;
+    OSAL_LOGI(TAG, "Custom local control endpoint registered: %s", ep_name);
+    return ESP_RMAKER_OK;
+}
+
+esp_rmaker_error_t esp_rmaker_local_ctrl_remove_endpoint(const char *ep_name)
+{
+    if (ep_name == NULL) {
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    for (size_t i = 0; i < LOCAL_CTRL_MAX_CUSTOM_ENDPOINTS; i++) {
+        if (__custom_ep_names[i] == NULL || strcmp(__custom_ep_names[i], ep_name) != 0) {
+            continue;
+        }
+        protocomm_remove_endpoint(__priv_data->pc, __custom_ep_names[i]);
+        free(__custom_ep_names[i]);
+        __custom_ep_names[i] = NULL;
+        return ESP_RMAKER_OK;
+    }
+    return ESP_RMAKER_NOT_FOUND;
+}
+
+/* Local control feature *******************************************************/
+
 esp_rmaker_error_t esp_rmaker_local_ctrl_service_enable(void)
 {
     if (__priv_data != NULL && __priv_data->local_ctrl_active) {
@@ -957,6 +1034,8 @@ static esp_rmaker_error_t __local_ctrl_service_disable(bool post_stopped_event)
         OSAL_LOGW(TAG, "Local control is not enabled");
         return ESP_RMAKER_OK;
     }
+
+    __custom_endpoints_remove_all();
 
     /* Drop any cached endpoint-protocol transfer data and the endpoints */
     esp_rmaker_local_ctrl_endpoints_free_data();

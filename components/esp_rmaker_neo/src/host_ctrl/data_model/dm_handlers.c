@@ -305,6 +305,12 @@ static void __handle_add_services(uint8_t *buffer, size_t buffer_length)
                 __register_standard_service_disable_func(esp_rmaker_host_ctrl_latency_service_disable);
             }
             break;
+        case RMAKER_HOST_CTRL_SERVICE_CHAR_ECHO_ENDPOINT:
+            err = esp_rmaker_host_ctrl_echo_endpoint_service_enable();
+            if (err == ESP_RMAKER_OK) {
+                __register_standard_service_disable_func(esp_rmaker_host_ctrl_echo_endpoint_service_disable);
+            }
+            break;
         case RMAKER_HOST_CTRL_SERVICE_CHAR_ON_NETWORK_CHAL_RESP:
             /* Challenge-response endpoint only (no local control endpoints) */
             err = esp_rmaker_chal_resp_service_enable();

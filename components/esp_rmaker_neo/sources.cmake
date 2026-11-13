@@ -116,6 +116,7 @@ set(RMNG_HOST_CTRL_SRCS
     # Data model remote handlers and services
     "${RMNG_SRC_DIR}/host_ctrl/data_model/dm_handlers.c"
     "${RMNG_SRC_DIR}/host_ctrl/services/host_ctrl_latency.c"
+    "${RMNG_SRC_DIR}/host_ctrl/services/host_ctrl_echo_endpoint.c"
 )
 set(RMNG_HOST_CTRL_PRIV_INCLUDE_DIRS "${RMNG_SRC_DIR}/host_ctrl/priv_include")
 

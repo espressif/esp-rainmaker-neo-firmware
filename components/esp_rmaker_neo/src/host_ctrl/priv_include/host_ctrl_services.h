@@ -22,10 +22,12 @@
 
 /* Standard types *******************************************************/
 
-#define RMAKER_HOST_CTRL_SERVICE_COUNT 1
+#define RMAKER_HOST_CTRL_SERVICE_COUNT 2
 
 #define RMAKER_HOST_CTRL_SERVICE_PARAM_IN "esp.rmaker.host_ctrl_in"
 #define RMAKER_HOST_CTRL_SERVICE_PARAM_OUT "esp.rmaker.host_ctrl_out"
+
+#define RMAKER_HOST_CTRL_ECHO_ENDPOINT_NAME "echo"
 
 /* Function declarations *******************************************************/
 
@@ -54,6 +56,22 @@ esp_rmaker_error_t esp_rmaker_host_ctrl_latency_service_enable(void);
  * @return error in case of failure.
  */
 esp_rmaker_error_t esp_rmaker_host_ctrl_latency_service_disable(void);
+
+/**
+ * @brief Serve the RMAKER_HOST_CTRL_ECHO_ENDPOINT_NAME endpoint on local control while it runs.
+ *
+ * @return ESP_RMAKER_OK on success.
+ * @return error in case of failure.
+ */
+esp_rmaker_error_t esp_rmaker_host_ctrl_echo_endpoint_service_enable(void);
+
+/**
+ * @brief Disable the echo endpoint service.
+ *
+ * @return ESP_RMAKER_OK on success.
+ * @return error in case of failure.
+ */
+esp_rmaker_error_t esp_rmaker_host_ctrl_echo_endpoint_service_disable(void);
 
 #ifdef __cplusplus
 }

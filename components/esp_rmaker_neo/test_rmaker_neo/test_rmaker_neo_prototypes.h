@@ -293,6 +293,11 @@ void test_local_ctrl_free_data_invalidates_cache(void);
 void test_local_ctrl_get_params_malformed_frame_rejected(void);
 void test_local_ctrl_set_params_invalid_json_keeps_session(void);
 void test_local_ctrl_set_params_valid_json_succeeds(void);
+void test_local_ctrl_custom_endpoint_requires_running_service(void);
+void test_local_ctrl_custom_endpoint_add_remove(void);
+void test_local_ctrl_custom_endpoint_table_full(void);
+void test_local_ctrl_custom_endpoint_removed_on_disable(void);
+void test_local_ctrl_custom_endpoint_removed_while_chal_resp_runs(void);
 
 /* Local control SEC2 salt/verifier caching (security 2 builds only) */
 #if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2

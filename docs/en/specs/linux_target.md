@@ -10,7 +10,7 @@ The target has:
 
 - No OTA. The osal OTA calls return `OSAL_ERR_NOT_SUPPORTED`, and the partition queries return NULL.
 - No Wi-Fi or BLE provisioning, so no assisted claiming.
-- No local control or challenge response: ESP-IDF's protocomm does not build for it. `esp_rmaker_local_ctrl_service_enable()` and `esp_rmaker_chal_resp_service_enable()` return `ESP_RMAKER_NOT_SUPPORTED`.
+- No local control or challenge response: ESP-IDF's protocomm does not build for it. `esp_rmaker_local_ctrl_service_enable()`, `esp_rmaker_chal_resp_service_enable()`, `esp_rmaker_local_ctrl_add_endpoint()` and `esp_rmaker_local_ctrl_remove_endpoint()` return `ESP_RMAKER_NOT_SUPPORTED`.
 - No mDNS discovery.
 - No LED or button. The examples build no-op stubs of `app_led`, `app_button` and `app_reset`, as on POSIX.
 
