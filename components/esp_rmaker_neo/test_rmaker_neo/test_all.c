@@ -328,6 +328,7 @@ int test_rmaker_neo_all_tests_unity(void)
     /* State changes ****************************************************************/
     RUN_TEST(test_state_changes_init_deinit);
     RUN_TEST(test_state_changes_concurrent_mark_and_drain);
+    RUN_TEST(test_state_report_success_rearms_late_update);
     RUN_TEST(test_state_update_id_compare_orders_by_address);
     RUN_TEST(test_get_all_rejects_null_ctx);
     RUN_TEST(test_get_all_self_ctx_returns_self_params_only);

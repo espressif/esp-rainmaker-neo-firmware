@@ -687,6 +687,11 @@ void test_state_changes_init_deinit(void);
 void test_state_changes_concurrent_mark_and_drain(void);
 void test_state_update_id_compare_orders_by_address(void);
 
+/**
+ * @brief Test that a report success keeps a timer for an update that arrived during the run.
+ */
+void test_state_report_success_rearms_late_update(void);
+
 /* get_all ctx filtering */
 void test_get_all_rejects_null_ctx(void);
 void test_get_all_self_ctx_returns_self_params_only(void);
