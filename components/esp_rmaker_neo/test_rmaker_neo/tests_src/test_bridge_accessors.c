@@ -265,6 +265,38 @@ void test_bridge_accessors_seed_child_arg_validation(void)
     __teardown();
 }
 
+/* Lookups and iterators before init ****************************************/
+
+static esp_rmaker_error_t __count_child(esp_rmaker_bridge_child_handle_t child, void *priv)
+{
+    (void)child;
+    (*(int *)priv)++;
+    return ESP_RMAKER_OK;
+}
+
+static esp_rmaker_error_t __count_node(const esp_rmaker_node_t *node, void *priv)
+{
+    (void)node;
+    (*(int *)priv)++;
+    return ESP_RMAKER_OK;
+}
+
+void test_bridge_accessors_before_init(void)
+{
+    __setup();
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, bridge_internal_test_free_pool());
+    TEST_ASSERT_NULL(bridge_internal_find_by_thing_name("tn"));
+    TEST_ASSERT_NULL(bridge_internal_find_by_local_id("lid"));
+    TEST_ASSERT_NULL(bridge_internal_find_by_nvs_key("0123456789abcd"));
+
+    int visits = 0;
+    bridge_internal_for_each_ready_child(__count_child, &visits);
+    bridge_internal_for_each_ready_node(__count_node, &visits);
+    TEST_ASSERT_EQUAL(0, visits);
+
+    __teardown();
+}
+
 /* Topic parser: extended edge cases ****************************************/
 
 void test_bridge_parse_child_from_from_cloud_topic_edge_cases(void)

@@ -429,6 +429,12 @@ void bridge_internal_dispatch_child_event(
 esp_rmaker_bridge_child_handle_t bridge_internal_test_seed_child(
     const char *child_suffix, const char *bridge_local_id, const char *thing_name);
 
+/**
+ * @brief Test-only: free the child pool after ::bridge_internal_deinit.
+ * @return ESP_RMAKER_INVALID_STATE if the bridge is still initialized.
+ */
+esp_rmaker_error_t bridge_internal_test_free_pool(void);
+
 /* Pure helpers (exposed for unit testing) ***********************************/
 
 /**

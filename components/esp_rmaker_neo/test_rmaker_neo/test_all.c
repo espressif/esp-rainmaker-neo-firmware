@@ -385,6 +385,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_bridge_accessors_find_by_thing_name_and_local_id);
     RUN_TEST(test_bridge_accessors_slot_pool_exhaustion);
     RUN_TEST(test_bridge_accessors_seed_child_arg_validation);
+    RUN_TEST(test_bridge_accessors_before_init);
     RUN_TEST(test_bridge_parse_child_from_from_cloud_topic_edge_cases);
     RUN_TEST(test_bridge_parse_child_and_shadow_from_params_topic_edge_cases);
     RUN_TEST(test_bridge_suffix_validator_extended);
