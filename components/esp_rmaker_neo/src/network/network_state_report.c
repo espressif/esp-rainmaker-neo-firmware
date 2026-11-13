@@ -46,7 +46,6 @@
 /* Platform common includes */
 #include "osal_log.h"
 #include "osal_scheduler.h"
-#include "osal_semaphore.h"
 #include "osal_ticks.h"
 #include "osal_mem_alloc.h"
 #include "osal_time.h"
@@ -141,16 +140,6 @@ static atomic_uint __pending_state_unsub_count;
  * @brief Tag for logging.
  */
 static const char *TAG = "rmng_net_state_rpt";
-
-/**
- * @brief Mutex for state change management.
- */
-static osal_semaphore_handle_t state_mutex;
-
-/**
- * @brief Flag to indicate if the state report is for all parameters.
- */
-static atomic_bool state_report_all = false;
 
 /**
  * @brief Count of state report updates pending.
@@ -283,16 +272,7 @@ static int __build_named_topic_for_node(const esp_rmaker_node_t *node, char *buf
 /* Build the indexed (iparams) shadow update topic for the given node. */
 static int __build_indexed_topic_for_node(const esp_rmaker_node_t *node, char *buf, size_t size);
 /* Per-node publish + reset routine, called by __state_report_task. */
-static void __publish_node_locked(const esp_rmaker_node_t *node, uint8_t flags, state_report_notify_info_t *p_notify_info, bool *out_failed_any);
-
-/**
- * @brief Reset the flags after populating the payloads.
- * - All report flags are reset.
- * - All parameter flags that AND to the flags passed in are reset.
- *
- * @param[in] flags Signal flags to reset. A '0' indicates to reset all flags. Of type esp_rmaker_signal_flags_t.
- */
-static void __reset_flags(uint8_t flags);
+static void __publish_node_locked(const esp_rmaker_node_t *node, state_report_notify_info_t *p_notify_info, bool *out_failed_any);
 
 /**
  * @brief Insert an update info into the list sorted by update ID.
@@ -518,7 +498,7 @@ static void __mqtt_on_complete_event_handler(void *event_handler_arg, osal_event
         OSAL_LOGI(TAG, "Published state report (named): %s", status_str);
         __decrement_state_report_updates_pending();
         if (!status_success) {
-            /* Force a full report; updates/flags might have been cleared */
+            /* Force a full report; updates might have been cleared */
             esp_rmaker_state_schedule_report(true);
         }
         break;
@@ -526,7 +506,7 @@ static void __mqtt_on_complete_event_handler(void *event_handler_arg, osal_event
         OSAL_LOGI(TAG, "Published state report (indexed): %s", status_str);
         __commit_pending_tag_checksums(status_success);
         if (!status_success) {
-            /* Force a full report; updates/flags might have been cleared */
+            /* Force a full report; updates might have been cleared */
             esp_rmaker_state_schedule_report(true);
         }
         __decrement_state_report_updates_pending();
@@ -687,7 +667,6 @@ static void __state_report_scheduler_task(void *unused)
 }
 
 typedef struct {
-    uint8_t flags;
     state_report_notify_info_t *p_notify_info;
     bool *failed_any_publish;
 } __state_report_visitor_priv_t;
@@ -699,12 +678,12 @@ static esp_rmaker_error_t __state_report_visitor(const esp_rmaker_node_t *node, 
      * tag_check; hold the node lock. Children are visited under the bridge
      * pool lock (bridge > node ordering preserved). */
     esp_rmaker_node_lock(node);
-    __publish_node_locked(node, p->flags, p->p_notify_info, p->failed_any_publish);
+    __publish_node_locked(node, p->p_notify_info, p->failed_any_publish);
     esp_rmaker_node_unlock(node);
     return ESP_RMAKER_OK;
 }
 
-static void __publish_node_locked(const esp_rmaker_node_t *node_handle, uint8_t flags, state_report_notify_info_t *p_notify_info, bool *out_failed_any)
+static void __publish_node_locked(const esp_rmaker_node_t *node_handle, state_report_notify_info_t *p_notify_info, bool *out_failed_any)
 {
     node_state_pipeline_state_t *ctx = __pipeline_of(node_handle);
     if (!ctx || ctx->head == NULL) {
@@ -875,9 +854,6 @@ static void __publish_node_locked(const esp_rmaker_node_t *node_handle, uint8_t 
     }
 
     if (!ctx_failed) {
-        if (is_self) {
-            __reset_flags(flags);
-        }
         __reset_node_update_list_locked(node_handle);
     } else if (out_failed_any) {
         *out_failed_any = true;
@@ -901,14 +877,7 @@ static void __state_report_task(void *unused)
         return;
     }
 
-    OSAL_LOGI(TAG, "Reporting state: %s", state_report_all ? "All parameters" : "Only changed parameters");
-
-    /* Get flags */
-    uint8_t flags = state_report_all ? 0 : RMAKER_SIGNAL_FLAG_VALUE_CHANGE;
-
-    /* Reset state report all flag */
-    bool was_state_report_all = state_report_all;
-    state_report_all = false;
+    OSAL_LOGI(TAG, "Reporting state");
 
     bool failed_any_publish = false;
 
@@ -925,20 +894,12 @@ static void __state_report_task(void *unused)
     /* Walk every node (self + ready bridge children via the node
      * visitor). Each publish-node call runs under that node's lock (taken
      * inside the visitor), computes its own tag-changed status against the
-     * node's cached hash, and skips nodes with an empty pending list. The
-     * global state_mutex is NOT held across the drain - per-node state is
-     * serialized by the per-node lock. */
-    __state_report_visitor_priv_t pub_ctx = { flags, p_notify_info, &failed_any_publish };
+     * node's cached hash, and skips nodes with an empty pending list. */
+    __state_report_visitor_priv_t pub_ctx = { p_notify_info, &failed_any_publish };
     esp_rmaker_node_for_each(__state_report_visitor, &pub_ctx);
 
-    /* Global scheduler/retry bookkeeping is shared across nodes - serialize
-     * it with the (now narrow) state_mutex. Never held while taking a node
-     * or bridge lock. */
-    esp_rmaker_state_lock();
     if (failed_any_publish) {
         OSAL_LOGE(TAG, "Failed to publish some data. Scheduling next retry...");
-        /* Schedule the next retry with the same report all flag */
-        state_report_all = was_state_report_all;
         esp_rmaker_error_t retry_err = esp_rmaker_backoff_retry(&__state_retry_contexts.state_report, __state_report_scheduler_task, NULL);
         if (retry_err != ESP_RMAKER_OK) {
             OSAL_LOGE(TAG, "Failed to schedule next state report retry: %d", retry_err);
@@ -946,7 +907,6 @@ static void __state_report_task(void *unused)
     } else {
         esp_rmaker_backoff_reset(&__state_retry_contexts.state_report, STATE_REPORT_DELAY_MS);
     }
-    esp_rmaker_state_unlock();
 }
 
 static esp_rmaker_error_t __populate_full_state_for_node(const esp_rmaker_node_t *node)
@@ -1180,25 +1140,6 @@ static esp_rmaker_error_t __populate_shadow_payloads(const esp_rmaker_node_t *no
     *indexed_payload_len = json_gen_str_end(&jstr_indexed);
 
     return ESP_RMAKER_OK;
-}
-
-static void __reset_flags(uint8_t flags)
-{
-    /* Get node */
-    const esp_rmaker_node_t *node = esp_rmaker_get_node();
-    if (!node) {
-        return;
-    }
-    _esp_rmaker_node_t *_node = (_esp_rmaker_node_t *)node;
-
-    /* Reset the tag flags. (Node-level report flags retired together with
-     * RMAKER_NODE_REPORT_FLAG_NCFG_VER - ncfg_ver is now piggybacked via
-     * the state update list.) */
-    esp_rmaker_tag_t *tag = _node->tags;
-    while (tag) {
-        tag->flags &= !flags ? ~RMAKER_SIGNAL_FLAG_VALUE_ALL : ~flags;
-        tag = tag->next;
-    }
 }
 
 static void __reset_node_update_list_locked(const esp_rmaker_node_t *node)
@@ -1445,13 +1386,6 @@ esp_rmaker_error_t esp_rmaker_state_init(void)
         return err;
     }
 
-    /* Create the mutex */
-    state_mutex = osal_semaphore_create_mutex();
-    if (!state_mutex) {
-        OSAL_LOGE(TAG, "Failed to create mutex for state change management");
-        return ESP_RMAKER_FAIL;
-    }
-
     /* Initialize the retry contexts */
     __state_retry_contexts = (__state_retry_contexts_t) {
         .state_subscribe = {
@@ -1503,31 +1437,6 @@ esp_rmaker_error_t esp_rmaker_state_deinit(void)
      * under its own lock. */
     esp_rmaker_state_drop_all_nodes();
 
-    if (state_mutex) {
-        osal_semaphore_delete(state_mutex);
-        state_mutex = NULL;
-    }
-
-    return ESP_RMAKER_OK;
-}
-
-esp_rmaker_error_t esp_rmaker_state_lock(void)
-{
-    osal_err_t err = osal_semaphore_take(state_mutex, OSAL_MAX_DELAY);
-    if (err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to lock state change management: %d", err);
-        return ESP_RMAKER_FAIL;
-    }
-    return ESP_RMAKER_OK;
-}
-
-esp_rmaker_error_t esp_rmaker_state_unlock(void)
-{
-    osal_err_t err = osal_semaphore_give(state_mutex);
-    if (err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to unlock state change management: %d", err);
-        return ESP_RMAKER_FAIL;
-    }
     return ESP_RMAKER_OK;
 }
 
@@ -1648,9 +1557,7 @@ esp_rmaker_error_t esp_rmaker_state_stop_listening(uint32_t timeout_ms)
 
 esp_rmaker_error_t esp_rmaker_state_stop_reporting(void)
 {
-    esp_rmaker_state_lock();
     esp_rmaker_backoff_reset(&__state_retry_contexts.state_report, STATE_REPORT_DELAY_MS);
-    esp_rmaker_state_unlock();
     return ESP_RMAKER_OK;
 }
 
@@ -1671,12 +1578,6 @@ esp_rmaker_error_t esp_rmaker_state_schedule_report_for_node(const esp_rmaker_no
         }
     }
 
-    /* The state_report_all flag is global by design: when any node schedules
-     * a full report, the next drain emits both named (`reported`) and
-     * indexed shadows for nodes that have a non-empty list, ensuring fresh
-     * shadows aren't shadowed by stale indexed payloads. */
-    state_report_all |= report_all;
-
     /* Schedule the report using the default delay */
     esp_rmaker_error_t err = esp_rmaker_backoff_fire(&__state_retry_contexts.state_report, __state_report_scheduler_task, NULL);
     if (err != ESP_RMAKER_OK) {
@@ -1686,7 +1587,7 @@ esp_rmaker_error_t esp_rmaker_state_schedule_report_for_node(const esp_rmaker_no
 
     char __tname[RMAKER_THING_NAME_BUFFER_SIZE];
     esp_rmaker_node_resolve_thing_name(node, __tname, sizeof(__tname));
-    OSAL_LOGD(TAG, "Scheduled state report task for %s state ('%s')", state_report_all ? "entire" : "changed", __tname);
+    OSAL_LOGD(TAG, "Scheduled state report task for %s state ('%s')", report_all ? "entire" : "changed", __tname);
     return ESP_RMAKER_OK;
 }
 
@@ -1710,7 +1611,6 @@ esp_rmaker_error_t esp_rmaker_state_report(bool report_all)
     esp_rmaker_backoff_reset(&__state_retry_contexts.state_report, STATE_REPORT_DELAY_MS);
 
     // Report the state immediately.
-    state_report_all |= report_all;
     __state_report_scheduler_task(NULL);
     return ESP_RMAKER_OK;
 }

@@ -117,22 +117,6 @@ esp_rmaker_error_t esp_rmaker_state_init(void);
 esp_rmaker_error_t esp_rmaker_state_deinit(void);
 
 /**
- * @brief Lock the state. Should be called before any operation that modifies the state.
- * @note The 'state' here refers to anything that is updated to the shadows.
- *
- * @return ESP_RMAKER_OK on success, otherwise error code.
- */
-esp_rmaker_error_t esp_rmaker_state_lock(void);
-
-/**
- * @brief Unlock the state. Should be called after any operation that modifies the state.
- * @note The 'state' here refers to anything that is updated to the shadows.
- *
- * @return ESP_RMAKER_OK on success, otherwise error code.
- */
-esp_rmaker_error_t esp_rmaker_state_unlock(void);
-
-/**
  * @brief Attempt to start listening for state changes, i.e., subscribe to the 'params to node' topic.
  * @note This will continue to retry until the subscription is successful.
  * @note This function will not block.

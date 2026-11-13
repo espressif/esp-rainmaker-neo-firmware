@@ -317,7 +317,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_local_config_parse_group_info_null_subgroups);
 
     /* State changes ****************************************************************/
-    RUN_TEST(test_state_changes_lock_unlock);
+    RUN_TEST(test_state_changes_init_deinit);
     RUN_TEST(test_state_changes_concurrent_mark_and_drain);
     RUN_TEST(test_state_update_id_compare_orders_by_address);
     RUN_TEST(test_get_all_rejects_null_ctx);

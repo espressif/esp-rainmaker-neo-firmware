@@ -123,9 +123,6 @@ static esp_rmaker_error_t __esp_rmaker_node_add_tag(const esp_rmaker_node_t *nod
                 esp_rmaker_node_unlock(node);
                 return ESP_RMAKER_NO_MEM;
             }
-            if (report_to_cloud) {
-                tag->flags |= RMAKER_SIGNAL_FLAG_VALUE_CHANGE;
-            }
             esp_rmaker_node_unlock(node);
             OSAL_LOGI(TAG, "Node tag '%s': '%s' updated", tag_name, tag_value);
             if (report_to_cloud) {
@@ -148,9 +145,6 @@ static esp_rmaker_error_t __esp_rmaker_node_add_tag(const esp_rmaker_node_t *nod
         OSAL_LOGE(TAG, "Failed to allocate memory for name/value for tag '%s'.", tag_name);
         esp_rmaker_tag_delete(tag);
         return ESP_RMAKER_NO_MEM;
-    }
-    if (report_to_cloud) {
-        tag->flags |= RMAKER_SIGNAL_FLAG_VALUE_CHANGE;
     }
     esp_rmaker_node_lock(node);
     if (prev_tag) {

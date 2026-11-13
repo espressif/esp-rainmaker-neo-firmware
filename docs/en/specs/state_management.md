@@ -125,7 +125,7 @@ Notification settings do **not** trigger a report on their own: `notify` is atta
 
 - **QoS 1**: Shadow updates use QoS 1 for at least-once delivery
 - **Accepted Topics**: The node subscribes to the shadow `get/accepted` topics (see [Shadow Topics](networking/mqtt_topics.md#named-shadow-get-publish-and-get-accepted-subscribe)) but does not require acknowledgment before proceeding
-- **Publish Failure**: A publish that fails synchronously keeps the node's pending-update list and change flags, so the retry repeats the *original* scope rather than escalating to a full report (see [Error Handling and Recovery Strategies](error_handling.md))
+- **Publish Failure**: A publish that fails synchronously keeps the node's pending-update list, so the retry repeats the *original* scope rather than escalating to a full report (see [Error Handling and Recovery Strategies](error_handling.md))
 - **PUBACK Failure**: A failed shadow PUBACK schedules a subsequent **full** state report, retried with exponential backoff (base = the coalescing delay, ×2 per attempt, capped at 5 minutes, with up to 1 s of jitter). For the indexed shadow the pending node-tag checksum is **not** committed, so the tag set is re-emitted in that full report
 
 ### Named Shadow
