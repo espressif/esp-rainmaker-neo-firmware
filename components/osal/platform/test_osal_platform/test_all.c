@@ -36,6 +36,7 @@ int test_osal_platform_all_tests_unity(void)
     RUN_TEST(test_scheduler_basic);
     RUN_TEST(test_scheduler_periodic_basic);
     RUN_TEST(test_scheduler_periodic_virtual_time_advance);
+    RUN_TEST(test_scheduler_is_active);
     RUN_TEST(test_task_basic);
     RUN_TEST(test_random_basic);
     RUN_TEST(test_sysinfo_platform_name);

@@ -240,6 +240,16 @@ void test_rmaker_get_cert_cn(void);
 void test_backoff_retry_successful_schedule(void);
 
 /**
+ * @brief Test that updates during a backoff do not move the pending retry later.
+ */
+void test_backoff_fire_keep_retry_pending(void);
+
+/**
+ * @brief Test that an update without a backoff restarts the delay.
+ */
+void test_backoff_fire_keep_retry_restarts_delay(void);
+
+/**
  * @brief Test that retry does not re-arm a timer that a concurrent reset cancels.
  */
 void test_backoff_race_reset_vs_retry(void);
@@ -253,6 +263,11 @@ void test_backoff_race_concurrent_schedule(void);
  * @brief Test that a reset cancels the timer of a retry that is in progress.
  */
 void test_backoff_race_reset_during_retry(void);
+
+/**
+ * @brief Test that a keep call during a held pending retry does not replace that retry.
+ */
+void test_backoff_race_keep_vs_keep(void);
 
 /* rmaker_aws_sign osal port **************************************************/
 

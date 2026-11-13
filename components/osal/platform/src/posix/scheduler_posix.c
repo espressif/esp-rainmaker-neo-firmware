@@ -214,6 +214,18 @@ osal_err_t osal_scheduler_stop_timer(osal_scheduler_task_handle_t handle)
     return OSAL_ERR_OK;
 }
 
+bool osal_scheduler_is_active(osal_scheduler_task_handle_t handle)
+{
+    if (!is_initialized || handle == NULL) {
+        return false;
+    }
+    platform_posix_scheduled_task_t *t = (platform_posix_scheduled_task_t *)handle;
+    pthread_mutex_lock(&t->mutex);
+    bool active = t->running && t->is_active && t->has_due;
+    pthread_mutex_unlock(&t->mutex);
+    return active;
+}
+
 osal_err_t osal_scheduler_cancel_task(osal_scheduler_task_handle_t *handle)
 {
     if (!is_initialized) {

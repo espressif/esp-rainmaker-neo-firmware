@@ -222,6 +222,7 @@ static mqtt_downloader_ctx_t g_mqtt_downloader_ctx = {0};
 static esp_rmaker_backoff_retry_context_t g_sub_retry_ctx = {
     .handle = NULL,
     .reset_gen = 0,
+    .busy = 0,
     .delay_ctx = {
         .delay_ms = {
             .current = MQTT_DOWNLOADER_SUB_RETRY_BASE_DELAY_MS,

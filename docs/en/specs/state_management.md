@@ -102,7 +102,7 @@ Notification settings do **not** trigger a report on their own: `notify` is atta
 
 **Update Timing**:
 
-- **Coalescing Window**: A state change schedules the report after `CONFIG_ESP_RMAKER_NEO_STATE_REPORT_DELAY_MS` (default 500 ms). Any further change inside that window restarts the timer, so a burst of updates collapses into one report
+- **Coalescing Window**: A state change schedules the report after `CONFIG_ESP_RMAKER_NEO_STATE_REPORT_DELAY_MS` (default 500 ms). Any further change inside that window restarts the timer, so a burst of updates collapses into one report. After a failed report, a change does not move the pending retry later. While the retry backoff lasts, a change with no pending retry waits for the backoff delay
 - **Batching**: All changes pending when the timer fires go into a single shadow update per shadow
 - **Separate Updates**: Named shadow and indexed shadow are published as two independent MQTT messages
 

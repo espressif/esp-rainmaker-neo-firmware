@@ -461,6 +461,17 @@ osal_err_t osal_scheduler_stop_timer(osal_scheduler_task_handle_t handle)
     return OSAL_ERR_OK;
 }
 
+bool osal_scheduler_is_active(osal_scheduler_task_handle_t handle)
+{
+    __scheduled_task_t *t = (__scheduled_task_t *)handle;
+    if (t == NULL || !__scheduled_tasks_lock()) {
+        return false;
+    }
+    bool active = t->due_time_ms != VIRTUAL_SCHEDULER_PARKED_MS;
+    __scheduled_tasks_unlock();
+    return active;
+}
+
 osal_err_t osal_scheduler_cancel_task(osal_scheduler_task_handle_t *handle)
 {
     __scheduled_task_t *t = (__scheduled_task_t *) *handle;

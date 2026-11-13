@@ -64,6 +64,7 @@ static bool is_initialized = false;
 #define TIMER_FLAG_STOPPED     (1U << 2) /* stopped by the API: expiries are ignored until the next reset */
 #define TIMER_FLAG_IN_CALLBACK (1U << 3) /* the dispatch task is using this block right now */
 #define TIMER_FLAG_CANCELLED   (1U << 4) /* cancelled: never runs again; the dispatch task tears it down if it holds the block */
+#define TIMER_FLAG_ARMED       (1U << 5) /* armed by the API; a one-shot clears it when the dispatch task takes its run */
 
 /* Flags that stop queued expiries from running */
 #define TIMER_FLAGS_NO_RUN     (TIMER_FLAG_CANCELLED | TIMER_FLAG_STOPPED)
@@ -238,6 +239,7 @@ static void __publish_reset(void *timer, uint32_t reset_seq)
 static uint32_t __mark_stopped_locked(__scheduler_timer_priv_data_t *timer_priv_data)
 {
     timer_priv_data->flags |= TIMER_FLAG_STOPPED;
+    timer_priv_data->flags &= ~TIMER_FLAG_ARMED;
     timer_priv_data->pending_fires = 0;
     return ++timer_priv_data->reset_seq;
 }
@@ -295,6 +297,9 @@ static void __dispatch_one(__scheduler_timer_priv_data_t *timer_priv_data)
     timer_priv_data->flags &= ~TIMER_FLAG_QUEUED;
     uint32_t taken_seq = timer_priv_data->reset_seq;
     bool is_periodic = (timer_priv_data->flags & TIMER_FLAG_PERIODIC) != 0;
+    if (may_run && step.run_task && !step.rearm && !is_periodic) {
+        timer_priv_data->flags &= ~TIMER_FLAG_ARMED;
+    }
     taskEXIT_CRITICAL(&s_priv_data_lock);
 
     if (!may_run) {
@@ -308,6 +313,9 @@ static void __dispatch_one(__scheduler_timer_priv_data_t *timer_priv_data)
             taskEXIT_CRITICAL(&s_priv_data_lock);
         } else {
             OSAL_LOGE(TAG, "Failed to arm the timer (%llu ticks).", (unsigned long long) step.arm_ticks);
+            taskENTER_CRITICAL(&s_priv_data_lock);
+            timer_priv_data->flags &= ~TIMER_FLAG_ARMED;
+            taskEXIT_CRITICAL(&s_priv_data_lock);
         }
     }
     if (hold) {
@@ -483,7 +491,7 @@ static osal_err_t osal_scheduler_schedule_task_internal(osal_scheduler_task_hand
         *handle = NULL;
         return OSAL_ERR_NO_MEM;
     }
-    timer_priv_data->flags = is_periodic ? TIMER_FLAG_PERIODIC : 0;
+    timer_priv_data->flags = TIMER_FLAG_ARMED | (is_periodic ? TIMER_FLAG_PERIODIC : 0);
     timer_priv_data->total_ticks = total_ticks;
     timer_priv_data->segment_start = __now_ticks();
     timer_priv_data->deadline_ticks = timer_priv_data->segment_start + total_ticks;
@@ -549,6 +557,7 @@ osal_err_t osal_scheduler_reset_timer(osal_scheduler_task_handle_t handle, uint6
     if (timer_priv_data != NULL) {
         timer_priv_data->reset_ticks = total_ticks;
         reset_seq = __mark_stopped_locked(timer_priv_data);
+        timer_priv_data->flags |= TIMER_FLAG_ARMED;
     }
     taskEXIT_CRITICAL(&s_priv_data_lock);
 
@@ -559,6 +568,10 @@ osal_err_t osal_scheduler_reset_timer(osal_scheduler_task_handle_t handle, uint6
             xTimerPendFunctionCall(__publish_reset, timer_handle, reset_seq, portMAX_DELAY) == pdPASS &&
             xTimerChangePeriod(timer_handle, delay_ticks, portMAX_DELAY) == pdPASS) {
         err = OSAL_ERR_OK;
+    } else if (timer_priv_data != NULL) {
+        taskENTER_CRITICAL(&s_priv_data_lock);
+        timer_priv_data->flags &= ~TIMER_FLAG_ARMED;
+        taskEXIT_CRITICAL(&s_priv_data_lock);
     }
 
     xSemaphoreGive(s_cmd_mutex);
@@ -594,6 +607,21 @@ osal_err_t osal_scheduler_stop_timer(osal_scheduler_task_handle_t handle)
     }
     xSemaphoreGive(s_cmd_mutex);
     return err;
+}
+
+bool osal_scheduler_is_active(osal_scheduler_task_handle_t handle)
+{
+    if (!is_initialized || !handle) {
+        return false;
+    }
+
+    /* Not TIMER_FLAG_STOPPED: a reset also sets it until the daemon task publishes the reset */
+    taskENTER_CRITICAL(&s_priv_data_lock);
+    __scheduler_timer_priv_data_t *timer_priv_data = __scheduler_timer_priv_data_get((TimerHandle_t) handle);
+    bool active = timer_priv_data != NULL &&
+                  (timer_priv_data->flags & (TIMER_FLAG_ARMED | TIMER_FLAG_CANCELLED)) == TIMER_FLAG_ARMED;
+    taskEXIT_CRITICAL(&s_priv_data_lock);
+    return active;
 }
 
 osal_err_t osal_scheduler_cancel_task(osal_scheduler_task_handle_t *handle)

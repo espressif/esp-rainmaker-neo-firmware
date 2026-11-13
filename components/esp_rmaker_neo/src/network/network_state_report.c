@@ -243,6 +243,11 @@ static void __state_report_scheduler_task(void *unused);
 static void __state_report_task(void *unused);
 
 /**
+ * @brief Reset the state report backoff, and schedule a report for updates that arrived during the run.
+ */
+static void __state_report_succeeded(void);
+
+/**
  * @brief Populate the full state for a given node.
  *
  * @param[in] node Node whose state to populate. Pass NULL for the self node.
@@ -920,7 +925,33 @@ static void __state_report_task(void *unused)
             OSAL_LOGE(TAG, "Failed to schedule next state report retry: %d", retry_err);
         }
     } else {
-        esp_rmaker_backoff_reset(&__state_retry_contexts.state_report, STATE_REPORT_DELAY_MS);
+        __state_report_succeeded();
+    }
+}
+
+static esp_rmaker_error_t __has_pending_visitor(const esp_rmaker_node_t *node, void *priv)
+{
+    esp_rmaker_node_lock(node);
+    if (__pipeline_of(node)->head != NULL) {
+        *(bool *)priv = true;
+    }
+    esp_rmaker_node_unlock(node);
+    return ESP_RMAKER_OK;
+}
+
+static void __state_report_succeeded(void)
+{
+    esp_rmaker_backoff_reset(&__state_retry_contexts.state_report, STATE_REPORT_DELAY_MS);
+
+    /* The reset cancels a timer that an update armed after its node was drained; arm it again. */
+    bool pending = false;
+    esp_rmaker_node_for_each(__has_pending_visitor, &pending);
+    if (!pending || !esp_rmaker_should_do_work()) {
+        return;
+    }
+    esp_rmaker_error_t err = esp_rmaker_backoff_fire_keep_retry(&__state_retry_contexts.state_report, STATE_REPORT_DELAY_MS, __state_report_scheduler_task, NULL);
+    if (err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to schedule state report for late updates: %d", err);
     }
 }
 
@@ -1418,6 +1449,8 @@ esp_rmaker_error_t esp_rmaker_state_init(void)
         },
         .state_report = {
             .handle = NULL,
+            .reset_gen = 0,
+            .busy = 0,
             .delay_ctx = {
                 .delay_ms = {
                     .current = STATE_REPORT_DELAY_MS,
@@ -1593,8 +1626,8 @@ esp_rmaker_error_t esp_rmaker_state_schedule_report_for_node(const esp_rmaker_no
         }
     }
 
-    /* Schedule the report using the default delay */
-    esp_rmaker_error_t err = esp_rmaker_backoff_fire(&__state_retry_contexts.state_report, __state_report_scheduler_task, NULL);
+    /* Restart the debounce delay; a pending backoff retry keeps its time */
+    esp_rmaker_error_t err = esp_rmaker_backoff_fire_keep_retry(&__state_retry_contexts.state_report, STATE_REPORT_DELAY_MS, __state_report_scheduler_task, NULL);
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to schedule state report task: %d", err);
         return err;

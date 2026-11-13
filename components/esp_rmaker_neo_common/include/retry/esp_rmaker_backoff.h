@@ -52,6 +52,7 @@ typedef struct {
 typedef struct {
     osal_scheduler_task_handle_t handle; /**< The handle for the scheduled task */
     uint32_t reset_gen; /**< Reset count, so that a retry in progress can detect a concurrent reset */
+    uint32_t busy; /**< Count of schedule calls in progress, so that a keep-mode call can detect a held handle */
     esp_rmaker_backoff_delay_context_t delay_ctx; /**< The backoff delay context for the retry algorithm */
 } esp_rmaker_backoff_retry_context_t;
 
@@ -66,6 +67,7 @@ typedef struct {
 #define ESP_RMAKER_BACKOFF_DEFAULT_RETRY_CONTEXT() (esp_rmaker_backoff_retry_context_t) { \
     .handle = NULL, \
     .reset_gen = 0, \
+    .busy = 0, \
     .delay_ctx = { \
         .delay_ms = { \
             .current = 1000, /* 1 second */ \
@@ -119,6 +121,16 @@ esp_rmaker_error_t esp_rmaker_backoff_retry(esp_rmaker_backoff_retry_context_t *
  * @return ESP_RMAKER_OK on success, otherwise error code.
  */
 esp_rmaker_error_t esp_rmaker_backoff_fire(esp_rmaker_backoff_retry_context_t *p_retry_context, osal_scheduler_task_t task, void *arg);
+
+/**
+ * @brief Schedule a task like esp_rmaker_backoff_fire(), but do not move a pending backoff retry later.
+ * @param[in,out] p_retry_context The context for the backoff function.
+ * @param[in] base_delay_ms The delay without a backoff; at or below it, the timer restarts like fire().
+ * @param[in] task The task to schedule.
+ * @param[in] arg The argument to pass to the task.
+ * @return ESP_RMAKER_OK on success, otherwise error code.
+ */
+esp_rmaker_error_t esp_rmaker_backoff_fire_keep_retry(esp_rmaker_backoff_retry_context_t *p_retry_context, uint64_t base_delay_ms, osal_scheduler_task_t task, void *arg);
 
 #ifdef __cplusplus
 }

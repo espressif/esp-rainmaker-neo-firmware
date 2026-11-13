@@ -66,9 +66,12 @@ int test_rmaker_neo_common_all_tests_unity(void)
 
     /* Retry **********************************************************************/
     RUN_TEST(test_backoff_retry_successful_schedule);
+    RUN_TEST(test_backoff_fire_keep_retry_pending);
+    RUN_TEST(test_backoff_fire_keep_retry_restarts_delay);
     RUN_TEST(test_backoff_race_reset_vs_retry);
     RUN_TEST(test_backoff_race_concurrent_schedule);
     RUN_TEST(test_backoff_race_reset_during_retry);
+    RUN_TEST(test_backoff_race_keep_vs_keep);
 
     /* rmaker_aws_sign osal port **************************************************/
 #if CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT

@@ -135,6 +135,11 @@ void test_scheduler_periodic_basic(void);
  * @brief Test the periodic scheduler virtual time advance functionality
  */
 void test_scheduler_periodic_virtual_time_advance(void);
+
+/**
+ * @brief Test that is_active follows the arm, fire, reset and stop of a task
+ */
+void test_scheduler_is_active(void);
 /**
  * @brief Test the task functionality
  */
