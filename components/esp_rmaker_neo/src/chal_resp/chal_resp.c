@@ -19,7 +19,6 @@
 
 /* Platform common includes */
 #include "osal_log.h"
-#include "osal_event_loop.h"
 #include "osal_mem_alloc.h"
 
 /* Protobuf includes */
@@ -40,18 +39,9 @@ static void __chal_resp_persist_disabled(void);
 /* Prov registry includes */
 #include "prov_helpers.h"
 
-/* Preprocessor definitions *******************************************************/
-
-#define RMAKER_EXTRA_APP_NAME    "rmaker_extra"
-#define RMAKER_EXTRA_APP_VERSION "1.0"
-
 /* Variables *******************************************************/
 
 static const char *TAG = "rmng_chal_resp";
-
-static prov_registration_info_t prov_info;
-
-static const char *__app_info_capabilities[] = { RMAKER_CHAL_RESP_ENDPOINT_NAME };
 
 /**
  * @brief Flag to indicate if the challenge response is disabled.
@@ -86,17 +76,6 @@ static esp_rmaker_error_t __handle_challenge(const uint8_t *challenge, size_t ch
  */
 static osal_err_t __chal_resp_endpoint_handler(uint32_t session_id, const uint8_t *inbuf, ssize_t inlen,
         uint8_t **outbuf, ssize_t *outlen, void *priv_data);
-
-/**
- * @brief Challenge response event handler.
- *
- * @param[in] arg The argument.
- * @param[in] event_base The event base.
- * @param[in] event_id The event ID.
- * @param[in] event_data The event data.
- */
-static void __chal_resp_event_handler(void *arg, osal_event_base_t event_base,
-                                      int32_t event_id, void *event_data);
 
 /* Private function definitions *******************************************************/
 
@@ -305,55 +284,28 @@ cleanup:
     return ret;
 }
 
-static void __chal_resp_event_handler(void *arg, osal_event_base_t event_base,
-                                      int32_t event_id, void *event_data)
-{
-    static const prov_endpoint_t endpoint = {
-        .name = RMAKER_CHAL_RESP_ENDPOINT_NAME,
-        .handler = __chal_resp_endpoint_handler,
-        .priv_data = NULL,
-        .app_info = {
-            .label = RMAKER_EXTRA_APP_NAME,
-            .version = RMAKER_EXTRA_APP_VERSION,
-            .capabilities = __app_info_capabilities,
-            .total_capabilities = sizeof(__app_info_capabilities) / sizeof(__app_info_capabilities[0]),
-        },
-    };
-    if (event_base == prov_info.event_base) {
-        if (event_id == prov_info.event_ids.prov_init) {
-            if (prov_info.actions.endpoint_create(&endpoint) != OSAL_ERR_OK) {
-                OSAL_LOGE(TAG, "Failed to create challenge response endpoint.");
-            }
-        } else if (event_id == prov_info.event_ids.prov_start) {
-            if (prov_info.actions.endpoint_register(&endpoint) != OSAL_ERR_OK) {
-                OSAL_LOGE(TAG, "Failed to register challenge response endpoint.");
-            }
-        }
-    }
-}
+static const prov_endpoint_t chal_resp_endpoint = {
+    .name = RMAKER_CHAL_RESP_ENDPOINT_NAME,
+    .handler = __chal_resp_endpoint_handler,
+    .priv_data = NULL,
+};
+
+static const prov_capability_t chal_resp_capability = {
+    .label = PROV_APP_LABEL_RMAKER_EXTRA,
+    .capability = RMAKER_CHAL_RESP_ENDPOINT_NAME,
+};
 
 /* Public function definitions *******************************************************/
 
 esp_rmaker_error_t esp_rmaker_chal_resp_init(void)
 {
-    /* Get the provisioning registration information */
-    osal_err_t prov_err = prov_get_registration_info(&prov_info);
-    if (prov_err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to get provisioning registration information");
+    if (prov_add_capability(&chal_resp_capability) != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to add the challenge response capability.");
         return ESP_RMAKER_FAIL;
     }
-    OSAL_LOGD(TAG, "Successfully got provisioning registration information: %s", prov_info.event_base);
-
-    /* Register for Wi-Fi Provisioning events */
-    osal_err_t platform_err;
-    platform_err = osal_event_handler_register(prov_info.event_base, prov_info.event_ids.prov_init, __chal_resp_event_handler, NULL);
-    if (platform_err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to register for provisioning initialization event");
-        return ESP_RMAKER_FAIL;
-    }
-    platform_err = osal_event_handler_register(prov_info.event_base, prov_info.event_ids.prov_start, __chal_resp_event_handler, NULL);
-    if (platform_err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to register for provisioning start event");
+    if (prov_add_endpoint(&chal_resp_endpoint) != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to add the challenge response endpoint.");
+        prov_del_capability(&chal_resp_capability);
         return ESP_RMAKER_FAIL;
     }
     return ESP_RMAKER_OK;
@@ -361,19 +313,16 @@ esp_rmaker_error_t esp_rmaker_chal_resp_init(void)
 
 esp_rmaker_error_t esp_rmaker_chal_resp_deinit(void)
 {
-    /* Unregister the event handler */
-    osal_err_t platform_err;
-    platform_err = osal_event_handler_unregister(prov_info.event_base, prov_info.event_ids.prov_init, __chal_resp_event_handler);
-    if (platform_err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to unregister for provisioning initialization event");
-        return ESP_RMAKER_FAIL;
+    esp_rmaker_error_t err = ESP_RMAKER_OK;
+    if (prov_del_endpoint(&chal_resp_endpoint) != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to remove the challenge response endpoint.");
+        err = ESP_RMAKER_FAIL;
     }
-    platform_err = osal_event_handler_unregister(prov_info.event_base, prov_info.event_ids.prov_start, __chal_resp_event_handler);
-    if (platform_err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to unregister for provisioning start event");
-        return ESP_RMAKER_FAIL;
+    if (prov_del_capability(&chal_resp_capability) != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to remove the challenge response capability.");
+        err = ESP_RMAKER_FAIL;
     }
-    return ESP_RMAKER_OK;
+    return err;
 }
 
 /**

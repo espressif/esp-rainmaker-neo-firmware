@@ -55,14 +55,17 @@ osal_err_t __prov_event_loop_init(void)
     return OSAL_ERR_OK;
 }
 
+osal_err_t __prov_backend_app_info_set(const char *label, const char *version,
+                                       const char **capabilities, size_t total_capabilities)
+{
+    if (network_prov_mgr_set_app_info(label, version, capabilities, total_capabilities) != ESP_OK) {
+        return OSAL_ERR_FAIL;
+    }
+    return OSAL_ERR_OK;
+}
+
 osal_err_t __prov_backend_endpoint_create(const prov_endpoint_t *endpoint)
 {
-    network_prov_mgr_set_app_info(
-        endpoint->app_info.label,
-        endpoint->app_info.version,
-        endpoint->app_info.capabilities,
-        endpoint->app_info.total_capabilities
-    );
     if (network_prov_mgr_endpoint_create(endpoint->name) != ESP_OK) {
         return OSAL_ERR_FAIL;
     }

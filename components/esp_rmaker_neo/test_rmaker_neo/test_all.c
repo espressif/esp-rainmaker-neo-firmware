@@ -100,6 +100,15 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_claim_unescape_new_line);
     RUN_TEST(test_claim_command_guards);
     RUN_TEST(test_claim_verify_request);
+
+    RUN_TEST(test_prov_capabilities_merge_under_one_label);
+    RUN_TEST(test_prov_labels_stay_separate);
+    RUN_TEST(test_prov_add_rejects_incomplete_endpoints);
+    RUN_TEST(test_prov_add_rejects_incomplete_capabilities);
+    RUN_TEST(test_prov_add_same_endpoint_overrides);
+    RUN_TEST(test_prov_del_preserves_order);
+    RUN_TEST(test_prov_add_reports_a_full_registry);
+    RUN_TEST(test_prov_readd_after_drain);
     RUN_TEST(test_pb_c_resp_pack_to_buffer);
 
     /* MQTT host migration *********************************************************/

@@ -11,6 +11,7 @@ set(TEST_ESP_RMAKER_NEO_SRCS
     "tests_src/local_ctrl/test_local_ctrl_endpoints.c"
     "tests_src/claim/test_claim.c"
     "tests_src/credentials/test_migration.c"
+    "tests_src/prov/test_prov_helpers.c"
     "tests_src/util/test_checksum_impl.c"
     "tests_src/util/test_trigger_codec.c"
     "tests_src/core/test_core_pre_prov.c"

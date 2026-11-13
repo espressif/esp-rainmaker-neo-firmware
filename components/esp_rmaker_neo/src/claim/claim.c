@@ -57,8 +57,6 @@
 /* Preprocessor definitions *******************************************************/
 
 #define CLAIM_ENDPOINT           "rmaker_claim"
-#define RMAKER_APP_NAME          "rmaker"
-#define RMAKER_APP_VERSION       "1.0"
 
 /** Outbound fragment size. Must match what the phone app expects. */
 #define CLAIM_FRAGMENT_SIZE      200
@@ -84,11 +82,6 @@ typedef struct {
 
 static const char *TAG = "rmng_claim";
 
-static prov_registration_info_t prov_info;
-
-/* Advertised in app-info; the policies travel in the claim-verify "capabilities". */
-static const char *__app_info_capabilities[] = { "claim" };
-
 /** The live claim context, or NULL once it has been released.
  *
  * The endpoint stays registered for as long as the provisioning session lives, and under
@@ -112,7 +105,8 @@ static osal_semaphore_handle_t claim_ctx_lock;
  * next provisioning attempt in the same boot from initialising claiming again. */
 static bool claim_init_done;
 
-/** Signals the end of the claiming exchange, either way. */
+/** Signals the end of the claiming exchange, either way. Kept for the process lifetime, since
+ * a prov_end dispatch in flight can still set bits after teardown. */
 static osal_event_group_handle_t claim_event_group;
 /** The claim succeeded: the certificate is persisted and no retry can follow, since
  * ::RMAKER_CLAIM_STATE_VERIFY_DONE is terminal for every command.
@@ -146,26 +140,26 @@ static esp_rmaker_error_t __handle_claim_init_response(esp_rmaker_claim_data_t *
 static esp_rmaker_error_t __handle_claim_verify_response(esp_rmaker_claim_data_t *claim_data);
 static osal_err_t __claim_endpoint_handler(uint32_t session_id, const uint8_t *inbuf, ssize_t inlen,
         uint8_t **outbuf, ssize_t *outlen, void *priv_data);
-static void __claim_event_handler(void *arg, osal_event_base_t event_base,
-                                  int32_t event_id, void *event_data);
+static void __claim_on_prov_end(void *priv_data);
 
 /* Variables, continued *******************************************************/
 
 /** The endpoint the provisioning registry keeps a pointer to, and hands back to protocomm on
  * every request. It outlives the provisioning session, which outlives the claim context. */
-static prov_endpoint_t claim_endpoint = {
+static const prov_endpoint_t claim_endpoint = {
     .name = CLAIM_ENDPOINT,
     .handler = __claim_endpoint_handler,
     /* Deliberately NULL: the context reaches the handler through ::claim_ctx, under
      * ::claim_ctx_lock, so it cannot be read after esp_rmaker_assisted_claim_perform() has
      * released it. An endpoint that outlives the context must not carry a pointer to it. */
     .priv_data = NULL,
-    .app_info = {
-        .label = RMAKER_APP_NAME,
-        .version = RMAKER_APP_VERSION,
-        .capabilities = __app_info_capabilities,
-        .total_capabilities = sizeof(__app_info_capabilities) / sizeof(__app_info_capabilities[0]),
-    },
+    .on_prov_end = __claim_on_prov_end,
+};
+
+/* Advertised in app-info; the policies travel in the claim-verify "capabilities". */
+static const prov_capability_t claim_capability = {
+    .label = PROV_APP_LABEL_RMAKER,
+    .capability = "claim",
 };
 
 /* Private function definitions *******************************************************/
@@ -791,35 +785,20 @@ static osal_err_t __claim_endpoint_handler(uint32_t session_id, const uint8_t *i
     return OSAL_ERR_OK;
 }
 
-static void __claim_event_handler(void *arg, osal_event_base_t event_base,
-                                  int32_t event_id, void *event_data)
+static void __claim_on_prov_end(void *priv_data)
 {
-    (void)event_data;
-    (void)arg; /* The context reaches the handler through ::claim_ctx. */
+    (void)priv_data; /* The context reaches the handler through ::claim_ctx. */
 
-    if (event_base != prov_info.event_base) {
-        return;
-    }
-    if (event_id == prov_info.event_ids.prov_init) {
-        if (prov_info.actions.endpoint_create(&claim_endpoint) != OSAL_ERR_OK) {
-            OSAL_LOGE(TAG, "Failed to create the claim endpoint.");
-        }
-    } else if (event_id == prov_info.event_ids.prov_start) {
-        if (prov_info.actions.endpoint_register(&claim_endpoint) != OSAL_ERR_OK) {
-            OSAL_LOGE(TAG, "Failed to register the claim endpoint.");
-        }
-    } else if (event_id == prov_info.event_ids.prov_end) {
-        /* The provisioning session has stopped, taking the rmaker_claim endpoint with it, so
-         * no certificate and no abort can arrive from here on. Releasing the wait in
-         * esp_rmaker_assisted_claim_perform() here is what keeps it bounded without inventing
-         * a timeout: this is the exact moment claiming stops being possible.
-         *
-         * esp-rainmaker can wait unbounded because it waits earlier, on a background task
-         * while the session is still live. This SDK waits from esp_rmaker_pre_prov_deinit(),
-         * i.e. after the session, so it needs this signal instead. */
-        if (claim_event_group) {
-            osal_event_group_set_bits(claim_event_group, CLAIM_ABANDONED_BIT);
-        }
+    /* The provisioning session has stopped, taking the rmaker_claim endpoint with it, so
+     * no certificate and no abort can arrive from here on. Releasing the wait in
+     * esp_rmaker_assisted_claim_perform() here is what keeps it bounded without inventing
+     * a timeout: this is the exact moment claiming stops being possible.
+     *
+     * esp-rainmaker can wait unbounded because it waits earlier, on a background task
+     * while the session is still live. This SDK waits from esp_rmaker_pre_prov_deinit(),
+     * i.e. after the session, so it needs this signal instead. */
+    if (claim_event_group) {
+        osal_event_group_set_bits(claim_event_group, CLAIM_ABANDONED_BIT);
     }
 }
 
@@ -940,11 +919,15 @@ esp_rmaker_claim_data_t *esp_rmaker_assisted_claim_init(void)
     OSAL_LOGI(TAG, "Initialising assisted claiming. This may take time.");
 
     esp_rmaker_claim_data_t *claim_data = NULL;
-    claim_event_group = osal_event_group_create();
     if (!claim_event_group) {
-        OSAL_LOGE(TAG, "Couldn't create the claim event group.");
-        return NULL;
+        claim_event_group = osal_event_group_create();
+        if (!claim_event_group) {
+            OSAL_LOGE(TAG, "Couldn't create the claim event group.");
+            return NULL;
+        }
     }
+    /* Drop bits a previous claim, or a late prov_end, left behind. */
+    osal_event_group_clear_bits(claim_event_group, CLAIM_DONE_BIT | CLAIM_ABANDONED_BIT);
     /* Created once and then kept for the lifetime of the process, deliberately: the endpoint
      * handler can be blocked on this lock at the moment claiming is torn down, and deleting a
      * mutex somebody is waiting on cannot be made safe. One mutex is a cheap price. */
@@ -952,8 +935,6 @@ esp_rmaker_claim_data_t *esp_rmaker_assisted_claim_init(void)
         claim_ctx_lock = osal_semaphore_create_mutex();
         if (!claim_ctx_lock) {
             OSAL_LOGE(TAG, "Couldn't create the claim context lock.");
-            osal_event_group_delete(claim_event_group);
-            claim_event_group = NULL;
             return NULL;
         }
     }
@@ -972,28 +953,17 @@ esp_rmaker_claim_data_t *esp_rmaker_assisted_claim_init(void)
         goto fail;
     }
 
-    if (prov_get_registration_info(&prov_info) != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to get the provisioning registration information.");
+    if (prov_add_capability(&claim_capability) != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to add the claim capability.");
         goto fail;
     }
-    if (osal_event_handler_register(prov_info.event_base, prov_info.event_ids.prov_init,
-                                    __claim_event_handler, claim_data) != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to register for the provisioning init event.");
-        goto fail;
-    }
-    if (osal_event_handler_register(prov_info.event_base, prov_info.event_ids.prov_start,
-                                    __claim_event_handler, claim_data) != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to register for the provisioning start event.");
-        osal_event_handler_unregister(prov_info.event_base, prov_info.event_ids.prov_init, __claim_event_handler);
-        goto fail;
-    }
-    /* Not optional: without the end event, a claim the app starts and never finishes leaves
-     * esp_rmaker_assisted_claim_perform() with nothing that can ever wake it. */
-    if (osal_event_handler_register(prov_info.event_base, prov_info.event_ids.prov_end,
-                                    __claim_event_handler, claim_data) != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to register for the provisioning end event.");
-        osal_event_handler_unregister(prov_info.event_base, prov_info.event_ids.prov_init, __claim_event_handler);
-        osal_event_handler_unregister(prov_info.event_base, prov_info.event_ids.prov_start, __claim_event_handler);
+
+    /* Not optional: the registry delivers the prov_end hook, without which a claim the app
+     * starts and never finishes leaves esp_rmaker_assisted_claim_perform() with nothing that
+     * can ever wake it. */
+    if (prov_add_endpoint(&claim_endpoint) != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to add the claim endpoint.");
+        prov_del_capability(&claim_capability);
         goto fail;
     }
 
@@ -1005,9 +975,7 @@ esp_rmaker_claim_data_t *esp_rmaker_assisted_claim_init(void)
 
 fail:
     esp_rmaker_claim_data_free(claim_data);
-    osal_event_group_delete(claim_event_group);
-    claim_event_group = NULL;
-    /* claim_ctx_lock is intentionally kept; see where it is created. */
+    /* claim_ctx_lock and claim_event_group are intentionally kept; see where they are declared. */
     return NULL;
 }
 
@@ -1077,11 +1045,9 @@ esp_rmaker_error_t esp_rmaker_assisted_claim_perform(esp_rmaker_claim_data_t *cl
         }
     }
 
-    /* Unregister before releasing the event group, so the prov_end handler cannot run against
-     * a freed handle. */
-    osal_event_handler_unregister(prov_info.event_base, prov_info.event_ids.prov_init, __claim_event_handler);
-    osal_event_handler_unregister(prov_info.event_base, prov_info.event_ids.prov_start, __claim_event_handler);
-    osal_event_handler_unregister(prov_info.event_base, prov_info.event_ids.prov_end, __claim_event_handler);
+    /* A prov_end dispatch already in flight can still run the hook after this. */
+    prov_del_endpoint(&claim_endpoint);
+    prov_del_capability(&claim_capability);
 
     /* Retire the context before releasing it. The endpoint stays registered until the
      * provisioning session dies, which under CONFIG_APP_NETWORK_ASYNCHRONOUS_CONNECTION=y can
@@ -1097,8 +1063,6 @@ esp_rmaker_error_t esp_rmaker_assisted_claim_perform(esp_rmaker_claim_data_t *cl
     }
 
     esp_rmaker_claim_data_free(claim_data);
-    osal_event_group_delete(claim_event_group);
-    claim_event_group = NULL;
     /* Everything esp_rmaker_assisted_claim_init() set up is gone, so let it run again: a failed
      * claim must not block claiming on a second provisioning attempt in the same boot. */
     claim_init_done = false;
