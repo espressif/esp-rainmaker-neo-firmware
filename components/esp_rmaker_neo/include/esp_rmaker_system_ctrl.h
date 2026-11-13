@@ -193,7 +193,8 @@ esp_rmaker_error_t esp_rmaker_system_ctrl_factory_reset(uint8_t reset_s, int8_t 
  *            immediately; a negative value means do not reboot, leaving the restart to the caller.
  *
  * @return ESP_RMAKER_OK if everything succeeded, ESP_RMAKER_INVALID_STATE if a factory reset is already
- *         running or its reboot is scheduled (nothing is run), otherwise the first error encountered.
+ *         running or its reboot is scheduled (nothing is run), ESP_RMAKER_INVALID_ARG if the network reset
+ *         is skipped, otherwise the first error encountered.
  */
 esp_rmaker_error_t esp_rmaker_system_ctrl_factory_reset_from_participant(esp_rmaker_system_ctrl_factory_reset_wipe_fn_t self,
         esp_rmaker_system_ctrl_network_reset_fn_t network_reset_fn, int8_t reset_reboot_s);
