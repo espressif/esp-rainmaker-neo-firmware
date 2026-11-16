@@ -28,5 +28,6 @@ include:
   - local: .gitlab/environment.yml
   - local: .gitlab/unit_tests.yml
   - local: .gitlab/examples.yml
+  - local: .gitlab/matter.yml
   - local: .gitlab/itests.yml
   - local: .gitlab/docs.yml

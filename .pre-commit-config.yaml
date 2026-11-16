@@ -34,9 +34,13 @@ repos:
 -   repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.10
     hooks:
+    # The Matter mirror vendors scripts/mapping/ from esp-rainmaker-neo-matter-mapping; reformatting it
+    # here would break scripts/sync_mapping.sh --check. Reformat it upstream instead.
     -   id: ruff-check
         args: [ --fix ]
+        exclude: '^components/esp_rmaker_neo_matter_mirror/scripts/mapping/'
     -   id: ruff-format
+        exclude: '^components/esp_rmaker_neo_matter_mirror/scripts/mapping/'
 
 # Kconfig checks
 -   repo: https://github.com/espressif/esp-idf-kconfig.git
@@ -51,7 +55,8 @@ repos:
     rev: v2.4.1
     hooks:
     -   id: codespell
-        args: ["-L", "Nome,pase,PASE,OT"]
+        # CurrentY is the Matter ColorControl attribute
+        args: ["-L", "Nome,pase,PASE,OT,CurrentY"]
 
 # Insert license headers
 # Examples are public-domain; everything else is Apache-2.0.

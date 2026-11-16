@@ -50,6 +50,9 @@ if str(_COMMON_ROOT) not in sys.path:
     sys.path.insert(0, str(_COMMON_ROOT))
 
 from factory_nvs_gen import (  # noqa: E402
+    DEFAULT_HW_VER,
+    DEFAULT_PRODUCT_NAME,
+    DEFAULT_VENDOR_NAME,
     InputError,
     get_idf_bin,
     get_matter_idf_credentials,
@@ -385,6 +388,9 @@ def _generate_one_matter(
     capabilities: list[str] | None,
     vendor_id: int,
     product_id: int,
+    vendor_name: str,
+    product_name: str,
+    hw_ver: int,
     codesign_cert: Path | None,
     idf_warned: list[bool],
 ) -> tuple[int, Path]:
@@ -409,6 +415,9 @@ def _generate_one_matter(
                 bin_path,
                 vendor_id=vendor_id,
                 product_id=product_id,
+                vendor_name=vendor_name,
+                product_name=product_name,
+                hw_ver=hw_ver,
                 work_root=work_root,
             )
         except InputError as exc:
@@ -429,6 +438,13 @@ def _generate_one_matter(
         dac_cert_pem = meta["dac_cert"]
         dac_key_pem = meta["dac_key"]
         qr_payload = meta["qr_payload"]
+        matter_identity = {
+            "vendor_id": meta["vendor_id"],
+            "product_id": meta["product_id"],
+            "vendor_name": meta["vendor_name"],
+            "product_name": meta["product_name"],
+            "hw_ver": meta["hw_ver"],
+        }
 
         thing_key = _thing_name_safe_for_path(thing_name)
         out_dir = _thing_out_dir(
@@ -488,6 +504,7 @@ def _generate_one_matter(
             "matter_factory_bin": str(dest_bin),
             "qr_payload": qr_payload,
             "cloud_node_id": node_id,
+            **matter_identity,
         }
         if codesign_cert is not None:
             factory_payload["codesign_cert"] = str(codesign_cert.resolve())
@@ -508,6 +525,7 @@ def _generate_one_matter(
             "registration": result,
             "matter": True,
             "qr_link": qr_link,
+            **matter_identity,
         }
         (out_dir / "registration.json").write_text(
             json.dumps(reg_meta, indent=2) + "\n", encoding="utf-8"
@@ -545,6 +563,24 @@ def main() -> int:
         type=_parse_hex_int,
         default=0x8001,
         help="Matter product id for mfg tool (default 0x8001)",
+    )
+    parser.add_argument(
+        "--vendor-name",
+        type=str,
+        default=DEFAULT_VENDOR_NAME,
+        help=f"Basic Information VendorName, shown as Manufacturer (default {DEFAULT_VENDOR_NAME!r})",
+    )
+    parser.add_argument(
+        "--product-name",
+        type=str,
+        default=DEFAULT_PRODUCT_NAME,
+        help=f"Basic Information ProductName, shown as Model (default {DEFAULT_PRODUCT_NAME!r})",
+    )
+    parser.add_argument(
+        "--hw-ver",
+        type=int,
+        default=DEFAULT_HW_VER,
+        help=f"Hardware version, used for both the number and its string (default {DEFAULT_HW_VER})",
     )
     parser.add_argument(
         "--codesign-cert",
@@ -700,6 +736,9 @@ def main() -> int:
                 capabilities=capabilities,
                 vendor_id=args.vendor_id,
                 product_id=args.product_id,
+                vendor_name=args.vendor_name,
+                product_name=args.product_name,
+                hw_ver=args.hw_ver,
                 codesign_cert=args.codesign_cert,
                 idf_warned=idf_warned,
             )

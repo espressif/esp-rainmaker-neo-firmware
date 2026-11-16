@@ -1,0 +1,180 @@
+menu "ESP RainMaker Neo Matter Mirror Configuration"
+
+    choice ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE
+        bool "Mapping profile"
+        default ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_ALL
+        help
+            Which device types the mirror's mapping tables are compiled for.
+            The mapping library (mapping/lib/) holds every capability,
+            composite and device-type rule the mirror knows; a profile
+            (mapping/profiles/) names the device types a product ships, and
+            library entries nothing kept references are dropped from the
+            build. Pinning a profile is what keeps unused vocabulary off the
+            flash.
+
+        config ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_ALL
+            bool "All implemented device types"
+
+        config ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_LIGHT
+            bool "Lightbulbs"
+
+        config ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_CUSTOM
+            bool "Custom profile file"
+
+    endchoice
+
+    config ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_PATH
+        string "Custom profile JSON"
+        depends on ESP_RMAKER_NEO_MATTER_MIRROR_PROFILE_CUSTOM
+        help
+            Path to the profile JSON, absolute or relative to the project
+            directory, so a product can keep its profile out of the SDK tree.
+
+    config ESP_RMAKER_NEO_MATTER_MIRROR_EXTRA_LIBS
+        string "Additional mapping library JSON files"
+        default ""
+        help
+            Semicolon-separated paths to extra library files, merged after the
+            shipped one: a product's own capabilities, composites and
+            device-type rules, without editing the SDK's library. Absolute, or
+            relative to the project directory. A key defined by two library
+            files is a build error rather than a silent override.
+
+    config ESP_RMAKER_NEO_MATTER_MIRROR_EXTERNAL_CLUSTERS
+        bool "Allow clusters built outside the port"
+        default n
+        help
+            By default a mapping that needs a cluster the port cannot build
+            fails the build, naming the cluster. Enable this when the
+            application supplies the missing factories at runtime through
+            esp_rmaker_matter_mirror_register_cluster_factory(); a cluster with
+            no factory then fails at init instead, per endpoint.
+
+    config ESP_RMAKER_NEO_MATTER_MIRROR_TASK_STACK
+        int "Injection task stack size"
+        default 4096
+        help
+            Stack size (in bytes) of the mirror task that delivers
+            Matter-originated changes to the device write callbacks.
+
+    config ESP_RMAKER_NEO_MATTER_MIRROR_TASK_PRIORITY
+        int "Injection task priority"
+        default 5
+
+    config ESP_RMAKER_NEO_MATTER_MIRROR_RENDER_TICK_MS
+        int "Injection settle time (ms)"
+        default 20
+        help
+            How long the mirror settles before delivering Matter-originated
+            changes, so a cluster's own back-to-back coupling writes
+            (LevelControl's minimum-then-move on an OnOff change) collapse to
+            their final value instead of actuating the intermediate one. Also
+            caps the rate at which a transition's steps reach the device write
+            callbacks: raising it adds latency, lowering it renders more steps.
+
+    config ESP_RMAKER_NEO_MATTER_MIRROR_ENDPOINT_MAP_MAX
+        int "Devices with a stable endpoint ID"
+        default 32
+        range 1 1024
+        help
+            How many devices the mirror keeps an endpoint ID for, by node ID
+            and device ID, in RAM and in NVS. Each device costs about 20 bytes
+            in each. When the map is full, the oldest device that is not
+            mirrored loses its kept ID. When all mapped devices are mirrored,
+            a new device gets an endpoint ID that is not kept.
+
+    config ESP_RMAKER_NEO_MATTER_MIRROR_BRIDGE
+        bool "Mirror devices of other nodes as Matter bridged devices"
+        default n
+        help
+            The mirror creates an Aggregator endpoint at enable. A device that
+            esp_rmaker_matter_mirror_add_device() adds from a node other than
+            the mirrored node (a bridge child) goes under the Aggregator as a
+            Bridged Node, with a Bridged Device Basic Information cluster.
+            esp_rmaker_matter_mirror_set_reachable() sets its Reachable value.
+            The Aggregator takes the first endpoint ID, so the IDs of the
+            mirrored node's own devices move up by one.
+
+    choice ESP_RMAKER_NEO_MATTER_MIRROR_ONBOARD
+        bool "Onboarding mode"
+        default ESP_RMAKER_NEO_MATTER_MIRROR_ONBOARD_MATTER_FIRST
+        help
+            How the device joins the network and gets associated with the
+            RainMaker and Matter ecosystems. The mode decides which ecosystem
+            brings up the network, so an application guards its provisioning
+            call with ESP_RMAKER_MATTER_MIRROR_RMNG_PROV_REQUIRED instead of
+            deciding for itself.
+
+        config ESP_RMAKER_NEO_MATTER_MIRROR_ONBOARD_MATTER_FIRST
+            bool "RainMaker via Matter commissioning"
+            select ENABLE_CHIPOBLE
+            help
+                Matter commissioning is the single onboarding path: the network
+                credentials arrive over CHIPoBLE through the Network
+                Commissioning cluster, and there is no RainMaker provisioning
+                session. The node identity therefore has to come from the
+                factory DAC (see esp_rmaker_matter_mirror_get_dac_credentials()),
+                and the RainMaker agent only starts once commissioning is done
+                and the BLE memory has been reclaimed.
+
+                Commissioning via the RainMaker app also performs the
+                user-node mapping inline, using the node id the mirror puts in
+                the CSR. Commissioning with any other Matter app works too,
+                with the RainMaker association added afterwards.
+
+        config ESP_RMAKER_NEO_MATTER_MIRROR_ONBOARD_ONNETWORK
+            bool "RainMaker provisioning first, then on-network Matter commissioning"
+            help
+                The device joins Wi-Fi via standard RainMaker provisioning
+                (BLE). Matter controllers (Apple Home, Google Home, chip-tool)
+                commission the already-on-network device over IP; Matter BLE
+                commissioning is not used, so there is no BLE coexistence.
+
+        config ESP_RMAKER_NEO_MATTER_MIRROR_ONBOARD_CONCURRENT
+            bool "Concurrent RainMaker provisioning and Matter BLE commissioning (not supported yet)"
+            select ENABLE_CHIPOBLE
+            help
+                RainMaker provisioning and Matter BLE commissioning are both
+                active out of the box, so onboarding can start from either
+                ecosystem's app. Not supported yet: RainMaker provisioning and
+                CHIPoBLE both want to advertise on the shared BLE controller.
+
+    endchoice
+
+    # Surfaced as a menuconfig comment and, at configure time, as a CMake warning.
+    config ESP_RMAKER_NEO_MATTER_MIRROR_CHIPOBLE_UNUSED
+        bool
+        default y if ESP_RMAKER_NEO_MATTER_MIRROR_ONBOARD_ONNETWORK && ENABLE_CHIPOBLE
+
+        comment "! On-network onboarding never uses CHIPoBLE: turn CONFIG_ENABLE_CHIPOBLE off to save flash"
+        depends on ESP_RMAKER_NEO_MATTER_MIRROR_CHIPOBLE_UNUSED
+
+    # Only the modes that commission over BLE run the readiness gate.
+    if ESP_RMAKER_NEO_MATTER_MIRROR_ONBOARD_MATTER_FIRST || ESP_RMAKER_NEO_MATTER_MIRROR_ONBOARD_CONCURRENT
+
+        config ESP_RMAKER_NEO_MATTER_MIRROR_READY_TIMEOUT_MS
+            int "Onboarding readiness timeout (ms)"
+            default 300000
+            help
+                How long esp_rmaker_matter_mirror_wait_ready() waits for
+                onboarding to finish when the caller passes no timeout of its
+                own. Covers a user walking through commissioning in a phone
+                app, so keep it generous.
+
+    endif
+
+    # Every onboarding mode re-opens the window: CHIP opens one by itself only
+    # at boot, while the node has no fabric, so a node whose last fabric is
+    # removed at runtime is as uncommissionable in any mode.
+    config ESP_RMAKER_NEO_MATTER_MIRROR_WINDOW_TIMEOUT_S
+        int "Re-opened commissioning window timeout (s)"
+        default 300
+        range 180 3600
+        help
+            How long the commissioning window stays open after the last fabric
+            is removed. The Matter specification requires at least three
+            minutes. Set the commissioning window policy to
+            ESP_RMAKER_MATTER_MIRROR_COMMISSIONING_WINDOW_NEVER in the enable()
+            config to leave it closed until the next reboot instead.
+
+endmenu

@@ -20,6 +20,17 @@ osal_err_t app_led_init(const app_led_state_t *p_state)
     return OSAL_ERR_OK;
 }
 
+osal_err_t app_led_init_dark(const app_led_state_t *p_state)
+{
+    (void) p_state;
+    return OSAL_ERR_OK;
+}
+
+osal_err_t app_led_mark_live(void)
+{
+    return OSAL_ERR_OK;
+}
+
 osal_err_t app_led_apply(const app_led_state_t *p_state)
 {
     (void) p_state;
@@ -60,4 +71,25 @@ osal_err_t app_led_set_mode(app_led_mode_t mode)
 {
     (void) mode;
     return OSAL_ERR_OK;
+}
+
+osal_err_t app_led_effect_start(const app_led_effect_t *p_effect)
+{
+    (void) p_effect;
+    return OSAL_ERR_OK;
+}
+
+osal_err_t app_led_effect_stop(void)
+{
+    return OSAL_ERR_OK;
+}
+
+osal_err_t app_led_effect_stop_at_cycle_end(void)
+{
+    return OSAL_ERR_OK;
+}
+
+bool app_led_effect_active(void)
+{
+    return false;
 }

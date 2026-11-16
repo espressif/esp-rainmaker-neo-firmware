@@ -1,0 +1,6 @@
+# CI-only: on-network onboarding instead of the default Matter-first mode. RainMaker BLE
+# provisioning brings up Wi-Fi, then controllers commission the device over IP.
+CONFIG_ESP_RMAKER_NEO_MATTER_MIRROR_ONBOARD_ONNETWORK=y
+
+# CHIPoBLE is never used in this mode.
+CONFIG_ENABLE_CHIPOBLE=n

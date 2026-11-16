@@ -122,6 +122,26 @@ param_create_err:
     return NULL;
 }
 
+/**
+ * @brief Release a deep-copied valid values array.
+ *
+ * Both the labels and any string values are owned by the parameter. Safe on a partially
+ * populated (calloc'd) array, which is what the allocation failure path hands it.
+ */
+static void __param_valid_values_free(esp_rmaker_param_value_label_t *valid_values, uint8_t count)
+{
+    if (!valid_values) {
+        return;
+    }
+    for (uint8_t i = 0; i < count; i++) {
+        free((void *)valid_values[i].label);
+        if (valid_values[i].value.type == RMAKER_VAL_TYPE_STRING) {
+            free(valid_values[i].value.val.s);
+        }
+    }
+    free(valid_values);
+}
+
 esp_rmaker_error_t esp_rmaker_param_delete(const esp_rmaker_param_t *param)
 {
     _esp_rmaker_param_t *_param = (_esp_rmaker_param_t *)param;
@@ -147,6 +167,10 @@ esp_rmaker_error_t esp_rmaker_param_delete(const esp_rmaker_param_t *param)
     if (_param->bounds) {
         free(_param->bounds);
     }
+    if (_param->unit) {
+        free(_param->unit);
+    }
+    __param_valid_values_free(_param->valid_values, _param->n_valid_values);
     free(_param);
     return ESP_RMAKER_OK;
 }
@@ -199,6 +223,83 @@ esp_rmaker_error_t esp_rmaker_param_add_ui_type(const esp_rmaker_param_t *param,
     }
     _param->ui_type = new_ui_type;
     return ESP_RMAKER_OK;
+}
+
+esp_rmaker_error_t esp_rmaker_param_add_unit(const esp_rmaker_param_t *param, const char *unit)
+{
+    if (!param || !unit) {
+        OSAL_LOGE(TAG, "Param handle or unit cannot be NULL.");
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    _esp_rmaker_param_t *_param = (_esp_rmaker_param_t *)param;
+    char *new_unit = OSAL_STRDUP_EXTRAM(unit);
+    if (!new_unit) {
+        OSAL_LOGE(TAG, "Failed to allocate memory for the unit of param %s.", _param->id);
+        return ESP_RMAKER_NO_MEM;
+    }
+    if (_param->unit) {
+        free(_param->unit);
+    }
+    _param->unit = new_unit;
+    return ESP_RMAKER_OK;
+}
+
+esp_rmaker_error_t esp_rmaker_param_add_valid_values(const esp_rmaker_param_t *param,
+        const esp_rmaker_param_value_label_t *valid_values, uint8_t count)
+{
+    if (!param || !valid_values || (count == 0)) {
+        OSAL_LOGE(TAG, "Param handle and a non-empty valid values array are mandatory.");
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    _esp_rmaker_param_t *_param = (_esp_rmaker_param_t *)param;
+    /* Scalar params only: an object or array value has no meaningful equality, so it cannot
+     * name a member of an enumeration. Every scalar type may be enumerated, floats included -
+     * the data model does not restrict the field. */
+    if ((_param->val.type == RMAKER_VAL_TYPE_OBJECT) || (_param->val.type == RMAKER_VAL_TYPE_ARRAY)) {
+        OSAL_LOGE(TAG, "Object and array params cannot have valid values.");
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    /* The value is the param's own value, so its type has to be the param's type. */
+    for (uint8_t i = 0; i < count; i++) {
+        if (valid_values[i].value.type != _param->val.type) {
+            OSAL_LOGE(TAG, "Cannot set valid values for %s because of value type mismatch.", _param->id);
+            return ESP_RMAKER_INVALID_ARG;
+        }
+        if (!valid_values[i].label ||
+                ((_param->val.type == RMAKER_VAL_TYPE_STRING) && !valid_values[i].value.val.s)) {
+            OSAL_LOGE(TAG, "Valid value %u of param %s is incomplete.", i, _param->id);
+            return ESP_RMAKER_INVALID_ARG;
+        }
+    }
+    esp_rmaker_param_value_label_t *copy = OSAL_CALLOC_EXTRAM(count, sizeof(esp_rmaker_param_value_label_t));
+    if (!copy) {
+        OSAL_LOGE(TAG, "Failed to allocate memory for the valid values of param %s.", _param->id);
+        return ESP_RMAKER_NO_MEM;
+    }
+    for (uint8_t i = 0; i < count; i++) {
+        copy[i].value.type = valid_values[i].value.type;
+        if (valid_values[i].value.type == RMAKER_VAL_TYPE_STRING) {
+            copy[i].value.val.s = OSAL_STRDUP_EXTRAM(valid_values[i].value.val.s);
+            if (!copy[i].value.val.s) {
+                goto param_valid_values_err;
+            }
+        } else {
+            copy[i].value.val = valid_values[i].value.val;
+        }
+        copy[i].label = OSAL_STRDUP_EXTRAM(valid_values[i].label);
+        if (!copy[i].label) {
+            goto param_valid_values_err;
+        }
+    }
+    __param_valid_values_free(_param->valid_values, _param->n_valid_values);
+    _param->valid_values = copy;
+    _param->n_valid_values = count;
+    return ESP_RMAKER_OK;
+
+param_valid_values_err:
+    OSAL_LOGE(TAG, "Failed to allocate memory for the valid values of param %s.", _param->id);
+    __param_valid_values_free(copy, count);
+    return ESP_RMAKER_NO_MEM;
 }
 
 esp_rmaker_error_t esp_rmaker_param_add_array_max_count(const esp_rmaker_param_t *param, int count)

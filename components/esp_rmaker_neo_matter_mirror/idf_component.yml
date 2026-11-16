@@ -1,0 +1,6 @@
+version: "0.8.0"
+description: RainMaker Neo Matter mirror - derives a Matter data model from the RainMaker Neo data model and keeps them in sync
+license: "Apache-2.0"
+dependencies:
+  esp_rmaker_neo:
+    path: ../esp_rmaker_neo

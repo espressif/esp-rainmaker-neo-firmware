@@ -1,0 +1,12 @@
+# Provenance of the mapping copy in this component (proto-style: the canonical source is the
+# esp-rainmaker-neo-matter-mapping repo). Update via scripts/sync_mapping.sh; --check verifies the
+# copies still match the hashes below. The profiles and the C emitters are this component's own.
+source_repo: esp-rainmaker-neo-matter-mapping
+source_commit: 9511d8c
+mapping_version: 1.2
+synced: 2026-11-16
+# sha256 mapping/lib/rmng_matter_mapping.json 68fd5ae9902547d25849de567787d929f4c201e0ace6294d7e2cdd21ca8eb10c
+# sha256 mapping/vectors/rmng_matter_mapping.vectors.json ccff59631a2471752b4402b53f689854d784888b7d7cc7922810c79d3dddf8a3
+# sha256 scripts/mapping/__init__.py cc5e24519e7b56289968a349ff92fa2f349a516b849e23d0bac8879d1db0811c
+# sha256 scripts/mapping/vocabulary.py 26e08fb182e063988fafe4325243bd5d378b1caef3d6e5e1b13b05a69c0fc86e
+# sha256 scripts/mapping/validate.py 0525a3997ce186e5a824c34f954d2d6a9991c53659e8c094687611f494419860

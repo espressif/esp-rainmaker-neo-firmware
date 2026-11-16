@@ -1,0 +1,9 @@
+## IDF Component Manager Manifest File
+version: "0.8.0"
+description: "The Matter Identify effect examples for the RainMaker Neo Matter examples, as app_led patterns."
+license: "CC0-1.0"
+dependencies:
+  app_led:
+    path: ../../../../examples/common/app_led
+  esp_rmaker_neo_matter_mirror:
+    path: ../../../../components/esp_rmaker_neo_matter_mirror

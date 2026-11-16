@@ -44,7 +44,8 @@
     #   compiler_check=content: robust across image rebuilds (toolchain is pinned)
     CCACHE_BASEDIR: "$CI_PROJECT_DIR"
     CCACHE_NOHASHDIR: "1"
-    CCACHE_SLOPPINESS: "time_macros,include_file_mtime,include_file_ctime,file_stat_matches,pch_defines"
+    # pch_defines is left out on purpose: it lets a stale PCH outlive an sdkconfig change.
+    CCACHE_SLOPPINESS: "time_macros,include_file_mtime,include_file_ctime,file_stat_matches"
     CCACHE_COMPILERCHECK: "content"
   script:
     # Install idf-build-apps to build the examples
@@ -53,9 +54,12 @@
     - |
       # Auto-discover example dirs once (target-independent): any path containing
       # a `main/` subdir. Handles arbitrary nesting.
+      # examples/matter/ is excluded: it needs the esp-matter SDK, which this
+      # image does not carry — it is built by the dedicated job in matter.yml.
       ALL_DIRS=()
       while IFS= read -r maindir; do
         example_dir="${maindir%/main}"
+        case "$example_dir" in "$ESP_EXAMPLES_DIR"/matter/*) continue ;; esac
         ALL_DIRS+=("$example_dir")
       done < <(find "$ESP_EXAMPLES_DIR" -type d -name main)
 
@@ -210,9 +214,12 @@ build_examples_posix:
       # detection below: apps are tracked as repo-relative PATHS, so an example
       # grouped in a subfolder (examples/advanced/<app>) is handled. Only the
       # artifact/output directory uses the basename.
+      # examples/matter/ is ESP-IDF-only (needs esp-matter); skip it here.
       ALL_DIRS=()
       while IFS= read -r maindir; do
-        ALL_DIRS+=("${maindir%/main}")
+        example_dir="${maindir%/main}"
+        case "$example_dir" in "$POSIX_EXAMPLES_DIR"/matter/*) continue ;; esac
+        ALL_DIRS+=("$example_dir")
       done < <(find "$POSIX_EXAMPLES_DIR" -type d -name main)
 
       BUILD_DIRS=()

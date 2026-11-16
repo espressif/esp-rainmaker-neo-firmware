@@ -23,12 +23,15 @@
 #ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 
 #include "esp_rmaker_bridge.h"
+#include "esp_rmaker_flow.h"
+#include "esp_rmaker_data_model.h"
 #include "bridge/bridge_internal.h"
 #include "network/mqtt_topics.h"
 
 #include "osal_event_loop.h"
 
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* Fixture *******************************************************************/
@@ -90,6 +93,50 @@ void test_bridge_accessors_topic_ctx(void)
     TEST_ASSERT_FALSE(esp_rmaker_topic_ctx_is_valid(ctx));
 
     __teardown();
+}
+
+/* esp_rmaker_get_node_id_for_node ******************************************/
+
+void test_bridge_accessors_get_node_id_for_node(void)
+{
+    __setup();
+    TEST_ASSERT_NULL(esp_rmaker_get_node_id_for_node(NULL));
+
+    esp_rmaker_bridge_child_handle_t c = bridge_internal_test_seed_child("A", "lid_a", "test--A");
+    TEST_ASSERT_NOT_NULL(c);
+    esp_rmaker_node_t *child_node = bridge_internal_child_node(c);
+    char *child_id = esp_rmaker_get_node_id_for_node(child_node);
+    esp_rmaker_device_t *dev = esp_rmaker_device_create("Dev", NULL, NULL);
+    const esp_rmaker_node_t *before_add = esp_rmaker_device_get_node(dev);
+    const esp_rmaker_error_t add_err = esp_rmaker_node_add_device(child_node, dev);
+    const esp_rmaker_node_t *after_add = esp_rmaker_device_get_node(dev);
+    esp_rmaker_node_remove_device(child_node, dev);
+    const esp_rmaker_node_t *after_remove = esp_rmaker_device_get_node(dev);
+    esp_rmaker_device_delete(dev);
+
+    esp_rmaker_config_t config = { .enable_time_sync = false };
+    esp_rmaker_node_t *self = esp_rmaker_node_init(&config, "tnode", "ttype");
+    char *self_id = self ? esp_rmaker_get_node_id_for_node(self) : NULL;
+    char *expected_self_id = esp_rmaker_get_node_id();
+    if (self) {
+        esp_rmaker_node_deinit(self);
+    }
+    __teardown();
+
+    TEST_ASSERT_NULL(esp_rmaker_device_get_node(NULL));
+    TEST_ASSERT_NULL(before_add);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, add_err);
+    TEST_ASSERT_EQUAL_PTR(child_node, after_add);
+    TEST_ASSERT_NULL(after_remove);
+    TEST_ASSERT_NOT_NULL(self);
+    TEST_ASSERT_NOT_NULL(child_id);
+    TEST_ASSERT_EQUAL_STRING("test--A", child_id);
+    TEST_ASSERT_NOT_NULL(self_id);
+    TEST_ASSERT_NOT_NULL(expected_self_id);
+    TEST_ASSERT_EQUAL_STRING(expected_self_id, self_id);
+    free(child_id);
+    free(self_id);
+    free(expected_self_id);
 }
 
 /* bridge_internal_child_from_ctx - round trip identity ********************/

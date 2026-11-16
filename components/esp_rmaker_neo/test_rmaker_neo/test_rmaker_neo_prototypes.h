@@ -52,6 +52,11 @@ void test_node_model_persistent_params_across_deinit(void);
 void test_node_config_basic(void);
 
 /**
+ * @brief Test param unit and valid_values in the node config.
+ */
+void test_node_config_param_metadata(void);
+
+/**
  * @brief Test device add/remove and related error paths.
  */
 void test_node_model_device_add_remove_and_errors(void);
@@ -771,6 +776,7 @@ void test_bridge_child_nvs_compute_key(void);
 void test_bridge_child_nvs_invalid_arg(void);
 void test_bridge_accessors_local_id(void);
 void test_bridge_accessors_topic_ctx(void);
+void test_bridge_accessors_get_node_id_for_node(void);
 void test_bridge_accessors_child_from_ctx_roundtrip(void);
 void test_bridge_accessors_child_from_ctx_after_invalidate(void);
 void test_bridge_accessors_version_progress(void);

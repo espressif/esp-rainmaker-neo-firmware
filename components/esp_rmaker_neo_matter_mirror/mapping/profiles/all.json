@@ -1,0 +1,9 @@
+{
+  "profile_version": "1.0",
+  "name": "all",
+  "description": "Every device type this port implements. The default.",
+  "device_types": [
+    "esp.device.lightbulb",
+    "esp.device.switch"
+  ]
+}

@@ -15,6 +15,7 @@ For **setup, building, and factory provisioning**, see the [firmware guides](htt
   and challenge-response endpoints served over protocomm.
 - [Time Synchronization](time_sync.md) -- NTP/SNTP setup, which services require synchronised time, and failure handling.
 - [Error Handling and Recovery Strategies](error_handling.md) -- the general error handling approach, retry strategies for MQTT, shadows and events, and the error recovery flows.
+- [Common Data Model (Draft)](common_data_model_draft.md) -- **working draft, under review** -- one data model across firmware, cloud and apps, with Matter as a derived mirror; mapping table, endpoint correlation and naming.
 
 ## Conventions
 

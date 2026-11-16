@@ -106,7 +106,8 @@ jobs:
           CCACHE_MAXSIZE: 4G
           CCACHE_BASEDIR: ${{ github.workspace }}
           CCACHE_NOHASHDIR: "1"
-          CCACHE_SLOPPINESS: time_macros,include_file_mtime,include_file_ctime,file_stat_matches,pch_defines
+          # pch_defines is left out on purpose: it lets a stale PCH outlive an sdkconfig change.
+          CCACHE_SLOPPINESS: time_macros,include_file_mtime,include_file_ctime,file_stat_matches
           CCACHE_COMPILERCHECK: content
         run: |
           . "$IDF_PATH/export.sh"

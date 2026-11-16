@@ -18,3 +18,15 @@ GPIO yields a silently dark LED, so check these first:
 
 The WS2812 defaults match the addressable LED on common Espressif devkits; boards
 with a plain RGB LED (e.g. ESP32-C2 devkits) use the LEDC backend.
+
+## Effects
+
+`app_led_effect_start()` plays an attention pattern over the tracked state. The caller describes
+the pattern: a waveform (steady, pulse, ramp), the length of one cycle, the brightness of the low
+phase, the number of cycles (0 to run until stopped) and, where it wants one, a colour of its own.
+It ends at `app_led_effect_stop()` (at once) or `app_led_effect_stop_at_cycle_end()`. The pattern
+drives the brightness, and the colour where it carries one, and it runs whatever the tracked power
+says, so it stays visible on a light the user turned off. An animation task exists only while an
+effect plays.
+
+A frame lasts 50 ms, so a cycle is 100 ms or longer, and a multiple of 50 ms renders exactly.

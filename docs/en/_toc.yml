@@ -16,6 +16,7 @@ subtrees:
               - file: specs/error_handling
               - file: specs/build_configuration
               - file: specs/linux_target
+              - file: specs/common_data_model_draft
               - file: specs/networking/index
                 subtrees:
                   - maxdepth: 2
