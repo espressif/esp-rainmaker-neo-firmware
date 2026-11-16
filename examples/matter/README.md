@@ -2,17 +2,17 @@
 
 Examples where the node is on the RainMaker cloud **and** on a Matter fabric from
 one data model: the application builds the usual RainMaker Neo devices/params, and the
-`[esp_rmaker_neo_matter_mirror](../../components/esp_rmaker_neo_matter_mirror)`
+[`esp_rmaker_neo_matter_mirror`](../../components/esp_rmaker_neo_matter_mirror)
 component derives the esp-matter endpoint/cluster tree from them and keeps both
 sides in sync. The RainMaker Neo param store stays the single canonical state store — there
 is no esp-matter tree to construct, no attribute callbacks, and no Matter-specific
 data model in the application. Start with a plain device example in
-`[examples/](../)` — and come here once the product also has to speak Matter.
+[`examples/`](../) — and come here once the product also has to speak Matter.
 
 
 | Example                         | Purpose                                                                                       |
 | ------------------------------- | --------------------------------------------------------------------------------------------- |
-| `[matter_light](matter_light/)` | Full color light (power, brightness, CCT, hue/saturation) mirrored as an Extended Color Light |
+| [`matter_light`](matter_light/) | Full color light (power, brightness, CCT, hue/saturation) mirrored as an Extended Color Light |
 
 
 Cloud and phone apps see a plain RainMaker Neo node; Matter controllers see the derived
