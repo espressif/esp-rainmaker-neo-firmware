@@ -5,6 +5,8 @@ set(TEST_APP_PRIV_REQUIRES
     "unity"
     "nvs_flash"
     "esp_event"
+    # osal_timesync, for the pre-suite SNTP wait
+    "osal"
     # osal test subcomponents
     "test_osal_platform"
     "test_osal_storage"
@@ -19,8 +21,9 @@ set(TEST_APP_PRIV_REQUIRES
 )
 
 if (NOT IDF_TARGET STREQUAL "linux")
-    # The linux target has no Wi-Fi / BLE provisioning and no OTA.
-    list(APPEND TEST_APP_PRIV_REQUIRES "app_network" "test_rmaker_neo_ota")
+    # The linux target has no Wi-Fi and no OTA.
+    list(APPEND TEST_APP_SOURCES test_wifi.c)
+    list(APPEND TEST_APP_PRIV_REQUIRES "esp_netif" "esp_wifi" "test_rmaker_neo_ota")
 endif ()
 
 idf_component_register(

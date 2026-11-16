@@ -19,6 +19,13 @@
 
 /* Functions ******************************************************************/
 
+/* --- Fixtures --- */
+
+/**
+ * @brief Release the HTTP handle of a test that a failed assertion aborted early
+ */
+void test_osal_http_tear_down(void);
+
 /* --- Basic tests --- */
 
 /**

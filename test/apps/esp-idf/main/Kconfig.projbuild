@@ -1,0 +1,32 @@
+menu "ESP-IDF Test App Configuration"
+    config TEST_APP_WIFI_SSID
+        string "Wi-Fi SSID"
+        default "myssid"
+        help
+            SSID of the access point the test app joins.
+
+    config TEST_APP_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default "mypassword"
+        help
+            Passphrase for the above SSID. Leave empty for an open network.
+
+    config TEST_APP_WIFI_CONNECT_RETRIES
+        int "Reconnect attempts"
+        default 5
+        help
+            Number of times to retry after a disconnect before giving up.
+
+    config TEST_APP_WIFI_CONNECT_TIMEOUT_S
+        int "Connect timeout (seconds)"
+        default 120
+        help
+            Overall deadline for acquiring an IP address. The network-dependent suites fail if it
+            expires.
+
+    config TEST_APP_TIME_SYNC_TIMEOUT_S
+        int "SNTP sync timeout (seconds)"
+        default 120
+        help
+            Deadline for the first SNTP sync. Time-sensitive suites fail without a proper clock.
+endmenu

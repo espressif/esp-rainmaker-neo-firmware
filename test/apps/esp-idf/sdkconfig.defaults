@@ -26,19 +26,15 @@ CONFIG_OSAL_INCLUDE_HTTP=y
 CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE=y
 CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH="../../../components/osal/mqtt/test_osal_mqtt/certs/test_osal_mqtt_ca.pem"
 
-# Default to BLE provisioning.
-CONFIG_BT_ENABLED=y
-CONFIG_BT_NIMBLE_ENABLED=y
-CONFIG_APP_NETWORK_PROV_TRANSPORT_BLE=y
-# Peripheral-only, legacy advertising; Wi-Fi needs no SoftAP.
-CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
-CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
-CONFIG_BT_NIMBLE_50_FEATURE_SUPPORT=n
-CONFIG_BT_NIMBLE_LOG_LEVEL_WARNING=y
+# Wi-Fi credentials come from Kconfig (TEST_APP_WIFI_*); Set them via menuconfig or in the sdkconfig.
+# No provisioning, so no SoftAP.
 CONFIG_ESP_WIFI_SOFTAP_SUPPORT=n
 
-# Support legacy provisioning apps.
-CONFIG_APP_NETWORK_PROV_COMPACT_QR=n
+# test_rmaker_neo_common exercises the key/CSR generation helpers unconditionally, which requires this option enabled.
+CONFIG_MBEDTLS_X509_CREATE_C=y
+
+# Allow for custom job support tests.
+CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT=y
 
 # Disable watchdog
 CONFIG_ESP_TASK_WDT_INIT=n

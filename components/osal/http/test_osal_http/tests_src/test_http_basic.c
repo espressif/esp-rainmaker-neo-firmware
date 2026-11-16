@@ -21,6 +21,18 @@
 
 static osal_http_impl_t http_impl;
 
+/* Handle owned by the running test. A failing TEST_ASSERT longjmps straight out of the test, so
+ * the cleanup at its tail never runs; test_osal_http_tear_down() releases it instead. */
+static osal_http_handle_t live_handle = NULL;
+
+void test_osal_http_tear_down(void)
+{
+    if (live_handle != NULL) {
+        http_impl.cleanup(live_handle);
+        live_handle = NULL;
+    }
+}
+
 /* Helper function to initialize HTTP implementation */
 static void init_http_impl(void)
 {
@@ -187,11 +199,13 @@ void _test_http_get_basic(basic_config_func_t config_func, const char *url)
     status = http_impl.init(&config, &handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     TEST_ASSERT_NOT_NULL(handle);
+    live_handle = handle;
 
     /* Test GET request */
     _http_get_basic_no_close(handle, 0, url);
 
     /* Step 10: Cleanup */
+    live_handle = NULL;
     status = http_impl.cleanup(handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     free_basic_config_tls(&config);
@@ -213,11 +227,13 @@ void _test_http_post_basic(basic_config_func_t config_func, const char *url)
     status = http_impl.init(&config, &handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     TEST_ASSERT_NOT_NULL(handle);
+    live_handle = handle;
 
     /* Test POST request */
     _http_post_basic_no_close(handle, 0, url);
 
     /* Step 10: Cleanup */
+    live_handle = NULL;
     status = http_impl.cleanup(handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     free_basic_config_tls(&config);
@@ -263,6 +279,7 @@ void test_http_streaming(void)
     status = http_impl.init(&config, &handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     TEST_ASSERT_NOT_NULL(handle);
+    live_handle = handle;
 
     status = http_impl.set_method(handle, OSAL_HTTP_METHOD_GET);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
@@ -283,6 +300,7 @@ void test_http_streaming(void)
     TEST_ASSERT_TRUE(response_buffer_pos > 0);
 
     /* Step 10: Cleanup */
+    live_handle = NULL;
     status = http_impl.cleanup(handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     free_basic_config_tls(&config);
@@ -308,6 +326,7 @@ void test_http_head_method(void)
     status = http_impl.init(&config, &handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     TEST_ASSERT_NOT_NULL(handle);
+    live_handle = handle;
 
     /* Set read callback (should not be called for HEAD) */
     status = http_impl.set_read_callback(handle, test_read_callback, NULL);
@@ -328,6 +347,7 @@ void test_http_head_method(void)
     TEST_ASSERT_EQUAL(0, response_buffer_pos);
 
     /* Step 10: Cleanup */
+    live_handle = NULL;
     status = http_impl.cleanup(handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     free_basic_config_tls(&config);
@@ -353,6 +373,7 @@ void test_http_options_method(void)
     status = http_impl.init(&config, &handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     TEST_ASSERT_NOT_NULL(handle);
+    live_handle = handle;
 
     /* Set read callback */
     status = http_impl.set_read_callback(handle, test_read_callback, NULL);
@@ -371,6 +392,7 @@ void test_http_options_method(void)
     TEST_ASSERT_TRUE(content_length >= 0);
 
     /* Step 10: Cleanup */
+    live_handle = NULL;
     status = http_impl.cleanup(handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     free_basic_config_tls(&config);
@@ -397,6 +419,7 @@ void test_http_put_method(void)
     status = http_impl.init(&config, &handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     TEST_ASSERT_NOT_NULL(handle);
+    live_handle = handle;
 
     /* Set request body */
     status = http_impl.set_request_body(handle, (uint8_t *)put_data, strlen(put_data), "application/json");
@@ -426,6 +449,7 @@ void test_http_put_method(void)
     TEST_ASSERT_TRUE(strstr((char *)response_buffer, "\"method\": \"PUT\"") != NULL);
 
     /* Step 10: Cleanup */
+    live_handle = NULL;
     status = http_impl.cleanup(handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     free_basic_config_tls(&config);
@@ -452,6 +476,7 @@ void test_http_patch_method(void)
     status = http_impl.init(&config, &handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     TEST_ASSERT_NOT_NULL(handle);
+    live_handle = handle;
 
     /* Set request body */
     status = http_impl.set_request_body(handle, (uint8_t *)patch_data, strlen(patch_data), "application/json");
@@ -481,6 +506,7 @@ void test_http_patch_method(void)
     TEST_ASSERT_TRUE(strstr((char *)response_buffer, "\"method\": \"PATCH\"") != NULL);
 
     /* Step 10: Cleanup */
+    live_handle = NULL;
     status = http_impl.cleanup(handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     free_basic_config_tls(&config);
@@ -507,6 +533,7 @@ void test_http_delete_method(void)
     status = http_impl.init(&config, &handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     TEST_ASSERT_NOT_NULL(handle);
+    live_handle = handle;
 
     /* Set request body */
     status = http_impl.set_request_body(handle, (uint8_t *)delete_data, strlen(delete_data), "application/json");
@@ -536,6 +563,7 @@ void test_http_delete_method(void)
     TEST_ASSERT_TRUE(strstr((char *)response_buffer, "\"method\": \"DELETE\"") != NULL);
 
     /* Step 10: Cleanup */
+    live_handle = NULL;
     status = http_impl.cleanup(handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     free_basic_config_tls(&config);
@@ -557,6 +585,7 @@ void test_http_multiple_requests(void)
     status = http_impl.init(&config, &handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     TEST_ASSERT_NOT_NULL(handle);
+    live_handle = handle;
 
     /* Test multiple requests with the same handle */
     for (int i = 0; i < 3; i++) {
@@ -568,6 +597,7 @@ void test_http_multiple_requests(void)
     }
 
     /* Step 10: Cleanup */
+    live_handle = NULL;
     status = http_impl.cleanup(handle);
     TEST_ASSERT_EQUAL(OSAL_ERR_OK, status);
     free_basic_config_tls(&config);
