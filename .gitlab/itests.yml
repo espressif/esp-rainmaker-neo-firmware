@@ -25,6 +25,14 @@ variables:
     # pytest --ignore. Bridge support is an opt-in enterprise backend package, so the bridge
     # suite cannot run against a stock backend deployment.
     PYTEST_EXCLUDED_TEST_FILES: "test_bridge.py"
+    # Kept between runs by `cache:` below; the backend's pins live in its own repo.
+    PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.cache/pip"
+    # One venv for the kconfig/component-manager tools of every in-test firmware build.
+    RMNG_PYTHON_VENV_DIR: "/tmp/rmng-cmake-venv"
+  cache:
+    key: integration-tests-pip
+    paths:
+      - .cache/pip
   script:
     - |
       set -euo pipefail
