@@ -665,6 +665,14 @@ menu "ESP RainMaker Neo Configuration"
             help
                 Request "rmng-base.FilesBucketName": the S3 bucket for node file storage.
 
+        config ESP_RMAKER_NEO_SERVER_CONFIG_KEY_API_GATEWAY_URL
+            bool
+            select ESP_RMAKER_NEO_SERVER_CONFIG
+            help
+                Request "rmng-base.ApiGatewayUrl": the base URL of the deployment's REST API,
+                for a node that calls it with SigV4-signed requests (for example a group
+                controller).
+
     endmenu
 
     menu "Host Control"
