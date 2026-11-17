@@ -45,6 +45,7 @@ esp_rmaker_param_t *esp_rmaker_brightness_param_create(const char *param_id, int
     if (param) {
         esp_rmaker_param_add_ui_type(param, ESP_RMAKER_UI_SLIDER);
         esp_rmaker_param_add_bounds(param, esp_rmaker_int(0), esp_rmaker_int(100), esp_rmaker_int(1));
+        esp_rmaker_param_add_unit(param, ESP_RMAKER_UNIT_PERCENT);
     }
     return param;
 }
@@ -56,6 +57,7 @@ esp_rmaker_param_t *esp_rmaker_hue_param_create(const char *param_id, int val)
     if (param) {
         esp_rmaker_param_add_ui_type(param, ESP_RMAKER_UI_HUE_SLIDER);
         esp_rmaker_param_add_bounds(param, esp_rmaker_int(0), esp_rmaker_int(360), esp_rmaker_int(1));
+        esp_rmaker_param_add_unit(param, ESP_RMAKER_UNIT_DEGREES);
     }
     return param;
 }
@@ -67,6 +69,7 @@ esp_rmaker_param_t *esp_rmaker_saturation_param_create(const char *param_id, int
     if (param) {
         esp_rmaker_param_add_ui_type(param, ESP_RMAKER_UI_SLIDER);
         esp_rmaker_param_add_bounds(param, esp_rmaker_int(0), esp_rmaker_int(100), esp_rmaker_int(1));
+        esp_rmaker_param_add_unit(param, ESP_RMAKER_UNIT_PERCENT);
     }
     return param;
 }
@@ -78,6 +81,7 @@ esp_rmaker_param_t *esp_rmaker_intensity_param_create(const char *param_id, int 
     if (param) {
         esp_rmaker_param_add_ui_type(param, ESP_RMAKER_UI_SLIDER);
         esp_rmaker_param_add_bounds(param, esp_rmaker_int(0), esp_rmaker_int(100), esp_rmaker_int(1));
+        esp_rmaker_param_add_unit(param, ESP_RMAKER_UNIT_PERCENT);
     }
     return param;
 }
@@ -89,6 +93,7 @@ esp_rmaker_param_t *esp_rmaker_cct_param_create(const char *param_id, int val)
     if (param) {
         esp_rmaker_param_add_ui_type(param, ESP_RMAKER_UI_SLIDER);
         esp_rmaker_param_add_bounds(param, esp_rmaker_int(2700), esp_rmaker_int(6500), esp_rmaker_int(100));
+        esp_rmaker_param_add_unit(param, ESP_RMAKER_UNIT_KELVIN);
     }
     return param;
 }
@@ -132,6 +137,7 @@ esp_rmaker_param_t *esp_rmaker_temperature_param_create(const char *param_id, fl
                                 esp_rmaker_float(val), PROP_FLAG_READ | PROP_FLAG_TIME_SERIES);
     if (param) {
         esp_rmaker_param_add_ui_type(param, ESP_RMAKER_UI_TEXT);
+        esp_rmaker_param_add_unit(param, ESP_RMAKER_UNIT_CELSIUS);
     }
     return param;
 }
