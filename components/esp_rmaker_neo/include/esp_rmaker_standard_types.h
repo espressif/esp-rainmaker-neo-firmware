@@ -51,6 +51,7 @@
 #define ESP_RMAKER_PARAM_NAME           "esp.param.name"
 #define ESP_RMAKER_PARAM_POWER          "esp.param.power"
 #define ESP_RMAKER_PARAM_BRIGHTNESS     "esp.param.brightness"
+#define ESP_RMAKER_PARAM_DIM            "esp.param.dim"
 #define ESP_RMAKER_PARAM_HUE            "esp.param.hue"
 #define ESP_RMAKER_PARAM_SATURATION "esp.param.saturation"
 #define ESP_RMAKER_PARAM_INTENSITY      "esp.param.intensity"

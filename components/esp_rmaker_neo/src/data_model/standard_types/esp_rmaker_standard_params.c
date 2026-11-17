@@ -49,6 +49,18 @@ esp_rmaker_param_t *esp_rmaker_brightness_param_create(const char *param_id, int
     return param;
 }
 
+esp_rmaker_param_t *esp_rmaker_dim_param_create(const char *param_id, int val)
+{
+    esp_rmaker_param_t *param = esp_rmaker_param_create(param_id, ESP_RMAKER_PARAM_DIM,
+                                esp_rmaker_int(val), PROP_FLAG_READ | PROP_FLAG_WRITE);
+    if (param) {
+        esp_rmaker_param_add_ui_type(param, ESP_RMAKER_UI_SLIDER);
+        esp_rmaker_param_add_bounds(param, esp_rmaker_int(0), esp_rmaker_int(100), esp_rmaker_int(1));
+        esp_rmaker_param_add_unit(param, ESP_RMAKER_UNIT_PERCENT);
+    }
+    return param;
+}
+
 esp_rmaker_param_t *esp_rmaker_hue_param_create(const char *param_id, int val)
 {
     esp_rmaker_param_t *param = esp_rmaker_param_create(param_id, ESP_RMAKER_PARAM_HUE,

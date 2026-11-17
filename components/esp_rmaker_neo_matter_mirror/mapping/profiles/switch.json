@@ -1,0 +1,8 @@
+{
+  "profile_version": "1.0",
+  "name": "switch",
+  "description": "Switches only: on/off and dimmable mounted load controls.",
+  "device_types": [
+    "esp.device.switch"
+  ]
+}

@@ -10,9 +10,10 @@ data model in the application. Start with a plain device example in
 [`examples/`](../) — and come here once the product also has to speak Matter.
 
 
-| Example                         | Purpose                                                                                       |
-| ------------------------------- | --------------------------------------------------------------------------------------------- |
-| [`matter_light`](matter_light/) | Full color light (power, brightness, CCT, hue/saturation) mirrored as an Extended Color Light |
+| Example                           | Purpose                                                                                       |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| [`matter_light`](matter_light/)   | Full color light (power, brightness, CCT, hue/saturation) mirrored as an Extended Color Light |
+| [`matter_switch`](matter_switch/) | Dimming switch (power, dim) mirrored as a Mounted Dimmable Load Control                       |
 
 
 Cloud and phone apps see a plain RainMaker Neo node; Matter controllers see the derived

@@ -165,9 +165,25 @@ void test_mirror_table_matching(void)
     TEST_ASSERT_NOT_NULL(rule);
     TEST_ASSERT_EQUAL_HEX32(0x0100, rule->matter_device_type_id);
 
+    /* Switches lower to the mounted control types, on/off or dimmable. Their dim
+     * level is esp.param.dim, not the light's brightness */
+    const char *dimmable_switch[] = {"esp.param.power", "esp.param.dim"};
+    rule = __match_rule("esp.device.switch", dimmable_switch, 2);
+    TEST_ASSERT_NOT_NULL(rule);
+    TEST_ASSERT_EQUAL_HEX32(0x0110, rule->matter_device_type_id);
+
+    rule = __match_rule("esp.device.switch", dimmable, 2);
+    TEST_ASSERT_NOT_NULL(rule);
+    TEST_ASSERT_EQUAL_HEX32(0x010F, rule->matter_device_type_id);
+
+    rule = __match_rule("esp.device.switch", onoff, 2);
+    TEST_ASSERT_NOT_NULL(rule);
+    TEST_ASSERT_EQUAL_HEX32(0x010F, rule->matter_device_type_id);
+
     /* No power param: no rule */
     const char *no_power[] = {"esp.param.brightness"};
     TEST_ASSERT_NULL(__match_rule("esp.device.lightbulb", no_power, 1));
+    TEST_ASSERT_NULL(__match_rule("esp.device.switch", no_power, 1));
 
     /* Unknown device type */
     TEST_ASSERT_NULL(__match_rule("esp.device.unknown", cct_light, 3));
@@ -335,6 +351,77 @@ void test_mirror_lowering_cct_light(void)
 
     rm_mirror_engine_deinit();
     esp_rmaker_device_delete(light);
+}
+
+void test_mirror_lowering_switch(void)
+{
+    fake_port_reset();
+    memset(&__capture, 0, sizeof(__capture));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, rm_mirror_sync_init(fake_port_get_ops()));
+
+    esp_rmaker_device_t *sw = esp_rmaker_device_create("Switch", "esp.device.switch", NULL);
+    TEST_ASSERT_NOT_NULL(sw);
+    esp_rmaker_param_t *power = esp_rmaker_param_create("Power", "esp.param.power",
+                                esp_rmaker_bool(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(sw, power));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_bulk_cb(sw, __bulk_write_cb, NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, rm_mirror_lowering_lower_device(fake_port_get_ops(), sw, false, NULL));
+    rm_mirror_engine_reseed();
+
+    /* Mounted On/Off Control: OnOff and the mandatory clusters, no LevelControl */
+    TEST_ASSERT_EQUAL(1, fake_port_state.n_endpoints);
+    TEST_ASSERT_EQUAL_HEX32(0x010F, fake_port_state.endpoints[0].device_type_id);
+    TEST_ASSERT_EQUAL(2, fake_port_state.endpoints[0].device_type_version);
+    /* Plus the plug-in unit type it is a superset of, for controllers that do not
+     * know the mounted types */
+    TEST_ASSERT_TRUE(fake_port_endpoint_has_device_type(1, 0x010A));
+    TEST_ASSERT_TRUE(fake_port_has_cluster(1, CLUSTER_IDENTIFY));
+    TEST_ASSERT_TRUE(fake_port_has_cluster(1, CLUSTER_GROUPS));
+    TEST_ASSERT_TRUE(fake_port_has_cluster(1, CLUSTER_ON_OFF));
+    TEST_ASSERT_FALSE(fake_port_has_cluster(1, CLUSTER_LEVEL));
+    TEST_ASSERT_FALSE(fake_port_has_cluster(1, CLUSTER_COLOR));
+
+    const fake_port_attr_call_t *seed = fake_port_find_set(1, CLUSTER_ON_OFF, ATTR_ON_OFF);
+    TEST_ASSERT_NOT_NULL(seed);
+    TEST_ASSERT_EQUAL_INT32(1, seed->value);
+    TEST_ASSERT_EQUAL(RM_MIRROR_VAL_BOOL, seed->type);
+    TEST_ASSERT_EQUAL(1, rm_mirror_engine_count_bindings(RM_MIRROR_BINDING_SCALAR));
+
+    rm_mirror_engine_deinit();
+    esp_rmaker_device_delete(sw);
+
+    /* The same device with a dim param takes the dimmable rule and gains LevelControl */
+    fake_port_reset();
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, rm_mirror_sync_init(fake_port_get_ops()));
+    sw = esp_rmaker_device_create("Dimmer", "esp.device.switch", NULL);
+    TEST_ASSERT_NOT_NULL(sw);
+    power = esp_rmaker_param_create("Power", "esp.param.power",
+                                    esp_rmaker_bool(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
+    esp_rmaker_param_t *dim = esp_rmaker_param_create("Dim", "esp.param.dim",
+                              esp_rmaker_int(50), PROP_FLAG_READ | PROP_FLAG_WRITE);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(sw, power));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(sw, dim));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_bulk_cb(sw, __bulk_write_cb, NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, rm_mirror_lowering_lower_device(fake_port_get_ops(), sw, false, NULL));
+    rm_mirror_engine_reseed();
+
+    TEST_ASSERT_EQUAL_HEX32(0x0110, fake_port_state.endpoints[0].device_type_id);
+    TEST_ASSERT_EQUAL(2, fake_port_state.endpoints[0].device_type_version);
+    TEST_ASSERT_TRUE(fake_port_endpoint_has_device_type(1, 0x010B));
+    TEST_ASSERT_TRUE(fake_port_has_cluster(1, CLUSTER_LEVEL));
+    TEST_ASSERT_FALSE(fake_port_has_cluster(1, CLUSTER_COLOR));
+
+    /* A dim change goes out as MoveToLevelWithOnOff, which also switches power on */
+    fake_port_clear_calls();
+    esp_rmaker_param_val_t val = esp_rmaker_int(100);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_update(dim, val));
+    rm_mirror_sync_handle_param_update(dim, &val);
+    TEST_ASSERT_EQUAL(1, fake_port_state.n_invoke_calls);
+    TEST_ASSERT_EQUAL_HEX32(CMD_MOVE_TO_LEVEL_WITH_ON_OFF, fake_port_state.invoke_calls[0].command_id);
+    TEST_ASSERT_EQUAL_INT32(254, fake_port_state.invoke_calls[0].args[0]);
+
+    rm_mirror_engine_deinit();
+    esp_rmaker_device_delete(sw);
 }
 
 /* Sync / echo *****************************************************************/

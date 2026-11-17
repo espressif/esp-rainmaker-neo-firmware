@@ -1,0 +1,12 @@
+# Name,   Type, SubType, Offset,  Size, Flags
+# Same layout as esp-rainmaker's partitions_4mb_optimised.csv, so the factory tooling and fctry offset are shared.
+# Needs CONFIG_PARTITION_TABLE_OFFSET=0xc000: the first 48K hold the bootloader with secure boot and flash encryption.
+esp_secure_cert,  0x3F, ,0xd000,    0x2000, encrypted
+nvs,      data, nvs,     0x10000,   0xc000,
+nvs_keys, data, nvs_keys,,          0x1000, encrypted
+otadata,  data, ota,     ,          0x2000
+phy_init, data, phy,     ,          0x1000,
+ota_0,    app,  ota_0,   0x20000,   0x1E9000,
+reserved, 0x06,     ,    0x209000,  0x7000,
+ota_1,    app,  ota_1,   0x210000,  0x1E9000,
+fctry,    data, nvs,     0x3F9000,  0x6000

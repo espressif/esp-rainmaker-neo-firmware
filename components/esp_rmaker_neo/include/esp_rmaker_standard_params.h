@@ -28,6 +28,7 @@
 #define ESP_RMAKER_DEF_NAME_PARAM_ID      "Name"
 #define ESP_RMAKER_DEF_POWER_ID           "Power"
 #define ESP_RMAKER_DEF_BRIGHTNESS_ID      "Brightness"
+#define ESP_RMAKER_DEF_DIM_ID             "Dim"
 #define ESP_RMAKER_DEF_HUE_ID             "Hue"
 #define ESP_RMAKER_DEF_SATURATION_ID      "Saturation"
 #define ESP_RMAKER_DEF_INTENSITY_ID       "Intensity"
@@ -99,6 +100,19 @@ esp_rmaker_param_t *esp_rmaker_power_param_create(const char *param_id, bool val
  * @return NULL in case of failures.
  */
 esp_rmaker_param_t *esp_rmaker_brightness_param_create(const char *param_id, int val);
+
+/**
+ * @brief Create standard Dim param
+ *
+ * This will create the standard dim parameter: e.g., the dim level of a switch.
+ *
+ * @param[in] param_id Id of the parameter
+ * @param[in] val Default Value of the parameter
+ *
+ * @return Parameter handle on success.
+ * @return NULL in case of failures.
+ */
+esp_rmaker_param_t *esp_rmaker_dim_param_create(const char *param_id, int val);
 
 /**
  * @brief Create standard Hue param

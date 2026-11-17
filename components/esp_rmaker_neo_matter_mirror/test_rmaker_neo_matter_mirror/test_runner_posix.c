@@ -12,6 +12,7 @@ void tearDown(void) {}
 void test_mirror_transforms(void);
 void test_mirror_table_matching(void);
 void test_mirror_lowering_cct_light(void);
+void test_mirror_lowering_switch(void);
 void test_mirror_sync_outbound(void);
 void test_mirror_sync_outbound_command_selection(void);
 void test_mirror_sync_outbound_invoke_fallback(void);
@@ -73,6 +74,7 @@ int main(void)
     RUN_TEST(test_mirror_transforms);
     RUN_TEST(test_mirror_table_matching);
     RUN_TEST(test_mirror_lowering_cct_light);
+    RUN_TEST(test_mirror_lowering_switch);
     RUN_TEST(test_mirror_sync_outbound);
     RUN_TEST(test_mirror_sync_outbound_command_selection);
     RUN_TEST(test_mirror_sync_outbound_invoke_fallback);
