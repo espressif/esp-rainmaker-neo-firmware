@@ -21,8 +21,10 @@
 
 /* Local configuration includes */
 #include "local_config.h"
+#include "esp_rmaker_event_loop.h"
 
 /* Platform includes */
+#include "osal_event_loop.h"
 #include "osal_log.h"
 #include "osal_mem_alloc.h"
 
@@ -347,6 +349,8 @@ static void __getGroupInfo_self(esp_rmaker_cloud_events_tracker_t *p_events_trac
 {
     bool should_setup_for_group_info = false;
     char *old_group_info_str = esp_rmaker_local_config_get_group_info_str();
+    /* Nothing stored and "" both mean no group, so a node that boots outside any group posts nothing. */
+    const bool changed = strcmp(old_group_info_str ? old_group_info_str : "", group_info_str) != 0;
     if (old_group_info_str == NULL) {
         /* No old group info string found, so we can assume that the group info has changed */
         should_setup_for_group_info = true;
@@ -425,6 +429,10 @@ static void __getGroupInfo_self(esp_rmaker_cloud_events_tracker_t *p_events_trac
         }
         esp_rmaker_state_attempt_start_listening(RMAKER_NETWORK_SUBSCRIPTION_TIMEOUT_MS_CRITICAL);
         esp_rmaker_state_schedule_report(true);
+    }
+
+    if (changed) {
+        osal_event_post(RMAKER_EVENT, RMAKER_EVENT_GROUP_INFO_UPDATED, NULL, 0, OSAL_MAX_DELAY);
     }
 }
 

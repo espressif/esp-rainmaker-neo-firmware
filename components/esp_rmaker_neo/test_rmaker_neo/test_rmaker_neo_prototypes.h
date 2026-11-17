@@ -770,6 +770,7 @@ void test_local_config_group_info_empty(void);
 void test_local_config_group_info_format_skips_empty_subgroups(void);
 void test_local_config_group_info_parse_packs_subgroups(void);
 void test_local_config_group_info_set_get(void);
+void test_local_config_stored_group_getters(void);
 void test_local_config_other_accessors(void);
 void test_local_config_group_info_invalid_args(void);
 void test_local_config_group_info_null_subgroups(void);

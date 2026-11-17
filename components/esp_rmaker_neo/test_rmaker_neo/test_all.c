@@ -364,6 +364,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_local_config_group_info_format_skips_empty_subgroups);
     RUN_TEST(test_local_config_group_info_parse_packs_subgroups);
     RUN_TEST(test_local_config_group_info_set_get);
+    RUN_TEST(test_local_config_stored_group_getters);
     RUN_TEST(test_local_config_other_accessors);
     RUN_TEST(test_local_config_group_info_invalid_args);
     RUN_TEST(test_local_config_group_info_null_subgroups);

@@ -1745,6 +1745,56 @@ bool esp_rmaker_node_is_in_subgroup(const esp_rmaker_node_t *node, const char *s
     return found;
 }
 
+/* The self node's stored group info, "<primary>[-<sg>...]", or NULL when it is in no group. */
+static char *__stored_group_info(void)
+{
+    char *group_info_str = esp_rmaker_local_config_get_group_info_str();
+    if (group_info_str && group_info_str[0] == '\0') {
+        free(group_info_str);
+        group_info_str = NULL;
+    }
+    return group_info_str;
+}
+
+esp_rmaker_error_t esp_rmaker_get_stored_group_id(char **group_id)
+{
+    if (!group_id) {
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    *group_id = NULL;
+    char *group_info_str = __stored_group_info();
+    if (!group_info_str) {
+        return ESP_RMAKER_NOT_FOUND;
+    }
+    /* Ids carry no '-', so the primary ends at the first one. */
+    char *dash = strchr(group_info_str, '-');
+    if (dash) {
+        *dash = '\0';
+    }
+    *group_id = group_info_str;
+    return ESP_RMAKER_OK;
+}
+
+esp_rmaker_error_t esp_rmaker_get_stored_subgroups(char **subgroups)
+{
+    if (!subgroups) {
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    *subgroups = NULL;
+    char *group_info_str = __stored_group_info();
+    if (!group_info_str) {
+        return ESP_RMAKER_NOT_FOUND;
+    }
+    const char *dash = strchr(group_info_str, '-');
+    char *out = strdup(dash ? dash + 1 : "");
+    free(group_info_str);
+    if (!out) {
+        return ESP_RMAKER_NO_MEM;
+    }
+    *subgroups = out;
+    return ESP_RMAKER_OK;
+}
+
 esp_rmaker_error_t esp_rmaker_start(void)
 {
     OSAL_LOGD(TAG, "Starting ESP RainMaker...");
