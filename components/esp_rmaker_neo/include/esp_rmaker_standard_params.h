@@ -214,6 +214,9 @@ esp_rmaker_param_t *esp_rmaker_speed_param_create(const char *param_id, int val)
  *
  * This will create the standard temperature parameter.
  *
+ * @note The unit is ::ESP_RMAKER_UNIT_CELSIUS. For Fahrenheit, call
+ * `esp_rmaker_param_add_unit(param, ESP_RMAKER_UNIT_FAHRENHEIT)` after this create call.
+ *
  * @param[in] param_id Id of the parameter
  * @param[in] val Default Value of the parameter
  *

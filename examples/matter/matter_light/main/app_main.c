@@ -162,11 +162,7 @@ osal_err_t app_run(void)
     light_device = esp_rmaker_lightbulb_device_create("Light", NULL, app_driver_get_power());
     esp_rmaker_device_add_bulk_cb(light_device, bulk_write_cb, NULL);
     esp_rmaker_device_add_param(light_device, esp_rmaker_brightness_param_create(ESP_RMAKER_DEF_BRIGHTNESS_ID, app_driver_get_brightness()));
-    /* CCT is in Kelvin, which the param alone does not say: bounds 2700..6500 could be
-     * anything. Declaring the unit lets a client render "4000 K" instead of a bare number. */
-    esp_rmaker_param_t *cct_param = esp_rmaker_cct_param_create(ESP_RMAKER_DEF_CCT_ID, app_driver_get_cct());
-    esp_rmaker_param_add_unit(cct_param, ESP_RMAKER_UNIT_KELVIN);
-    esp_rmaker_device_add_param(light_device, cct_param);
+    esp_rmaker_device_add_param(light_device, esp_rmaker_cct_param_create(ESP_RMAKER_DEF_CCT_ID, app_driver_get_cct()));
     esp_rmaker_device_add_param(light_device, esp_rmaker_hue_param_create(ESP_RMAKER_DEF_HUE_ID, app_driver_get_hue()));
     esp_rmaker_device_add_param(light_device, esp_rmaker_saturation_param_create(ESP_RMAKER_DEF_SATURATION_ID, app_driver_get_saturation()));
     /* Light mode is a dropdown of bare integers; without labels a client can only offer
