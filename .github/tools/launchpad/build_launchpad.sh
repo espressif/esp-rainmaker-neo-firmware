@@ -42,6 +42,9 @@ mkdir -p "$SITE_DIR/_meta"
 # the flagship per-device firmwares only, so grouped subtrees (examples/advanced/) are
 # deliberately NOT published, and examples/common/ has no `main/` to begin with.
 #
+# A subtree that needs its own SDK gets its own invocation instead, with EXAMPLES_DIR
+# pointed at it: examples/matter is built on the esp-matter image (see launchpad.yml).
+#
 # The depth bound doubles as the dirt filter: a CI checkout is clean, but a local run
 # in a dirty workspace otherwise discovers hundreds of `main/` dirs under build/ and
 # managed_components/ and tries to build them as examples. Those all sit deeper than
@@ -54,7 +57,7 @@ done < <(find "$EXAMPLES_DIR" -mindepth 2 -maxdepth 2 -type d -name main -print 
 # Nested examples are skipped silently by the bound above, which is indistinguishable
 # from "forgot to add it". Name them so the job log says why they are absent.
 while IFS= read -r maindir; do
-  [ -n "$maindir" ] && echo "Not publishing to Launchpad (nested example): ${maindir%/main}"
+  [ -n "$maindir" ] && echo "Not built in this pass (nested example): ${maindir%/main}"
 done < <(find "$EXAMPLES_DIR" -mindepth 3 -maxdepth 3 -type d -name main -print | sort)
 
 # An exclude entry matches the example's basename OR its path, with or without

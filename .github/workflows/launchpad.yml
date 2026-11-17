@@ -4,10 +4,11 @@
 # flashable merged binaries plus a generated Launchpad config to GitHub Pages.
 #
 # Shape:
-#   build   — one job PER TARGET, builds all examples with the pinned IDF image and emits
-#             per-app merged binaries already laid out as the published site.
-#   deploy  — merges every target's artifact into one tree, generates launchpad.toml +
-#             README.md + index.html, and deploys the whole thing to Pages.
+#   build        — one job PER TARGET, builds all examples with the pinned IDF image and
+#                  emits per-app merged binaries already laid out as the published site.
+#   build-matter — the same for examples/matter/, on the pinned esp-matter image.
+#   deploy       — merges every target's artifact into one tree, generates launchpad.toml +
+#                  README.md + index.html, and deploys the whole thing to Pages.
 #
 # End result: https://<owner>.github.io/<repo>/launchpad.toml , usable directly as
 # https://espressif.github.io/esp-launchpad/?flashConfigURL=<that url>
@@ -59,8 +60,8 @@ jobs:
     # needs: build, so it is skipped along with this job on every other ref.
     #
     # The owner check matters because this runs on the PUBLIC GitHub mirror: without it
-    # every fork burns 6 heavy IDF build jobs on each push to its default branch, only to
-    # fail at the Pages deploy it has no permission for.
+    # every fork burns a full set of heavy IDF build jobs on each push to its default
+    # branch, only to fail at the Pages deploy it has no permission for.
     if: >-
       github.repository_owner == 'espressif' &&
       (github.event_name == 'workflow_dispatch' ||
@@ -126,8 +127,84 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  # Matter examples build in their own job: they need the esp-matter SDK, which only the
+  # espressif/esp-matter image carries, and `container.image` is per-job.
+  build-matter:
+    # Same gate as `build` — see the note there. Workflow YAML has no anchors, so the
+    # expression is repeated verbatim.
+    if: >-
+      github.repository_owner == 'espressif' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    runs-on: ubuntu-latest
+    container:
+      # Keep in sync with ESP_MATTER_IMAGE_TAG in .gitlab/matter.yml. `container.image`
+      # accepts no `env` context, so the tag cannot move to the workflow `env:` block.
+      image: espressif/esp-matter:release-v1.6_idf_v6.0.2
+    # Higher than the IDF job's: a cold-ccache connectedhomeip build is the long pole.
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        # The examples' CMakeLists.txt also map esp32, esp32s3 and esp32c6 to an
+        # esp-matter device_hal, but only esp32c3 is built in CI. A target that fails
+        # here skips the Pages deploy for EVERY example, so validate a chip in
+        # .gitlab/matter.yml before you add it.
+        target: [esp32c3]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: .ccache
+          key: launchpad-matter-ccache-${{ matrix.target }}-${{ github.sha }}
+          restore-keys: |
+            launchpad-matter-ccache-${{ matrix.target }}-
+
+      # Same build script as `build`, pointed at the Matter subtree: EXAMPLES_DIR/<app>/main
+      # is exactly the depth the discovery expects, so matter_light is found and
+      # examples/matter/common/ (no `main/`) is not.
+      - name: Build Matter examples
+        shell: bash
+        env:
+          IDF_TARGET: ${{ matrix.target }}
+          EXAMPLES_DIR: examples/matter
+          SITE_DIR: ${{ github.workspace }}/site
+          BUILD_TMP: ${{ github.workspace }}/launchpad_matter_build_tmp
+          IDF_CCACHE_ENABLE: "1"
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+          # Smaller than the IDF job's, as in .gitlab/matter.yml: the repo shares one
+          # 10 GB Actions cache budget across every target of both build jobs.
+          CCACHE_MAXSIZE: 2G
+          CCACHE_BASEDIR: ${{ github.workspace }}
+          CCACHE_NOHASHDIR: "1"
+          # pch_defines is left out on purpose: it lets a stale PCH outlive an sdkconfig change.
+          CCACHE_SLOPPINESS: time_macros,include_file_mtime,include_file_ctime,file_stat_matches
+          CCACHE_COMPILERCHECK: content
+        run: |
+          . "$IDF_PATH/export.sh"
+          . "$ESP_MATTER_PATH/export.sh"
+          pip install idf-build-apps
+          ccache --zero-stats || true
+          # The container runs as a different user than the checkout owner.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$IDF_PATH"
+          git config --global --add safe.directory "$ESP_MATTER_PATH"
+          bash .github/tools/launchpad/build_launchpad.sh
+
+      - name: Upload target artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: launchpad-matter-${{ matrix.target }}
+          path: site
+          retention-days: 7
+          if-no-files-found: error
+
   deploy:
-    needs: build
+    needs: [build, build-matter]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
