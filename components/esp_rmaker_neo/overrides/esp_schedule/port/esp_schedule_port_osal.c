@@ -279,22 +279,12 @@ static void __timer_cancel(esp_schedule_timer_handle_t *p_timer_handle)
     }
     __port_timer_t *timer = (__port_timer_t *)(*p_timer_handle);
 
-    /* Stop dispatching first. Backends differ in whether this also suppresses a
-     * dispatch already under way, which is exactly why the slot is not freed
-     * below - see the pool note above. */
-    osal_scheduler_cancel_task(&timer->task);
-
-    /* Taking the mutex is the barrier esp_schedule's ``cancel`` contract asks
-     * for: it cannot be held while a callback runs, so acquiring it means none
-     * is. Releasing the slot under the same lock makes "callback finished" and
-     * "slot reusable" a single step. Taken recursively because the caller may be
-     * the callback itself, where there is nothing to wait for and a plain take
-     * would deadlock. */
-    if (__cb_mutex) {
-        osal_semaphore_take_recursive(__cb_mutex, OSAL_MAX_DELAY);
-        __pool_release(timer);
-        osal_semaphore_give_recursive(__cb_mutex);
-    }
+    /* Detach under the barrier, cancel outside it. */
+    osal_semaphore_take_recursive(__cb_mutex, OSAL_MAX_DELAY);
+    osal_scheduler_task_handle_t task = timer->task;
+    __pool_release(timer);
+    osal_semaphore_give_recursive(__cb_mutex);
+    osal_scheduler_cancel_task(&task);
 
     *p_timer_handle = NULL;
 }

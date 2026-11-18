@@ -223,6 +223,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_schedule_port_stale_dispatch_does_not_fire_recycled_slot);
     RUN_TEST(test_schedule_port_pool_recycles_slots);
     RUN_TEST(test_schedule_port_pool_grows_then_reuses);
+    RUN_TEST(test_schedule_port_cancel_waits_for_running_callback);
     RUN_TEST(test_schedules_parse_action_valid_light_power);
     RUN_TEST(test_schedules_parse_action_valid_nested_object);
     RUN_TEST(test_schedules_parse_action_missing_returns_null);
