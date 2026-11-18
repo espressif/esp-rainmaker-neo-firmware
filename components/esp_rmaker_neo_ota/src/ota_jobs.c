@@ -117,6 +117,23 @@ static esp_rmaker_backoff_retry_context_t g_sub_retry_ctx = {
     },
 };
 
+/* Fetch retry after a SUBACK, so the MQTT event handler never writes the recovery context */
+static esp_rmaker_backoff_retry_context_t g_fetch_retry_ctx = {
+    .handle = NULL,
+    .reset_gen = 0,
+    .busy = 0,
+    .delay_ctx = {
+        .delay_ms = {
+            .current = OTA_ERROR_RETRY_BASE_DELAY_MS,
+            .max = OTA_ERROR_RETRY_MAX_DELAY_MS,
+        },
+        .params = {
+            .exp_factor = 2,
+            .max_jitter_ms = OTA_ERROR_RETRY_BASE_DELAY_MS,
+        },
+    },
+};
+
 /* Terminal download->FSM handoff retry context: separate from the job-level error
  * retry so a re-delivery in flight cannot be reset out from under itself by an
  * unrelated error backoff. Governs re-delivery of a dropped terminal event
@@ -236,6 +253,7 @@ static ota_job_state_t handle_state_error(const ota_job_event_data_t *event_data
 
 /* Forward declarations - Recovery operations */
 static void recovery_reset_context(void);
+static void recovery_set_event_data(ota_job_event_data_t *event_data);
 
 /* Forward declarations - MQTT topic operations */
 static esp_rmaker_error_t mqtt_subscribe_jobs_topics(void);
@@ -284,6 +302,7 @@ static void retry_with_backoff_task(void *arg);
 /* Forward declarations - subscription retry */
 static void sub_retry_sched_cb(void *unused);
 static void sub_retry_work(void *unused);
+static void fetch_retry_task(void *arg);
 static void on_rmaker_mqtt_event(void *arg, osal_event_base_t base, int32_t id, void *data);
 static esp_rmaker_error_t register_mqtt_event_handlers(void);
 static void unregister_mqtt_event_handlers(void);
@@ -386,6 +405,7 @@ esp_rmaker_error_t ota_job_state_init(const ota_job_config_t *ota_job_config)
 
     /* Initialize subscription retry context */
     esp_rmaker_backoff_reset(&g_sub_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
+    esp_rmaker_backoff_reset(&g_fetch_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
 
     /* Initialize terminal-event re-delivery retry context */
     esp_rmaker_backoff_reset(&g_terminal_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
@@ -1154,6 +1174,9 @@ static esp_rmaker_error_t set_ota_data_from_job_doc(const AfrOtaJobDocumentField
         goto set_ota_data_from_job_doc_fail;
     }
 
+    /* Free the strings of the previous job doc */
+    clear_ota_data();
+
     /* Set OTA data */
 
     // File size
@@ -1504,7 +1527,7 @@ static ota_job_state_t handle_state_reboot_check(const ota_job_event_data_t *eve
         OSAL_LOGI(TAG, "REBOOT_CHECK: Final status report requested");
 
         /* Report the final status */
-        const esp_rmaker_ota_status_details_t *final_status_details = (const esp_rmaker_ota_status_details_t *)event_data->payload->data;
+        const esp_rmaker_ota_status_details_t *final_status_details = event_data->payload != NULL ? (const esp_rmaker_ota_status_details_t *)event_data->payload->data : NULL;
         if (!final_status_details) {
             OSAL_LOGE(TAG, "Status details is NULL");
             enter_error_state(OTA_ERROR_FATAL_UNEXPECTED_FORMAT);
@@ -2556,7 +2579,7 @@ static ota_job_state_t handle_state_post_download(const ota_job_event_data_t *ev
         OSAL_LOGI(TAG, "POST_DOWNLOAD: Final status report requested");
 
         /* Report the final status */
-        const esp_rmaker_ota_status_details_t *final_status_details = (const esp_rmaker_ota_status_details_t *)event_data->payload->data;
+        const esp_rmaker_ota_status_details_t *final_status_details = event_data->payload != NULL ? (const esp_rmaker_ota_status_details_t *)event_data->payload->data : NULL;
         if (!final_status_details) {
             OSAL_LOGE(TAG, "Status details is NULL");
             enter_error_state(OTA_ERROR_FATAL_UNEXPECTED_FORMAT);
@@ -2570,7 +2593,7 @@ static ota_job_state_t handle_state_post_download(const ota_job_event_data_t *ev
         } else if (err != ESP_RMAKER_OK) {
             OSAL_LOGE(TAG, "Failed to publish final status");
             *should_free_event = false;
-            enter_error_state_custom(OTA_ERROR_RETRY_WITH_BACKOFF, OTA_JOB_STATE_IDLE, event_data);
+            enter_error_state_custom(OTA_ERROR_RETRY_WITH_BACKOFF, OTA_JOB_STATE_POST_DOWNLOAD, event_data);
             return OTA_JOB_STATE_ERROR;
         }
         g_ota_state_ctx.current_job.final_status_reported = true;
@@ -2621,6 +2644,7 @@ static ota_job_state_t handle_state_post_download(const ota_job_event_data_t *ev
             OSAL_LOGI(TAG, "POST_DOWNLOAD: Job is complete, no reboot requested, transitioning to IDLE");
 
             /* Reset current job info */
+            clear_ota_data();
             memset(&g_ota_state_ctx.current_job, 0, sizeof(ota_job_info_t));
 
             /* Suitable error backoff reset point */
@@ -2661,8 +2685,8 @@ static ota_job_state_t handle_state_error(const ota_job_event_data_t *event_data
         error_message = esp_rmaker_ota_error_reason_to_string(g_ota_state_ctx.last_error);
         OSAL_LOGI(TAG, "OTA failed, state machine terminated. Reason: %s", error_message);
 
-        /* If we have an active job, report FAILED to AWS */
-        if (g_ota_state_ctx.current_job.has_active_job) {
+        /* If we have an active job, report FAILED to AWS, unless a recovery replay continues the job */
+        if (g_ota_state_ctx.current_job.has_active_job && g_ota_state_ctx.recovery.event_data == NULL) {
             esp_rmaker_ota_status_details_t status_details;
             esp_rmaker_ota_status_details_fill_failed(&status_details, error_message);
             esp_rmaker_ota_report_status((esp_rmaker_ota_handle_t)&g_ota_state_ctx, OTA_STATUS_FAILED, &status_details);
@@ -2676,9 +2700,8 @@ static ota_job_state_t handle_state_error(const ota_job_event_data_t *event_data
 
         /* Post recovery event data if available */
         if (g_ota_state_ctx.recovery.event_data != NULL) {
-            err = enqueue_event(g_ota_state_ctx.recovery.event_data, false); // pass ownership to next state
-            /* enqueue_event frees on failure; either way we no longer own it */
-            g_ota_state_ctx.recovery.event_data = NULL;
+            /* Post a copy, so the original stays for the backoff retry */
+            err = enqueue_event(g_ota_state_ctx.recovery.event_data, true);
             if (err != ESP_RMAKER_OK) {
                 OSAL_LOGE(TAG, "Failed to post recovery event: %d - scheduling retry with backoff", err);
                 esp_rmaker_backoff_retry(&g_error_retry_context, retry_with_backoff_task, NULL);
@@ -2716,10 +2739,16 @@ static void recovery_reset_context(void)
     g_ota_state_ctx.last_error = OTA_ERROR_NONE;
     g_ota_state_ctx.recovery.state = OTA_JOB_STATE_UNINITIALIZED;
     g_ota_state_ctx.recovery.event = OTA_JOB_EVENT_ERROR_OCCURRED;
-    if (g_ota_state_ctx.recovery.event_data != NULL) {
+    recovery_set_event_data(NULL);
+}
+
+/* Frees the old recovery event data unless it is the same event */
+static void recovery_set_event_data(ota_job_event_data_t *event_data)
+{
+    if (g_ota_state_ctx.recovery.event_data != NULL && g_ota_state_ctx.recovery.event_data != event_data) {
         free_event_data(g_ota_state_ctx.recovery.event_data);
-        g_ota_state_ctx.recovery.event_data = NULL;
     }
+    g_ota_state_ctx.recovery.event_data = event_data;
 }
 
 esp_rmaker_error_t ota_job_state_recover(void)
@@ -2787,6 +2816,7 @@ static esp_rmaker_error_t mqtt_unsubscribe_jobs_topics(void)
      * got a successful SUBACK: a retry could still be armed. */
     g_ota_state_ctx.sub_intended = false;
     esp_rmaker_backoff_reset(&g_sub_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
+    esp_rmaker_backoff_reset(&g_fetch_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
 
     if (!g_ota_state_ctx.subscribed) {
         return ESP_RMAKER_OK;
@@ -3477,15 +3507,16 @@ static void enter_error_state(esp_rmaker_ota_error_reason_t error)
 
     g_ota_state_ctx.recovery.state = recovery_state;
     g_ota_state_ctx.recovery.event = recovery_event;
-    g_ota_state_ctx.recovery.event_data = NULL;
+    recovery_set_event_data(NULL);
     post_error_event(error);
 }
 
 static void enter_error_state_custom(esp_rmaker_ota_error_reason_t error, ota_job_state_t recovery_state, const ota_job_event_data_t *recovery_event_data)
 {
     g_ota_state_ctx.recovery.state = recovery_state;
-    g_ota_state_ctx.recovery.event_data = (ota_job_event_data_t *)recovery_event_data;
-    g_ota_state_ctx.recovery.event = OTA_JOB_EVENT_ERROR_OCCURRED;
+    recovery_set_event_data((ota_job_event_data_t *)recovery_event_data);
+    /* Any value other than ERROR_OCCURRED lets ota_job_state_recover() run */
+    g_ota_state_ctx.recovery.event = recovery_event_data != NULL ? recovery_event_data->event : OTA_JOB_EVENT_EMPTY_TRANSITION;
     post_error_event(error);
 }
 
@@ -3533,6 +3564,18 @@ static void sub_retry_work(void *unused)
     /* On success: SUBACK handler resets backoff + flips .subscribed. */
 }
 
+static void fetch_retry_task(void *arg)
+{
+    (void)arg;
+    esp_rmaker_error_t err = ota_job_state_fetch();
+    if (err != ESP_RMAKER_OK) {
+        OSAL_LOGW(TAG, "Fetch retry failed: %d - rescheduling with backoff", err);
+        esp_rmaker_backoff_retry(&g_fetch_retry_ctx, fetch_retry_task, NULL);
+        return;
+    }
+    esp_rmaker_backoff_reset(&g_fetch_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
+}
+
 static void on_rmaker_mqtt_event(void *arg, osal_event_base_t base, int32_t id, void *data)
 {
     (void)arg;
@@ -3545,6 +3588,7 @@ static void on_rmaker_mqtt_event(void *arg, osal_event_base_t base, int32_t id, 
          * still intend it. Cancel any pending retry; CONNECTED will re-arm. */
         g_ota_state_ctx.subscribed = false;
         esp_rmaker_backoff_reset(&g_sub_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
+        esp_rmaker_backoff_reset(&g_fetch_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
         break;
 
     case RMAKER_MQTT_EVENT_CONNECTED:
@@ -3566,6 +3610,7 @@ static void on_rmaker_mqtt_event(void *arg, osal_event_base_t base, int32_t id, 
         if (d->status == OSAL_ERR_OK) {
             g_ota_state_ctx.subscribed = true;
             esp_rmaker_backoff_reset(&g_sub_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
+            esp_rmaker_backoff_reset(&g_fetch_retry_ctx, OTA_ERROR_RETRY_BASE_DELAY_MS);
             OSAL_LOGI(TAG, "Jobs SUBACK received");
 
             /* The subscription is live again. Republish any terminal job update
@@ -3577,8 +3622,8 @@ static void on_rmaker_mqtt_event(void *arg, osal_event_base_t base, int32_t id, 
             /* Do a fetch on successful subscription */
             err = ota_job_state_fetch();
             if (err != ESP_RMAKER_OK) {
-                OSAL_LOGE(TAG, "Failed to fetch jobs: %d", err);
-                enter_error_state(OTA_ERROR_RETRY_WITH_BACKOFF);
+                OSAL_LOGE(TAG, "Failed to fetch jobs: %d - scheduling retry with backoff", err);
+                esp_rmaker_backoff_retry(&g_fetch_retry_ctx, fetch_retry_task, NULL);
             }
         } else if (g_ota_state_ctx.sub_intended) {
             OSAL_LOGW(TAG, "Jobs SUBACK failed (status=%d); scheduling retry", d->status);

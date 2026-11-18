@@ -95,6 +95,7 @@ void test_fsm_job_doc_received_null_stays(void);
 void test_fsm_job_doc_received_wrong_event_stays(void);
 void test_fsm_job_doc_received_oversized_job_id_rejected(void);
 void test_fsm_job_doc_received_missing_job_id_rejected(void);
+void test_set_ota_data_second_job_doc_replaces_previous_strings(void);
 void test_fsm_job_doc_received_shorter_job_id_terminated_correctly(void);
 void test_fsm_job_doc_received_standard_path_shorter_job_id_terminated_correctly(void);
 void test_fsm_job_execution_null_stays(void);
@@ -105,11 +106,16 @@ void test_fsm_error_recovery_requested_transitions_to_recovery_state(void);
 void test_fsm_error_null_stays_error(void);
 void test_fsm_error_error_occurred_stays_error(void);
 void test_fsm_error_other_events_stay_error(void);
+void test_fsm_error_occurred_with_recovery_replay_keeps_active_job(void);
 void test_fsm_enter_error_sets_last_error_and_recovery(void);
 void test_fsm_reboot_check_final_status_publish_fail_recovery_state_reboot_check(void);
-void test_fsm_post_download_final_status_publish_fail_recovery_state_idle(void);
+void test_fsm_post_download_final_status_publish_fail_recovery_state_post_download(void);
 void test_fsm_post_download_queued_final_status_publish_fail_recovery_state_post_download(void);
+void test_fsm_reboot_check_status_publish_fail_recovery_state_reboot_check(void);
+void test_fsm_job_doc_reject_publish_fail_recovery_state_job_doc_received(void);
+void test_fsm_custom_job_progress_publish_fail_recovery_state_custom_job_execution(void);
 void test_fsm_final_status_publish_fail_consecutive_increments_backoff_delay(void);
+void test_fsm_final_status_null_payload_enters_error(void);
 
 /* Static event pool + enqueue-failure propagation */
 void test_event_pool_init_creates_queue_with_configured_size(void);
@@ -120,8 +126,13 @@ void test_copy_event_data_falls_back_to_heap_on_pool_exhaustion(void);
 void test_copy_event_data_uses_heap_for_payload_events(void);
 void test_fsm_idle_fetch_enqueue_failure_enters_error_state(void);
 void test_fsm_waiting_for_pending_jobs_accepted_enqueue_failure_enters_error_state(void);
-void test_fsm_error_recovery_event_data_nulled_on_enqueue_failure(void);
+void test_fsm_error_recovery_event_data_kept_on_enqueue_failure(void);
 void test_fsm_error_recovery_event_data_nulled_on_enqueue_success(void);
+void test_fsm_custom_error_recovery_is_accepted(void);
+void test_fsm_enter_error_custom_frees_previous_recovery_event_data(void);
+void test_fsm_enter_error_frees_stored_recovery_event_data(void);
+void test_suback_fetch_failure_schedules_fetch_retry(void);
+void test_fetch_retry_task_reschedules_then_stops(void);
 
 /* fixed_data scalar + guaranteed terminal-event handoff */
 void test_copy_event_data_preserves_fixed_data_in_pool_path(void);
