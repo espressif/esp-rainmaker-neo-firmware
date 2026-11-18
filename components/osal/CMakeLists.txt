@@ -110,6 +110,7 @@ configure_file(
 list(APPEND OSAL_INCLUDE_DIRS "${OSAL_TIMESYNC_BINARY_INCLUDE_DIR}")
 list(APPEND OSAL_PRIV_INCLUDE_DIRS "${OSAL_DIR}/timesync/priv_include")
 list(APPEND OSAL_PRIV_INCLUDE_DIRS "${OSAL_DIR}/ota/priv_include")
+list(APPEND OSAL_PRIV_INCLUDE_DIRS "${OSAL_DIR}/mqtt/priv_include")
 
 # ESP-IDF Platform ###
 if (ESP_PLATFORM)

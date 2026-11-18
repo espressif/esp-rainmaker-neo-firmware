@@ -92,6 +92,11 @@ void test_mqtt_tls_server_only_lwt(void);
  */
 void test_mqtt_tls_mutual_auth_lwt(void);
 
+/**
+ * @brief Test drop() and disconnect() while the agent is still connecting (TLS server only).
+ */
+void test_mqtt_tls_server_only_stop_during_connect(void);
+
 /* --- All tests --- */
 
 /**

@@ -14,6 +14,7 @@
 
 /* Configurations include. */
 #include "osal_mqtt_config.h"
+#include "osal_mqtt_core_test_hooks.h"
 
 /* Standard includes. */
 #include <string.h>
@@ -115,6 +116,13 @@ static bool should_keep_agent_task_alive = false;
  * @brief Boolean to track if the client is connected.
  */
 static atomic_bool xIsConnected = false;
+
+#if CONFIG_OSAL_MQTT_TEST_HOOKS
+/**
+ * @brief Count of agent command-loop entries since init(), read by tests.
+ */
+static atomic_uint ulCommandLoopEntries = 0;
+#endif
 
 /**
  * @brief Boolean to track if the session should be cleaned.
@@ -844,6 +852,17 @@ static bool prvBackoffForRetry( BackoffAlgorithmContext_t *pxRetryParams )
     return xReturnStatus;
 }
 
+static void prvNotifyDisconnected( void )
+{
+    xIsConnected = false;
+
+    osal_mqtt_event_notify_client_disconnected();
+    osal_event_post(
+        xEventLoopRegistrationInfo.event_base,
+        xEventLoopRegistrationInfo.event_ids.disconnected,
+        NULL, 0, OSAL_MAX_DELAY );
+}
+
 static void prvCoreMqttAgentTask( void *pvParameters )
 {
     MQTTStatus_t xResult;
@@ -856,6 +875,9 @@ static void prvCoreMqttAgentTask( void *pvParameters )
         /* If client is connected, handle process loop here. */
         if ( xIsConnected ) {
             OSAL_LOGI( TAG, "Entering command loop" );
+#if CONFIG_OSAL_MQTT_TEST_HOOKS
+            ulCommandLoopEntries++;
+#endif
             xResult = MQTTAgent_CommandLoop( &xGlobalMqttAgentContext );
 
             if ( xResult != MQTTSuccess ) {
@@ -875,14 +897,7 @@ static void prvCoreMqttAgentTask( void *pvParameters )
                     OSAL_LOGI( TAG, "TLS connection was disconnected." );
                 }
 
-                xIsConnected = false;
-
-                /* Notify client disconnected if loop exits. */
-                osal_mqtt_event_notify_client_disconnected();
-                osal_event_post(
-                    xEventLoopRegistrationInfo.event_base,
-                    xEventLoopRegistrationInfo.event_ids.disconnected,
-                    NULL, 0, OSAL_MAX_DELAY );
+                prvNotifyDisconnected();
 
                 /* Cancel all commands. */
                 MQTTAgent_CancelAll( &xGlobalMqttAgentContext );
@@ -944,6 +959,11 @@ static void prvCoreMqttAgentTask( void *pvParameters )
         vTlsContextClear( &xNetworkContext );
     }
 
+    /* A stop during connect skips the command loop, so close the connected state here. */
+    if ( xIsConnected ) {
+        prvNotifyDisconnected();
+    }
+
     /* Clean up any remaining commands in the command queue. */
     MQTTAgent_CancelAll( &xGlobalMqttAgentContext );
 
@@ -1000,6 +1020,12 @@ static osal_err_t init( osal_mqtt_conn_params_t *conn_params, osal_mqtt_event_lo
 
     // keep conn_params pointer for later use (LWT, clean_session).
     pxConnParams = conn_params;
+
+    // a new client starts disconnected.
+    xIsConnected = false;
+#if CONFIG_OSAL_MQTT_TEST_HOOKS
+    ulCommandLoopEntries = 0;
+#endif
 
     // initialize TLS parameters, e.g., semaphore.
     if ( !xTlsContextSemaphoreInit( &xNetworkContext ) ) {
@@ -1116,6 +1142,13 @@ static osal_err_t drop( void )
     should_keep_agent_task_alive = false;
     return mqtt_agent_status_to_os_err( MQTTAgent_Terminate( &xGlobalMqttAgentContext, &xDefaultCommandInfo ) );
 }
+
+#if CONFIG_OSAL_MQTT_TEST_HOOKS
+uint32_t osal_mqtt_core_test_get_command_loop_entries( void )
+{
+    return ulCommandLoopEntries;
+}
+#endif
 
 static osal_err_t publish( osal_mqtt_event_loop_channel_t *channel,
                            const char *topic,
