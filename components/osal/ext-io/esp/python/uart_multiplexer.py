@@ -167,8 +167,17 @@ class VirtualPort:
                     self._closed = True
 
     def open(self):
-        """Open the virtual port."""
-        self._closed = False
+        """
+        Open the virtual port, discarding anything the previous session left.
+        """
+        with self._buffer_lock:
+            self._buffer = bytearray()
+            while True:
+                try:
+                    self._queue.get_nowait()
+                except Empty:
+                    break
+            self._closed = False
 
     def close(self):
         """Close the virtual port, cancelling any pending read operations."""
@@ -236,6 +245,10 @@ class UARTMultiplexer:
         # Threading control
         self.running = False
         self.thread: Optional[threading.Thread] = None
+        # Serialises writes to serial_conn: the caller sends commands on it while the
+        # reader thread ACKs validated frames with ping_bytes. Interleaved bytes leave a
+        # partial ping in front of the command, which the firmware rejects.
+        self._write_lock = threading.Lock()
 
         # State for parsing
         self.in_remote_block = False
@@ -345,8 +358,11 @@ class UARTMultiplexer:
         if self.remote_buffer:
             self.remote_buffer.open()
 
-        # Initialize the stream buffer
+        # Clear the parser.
         self._stream_buffer = bytearray()
+        self.in_remote_block = False
+        self.expected_remote_length = 0
+        self.remote_data_buffer = bytearray()
 
         # Start the reading loop
         self.running = True
@@ -371,6 +387,29 @@ class UARTMultiplexer:
         if self.serial_conn and self.serial_conn.is_open:
             self.serial_conn.close()
 
+    # Cap on one drain pass, so a continuous stream still yields to frame parsing.
+    MAX_READ_CHUNK = 4096
+
+    def _read_available(self) -> bytes:
+        """
+        Block for the first byte, then take whatever else is already buffered.
+        """
+        data = self.serial_conn.read(1)
+        if not data:
+            return data
+        data = bytearray(data)
+        while len(data) < self.MAX_READ_CHUNK:
+            # On a tty this is a byte count; on a socket:// port it is 0 or 1
+            # (ready or not), which still drains, just a byte at a time.
+            pending = self.serial_conn.in_waiting
+            if not pending:
+                break
+            chunk = self.serial_conn.read(min(pending, self.MAX_READ_CHUNK - len(data)))
+            if not chunk:
+                break
+            data.extend(chunk)
+        return bytes(data)
+
     def _read_loop(self):
         """Main reading loop that processes incoming data."""
         # Consecutive SerialException count; break only after many failures (real disconnect)
@@ -380,8 +419,7 @@ class UARTMultiplexer:
         while self.running:
             try:
                 if self.serial_conn and self.serial_conn.is_open:
-                    # Read available data
-                    data = self.serial_conn.read(1024)
+                    data = self._read_available()
                     serial_error_count = 0  # Reset on successful read
                     if data:
                         self._stream_buffer.extend(data)
@@ -431,18 +469,25 @@ class UARTMultiplexer:
                 self.remote_data_buffer
             )
             if trailer_index == remaining_length:
-                # Valid packet - send buffered data to remote
                 combined_data = (
                     self.remote_data_buffer + self._stream_buffer[:trailer_index]
                 )
-                self.remote_buffer.write(combined_data)
 
                 # ACK the validated frame so the firmware's writer stops
                 # retransmitting. The firmware re-sends a frame until it sees
                 # this ping, which is how a frame corrupted on the wire (e.g.
                 # split by an esp_rom_printf/ISR log that bypasses the UART
                 # write lock) is recovered instead of silently lost.
-                self.serial_conn.write(self.ping_bytes)
+                #
+                # Sent before the data is handed to the consumer: publishing
+                # first would let the waiting caller emit its next command
+                # ahead of this ping, and the firmware's writer -- still
+                # blocked waiting for the ACK -- would consume that command's
+                # leading bytes instead.
+                with self._write_lock:
+                    self.serial_conn.write(self.ping_bytes)
+
+                self.remote_buffer.write(combined_data)
 
                 # Remove processed data (including trailer)
                 trailer_end = trailer_index + self.TRAILER_LENGTH
@@ -647,10 +692,19 @@ class UARTMultiplexer:
         if self.remote_buffer:
             self.remote_buffer.reset()
 
-    def write(self, data: bytes) -> int:
-        """Write data to the serial connection."""
+    def write(self, data: bytes, flush: bool = False) -> int:
+        """
+        Write data to the serial connection.
+
+        Held for the whole write (and the optional flush) so a concurrent ACK ping cannot
+        land between the bytes of a command.
+        """
         if self.serial_conn and self.serial_conn.is_open:
-            return self.serial_conn.write(data)
+            with self._write_lock:
+                written = self.serial_conn.write(data)
+                if flush:
+                    self.serial_conn.flush()
+                return written
         return 0
 
     def flush(self):
@@ -689,6 +743,8 @@ class UARTMultiplexer:
         state.pop("monitor_buffer", None)
         state.pop("remote_buffer", None)
         state.pop("_stream_buffer", None)
+        # A lock is process-local too, and _thread.lock is not picklable at all.
+        state.pop("_write_lock", None)
 
         # Record whether we should restart after unpickling.
         # We never serialize the actual serial fd; instead we re-open by port name.
@@ -709,6 +765,8 @@ class UARTMultiplexer:
         self.__dict__.update(state)
         self.monitor_buffer = VirtualPort(timeout=self.timeout)
         self.remote_buffer = VirtualPort(timeout=self.timeout)
+        # Dropped by __getstate__; the writers it guards are per-process anyway.
+        self._write_lock = threading.Lock()
 
         # Initialize new state variables if not present (for backward compatibility)
         if not hasattr(self, "expected_remote_length"):

@@ -28,6 +28,16 @@ menu "OSAL External I/O Configuration"
             help
                 UART buffer size to use.
 
+        config OSAL_EXT_IO_ESP_ACK_TIMEOUT_MS
+            int "Frame ACK timeout (ms)"
+            range 50 10000
+            default 1000
+            help
+                How long the frame writer waits for the host to acknowledge a frame
+                before retransmitting it. The host ACKs from a userspace thread, so a
+                contended host (several emulators on one machine) needs a looser value
+                than a dedicated serial link.
+
         config OSAL_EXT_IO_ESP_UART_RXD
             depends on OSAL_EXT_IO_ESP_UART_PORT_NUM != 0
             int "UART RXD pin number"

@@ -1335,6 +1335,9 @@ static osal_event_group_bits_t __get_event_flags(char *event_flags_start, char *
 
 void __esp_rmaker_host_ctrl_handle_buffer(uint8_t *buffer, size_t buffer_length)
 {
+    /* Echo the optional correlation id, so the host can tell this reply from a stale one. */
+    esp_rmaker_host_ctrl_take_response_seq(&buffer, &buffer_length);
+
     OSAL_LOGD(TAG, "Received buffer command: %.*s", (int)buffer_length, (char *)buffer);
 
     /* Attempt to handle the buffer as a data model command */

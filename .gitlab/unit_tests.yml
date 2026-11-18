@@ -168,6 +168,49 @@ unit_tests_posix:
       - "$HTTPBIN_LOG"
     expire_in: 1 week
 
+# Python unit tests for host-side code: each components/**/tests/ folder with a test_*.py is one suite.
+# Each suite runs in its own venv, with pytest and the suite's own tests/requirements.txt.
+unit_tests_host_python:
+  extends:
+    - .test_template
+    - .posix_env_template
+  rules:
+    - !reference [.rules_tests_gate, rules]
+  variables:
+    HOST_PYTHON_REPORT_DIR: "$CI_PROJECT_DIR/host_python_reports"
+    HOST_PYTHON_VENV_DIR: "$CI_PROJECT_DIR/.venv-host-python"
+  script:
+    - |
+      SUITES=$(git ls-files 'components/**/tests/test_*.py' | xargs -n1 dirname | sort -u)
+      if [ -z "$SUITES" ]; then
+        echo "ERROR: no components/**/tests/test_*.py found" >&2
+        exit 1
+      fi
+      mkdir -p "$HOST_PYTHON_REPORT_DIR"
+      failed=""
+      for dir in $SUITES; do
+        name=$(echo "$dir" | tr '/' '_')
+        venv="$HOST_PYTHON_VENV_DIR/$name"
+        python3 -m venv "$venv"
+        "$venv/bin/pip" install --quiet pytest
+        if [ -f "$dir/requirements.txt" ]; then
+          "$venv/bin/pip" install --quiet -r "$dir/requirements.txt"
+        fi
+        "$venv/bin/python" -m pytest -p no:cacheprovider "$dir" \
+          --junitxml "$HOST_PYTHON_REPORT_DIR/$name.xml" || failed="$failed $dir"
+      done
+      if [ -n "$failed" ]; then
+        echo "ERROR: failed suites:$failed" >&2
+        exit 1
+      fi
+  artifacts:
+    when: always
+    reports:
+      junit: "$HOST_PYTHON_REPORT_DIR/*.xml"
+    paths:
+      - "$HOST_PYTHON_REPORT_DIR/"
+    expire_in: 1 week
+
 # Build-only certs for test/apps/esp-idf, shared by the ESP-IDF unit-test jobs below.
 .esp_unit_test_certs:
   script:
