@@ -263,6 +263,8 @@ extern "C" {
  * - FAILED
  * Fill the status details struct with the appropriate fill function from esp_rmaker_ota_status_details.h.
  *
+ * @note The strings in status_details must stay valid until the job ends, for example literals or static buffers.
+ *
  * @param[in] status_details The status details to report. The status itself is part of this struct.
  * @return ESP_RMAKER_OK on success, otherwise an error code
  */

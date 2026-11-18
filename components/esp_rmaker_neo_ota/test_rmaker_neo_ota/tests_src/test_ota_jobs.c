@@ -849,6 +849,41 @@ void test_fsm_job_doc_received_missing_job_id_rejected(void)
 #endif
 }
 
+void test_set_ota_data_second_job_doc_replaces_previous_strings(void)
+{
+    reset_ctx_state(OTA_JOB_STATE_JOB_DOC_RECEIVED);
+
+    AfrOtaJobDocumentFields_t aws1 = {
+        .imageRef = "stream-1", .imageRefLen = 8,
+        .signature = "sig-1", .signatureLen = 5,
+        .fileSize = 100,
+    };
+    ota_job_info_custom_fields_t custom1 = {
+        .fw_version = "1.0.1", .fw_version_len = 5,
+        .file_md5 = "md5-1", .file_md5_len = 5,
+        .metadata = "meta-1", .metadata_len = 6,
+    };
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, set_ota_data_from_job_doc(&aws1, &custom1));
+    TEST_ASSERT_EQUAL_STRING("sig-1", g_ota_state_ctx.current_job.ota_data.file_signature);
+
+    /* The second job doc has no optional fields: no value of the first job doc must stay. */
+    AfrOtaJobDocumentFields_t aws2 = {
+        .imageRef = "stream-2", .imageRefLen = 8,
+        .fileSize = 200,
+    };
+    ota_job_info_custom_fields_t custom2 = {0};
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, set_ota_data_from_job_doc(&aws2, &custom2));
+
+    TEST_ASSERT_EQUAL_STRING("stream-2", g_ota_state_ctx.current_job.ota_data.stream_id);
+    TEST_ASSERT_EQUAL(200, g_ota_state_ctx.current_job.ota_data.filesize);
+    TEST_ASSERT_NULL(g_ota_state_ctx.current_job.ota_data.file_signature);
+    TEST_ASSERT_NULL(g_ota_state_ctx.current_job.ota_data.fw_version);
+    TEST_ASSERT_NULL(g_ota_state_ctx.current_job.ota_data.file_md5);
+    TEST_ASSERT_NULL(g_ota_state_ctx.current_job.ota_data.metadata);
+
+    clear_ota_data();
+}
+
 /* ========================================================================== */
 /* State JOB_EXECUTION: download events advance; null/other -> stay             */
 /* ========================================================================== */
@@ -939,6 +974,26 @@ void test_fsm_error_error_occurred_stays_error(void)
     TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, next);
 }
 
+void test_fsm_error_occurred_with_recovery_replay_keeps_active_job(void)
+{
+    reset_ctx_state(OTA_JOB_STATE_ERROR);
+    g_ota_state_ctx.current_job.has_active_job = true;
+    ota_job_event_data_t saved = { .event = OTA_JOB_EVENT_FINAL_STATUS_REPORT_REQUESTED, .payload = NULL };
+    g_ota_state_ctx.recovery.state = OTA_JOB_STATE_POST_DOWNLOAD;
+    g_ota_state_ctx.recovery.event_data = &saved;
+
+    ota_job_event_data_t ev = { .event = OTA_JOB_EVENT_ERROR_OCCURRED, .payload = NULL };
+    bool should_free = true;
+    /* Make the publish of any FAILED report fail */
+    rmaker_ota_status_test_set_publish_fail(1);
+    TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, handle_state_error(&ev, &should_free));
+    rmaker_ota_status_test_set_publish_fail(0);
+
+    /* No FAILED report: the job stays active for the replay */
+    TEST_ASSERT_TRUE(g_ota_state_ctx.current_job.has_active_job);
+    g_ota_state_ctx.recovery.event_data = NULL;
+}
+
 void test_fsm_error_other_events_stay_error(void)
 {
     reset_ctx_state(OTA_JOB_STATE_ERROR);
@@ -952,6 +1007,14 @@ void test_fsm_error_other_events_stay_error(void)
 /* ========================================================================== */
 /* Final status publish failure: MQTT mock forces fail; recovery state asserted */
 /* ========================================================================== */
+
+/* Checks the recovery context that ota_job_state_recover() accepts after a custom error */
+static void assert_custom_recovery_ready(const ota_job_event_data_t *ev, ota_job_state_t recovery_state)
+{
+    TEST_ASSERT_EQUAL(recovery_state, g_ota_state_ctx.recovery.state);
+    TEST_ASSERT_EQUAL_PTR(ev, g_ota_state_ctx.recovery.event_data);
+    TEST_ASSERT_EQUAL(ev->event, g_ota_state_ctx.recovery.event);
+}
 
 void test_fsm_reboot_check_final_status_publish_fail_recovery_state_reboot_check(void)
 {
@@ -977,11 +1040,11 @@ void test_fsm_reboot_check_final_status_publish_fail_recovery_state_reboot_check
 
     TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, next);
     TEST_ASSERT_EQUAL(OTA_ERROR_RETRY_WITH_BACKOFF, g_ota_state_ctx.last_error);
-    TEST_ASSERT_EQUAL(OTA_JOB_STATE_REBOOT_CHECK, g_ota_state_ctx.recovery.state);
+    assert_custom_recovery_ready(&ev, OTA_JOB_STATE_REBOOT_CHECK);
 #endif
 }
 
-void test_fsm_post_download_final_status_publish_fail_recovery_state_idle(void)
+void test_fsm_post_download_final_status_publish_fail_recovery_state_post_download(void)
 {
 #if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
     TEST_IGNORE_MESSAGE("post_error_event uses event loop; wrap required");
@@ -1005,7 +1068,7 @@ void test_fsm_post_download_final_status_publish_fail_recovery_state_idle(void)
 
     TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, next);
     TEST_ASSERT_EQUAL(OTA_ERROR_RETRY_WITH_BACKOFF, g_ota_state_ctx.last_error);
-    TEST_ASSERT_EQUAL(OTA_JOB_STATE_IDLE, g_ota_state_ctx.recovery.state);
+    assert_custom_recovery_ready(&ev, OTA_JOB_STATE_POST_DOWNLOAD);
 #endif
 }
 
@@ -1026,7 +1089,94 @@ void test_fsm_post_download_queued_final_status_publish_fail_recovery_state_post
 
     TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, next);
     TEST_ASSERT_EQUAL(OTA_ERROR_RETRY_WITH_BACKOFF, g_ota_state_ctx.last_error);
-    TEST_ASSERT_EQUAL(OTA_JOB_STATE_POST_DOWNLOAD, g_ota_state_ctx.recovery.state);
+    assert_custom_recovery_ready(&ev, OTA_JOB_STATE_POST_DOWNLOAD);
+#endif
+}
+
+void test_fsm_final_status_null_payload_enters_error(void)
+{
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
+    TEST_IGNORE_MESSAGE("post_error_event uses event loop; wrap required");
+#else
+    ota_job_event_data_t ev = { .event = OTA_JOB_EVENT_FINAL_STATUS_REPORT_REQUESTED, .payload = NULL };
+    bool should_free = true;
+
+    reset_ctx_state(OTA_JOB_STATE_REBOOT_CHECK);
+    TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, handle_state_reboot_check(&ev, &should_free));
+    TEST_ASSERT_EQUAL(OTA_ERROR_FATAL_UNEXPECTED_FORMAT, g_ota_state_ctx.last_error);
+
+    reset_ctx_state(OTA_JOB_STATE_POST_DOWNLOAD);
+    TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, handle_state_post_download(&ev, &should_free));
+    TEST_ASSERT_EQUAL(OTA_ERROR_FATAL_UNEXPECTED_FORMAT, g_ota_state_ctx.last_error);
+#endif
+}
+
+void test_fsm_reboot_check_status_publish_fail_recovery_state_reboot_check(void)
+{
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
+    TEST_IGNORE_MESSAGE("post_error_event uses event loop; wrap required");
+#else
+    /* No OTA status flags in NVS: the handler reports Failed */
+    reset_ctx_state(OTA_JOB_STATE_REBOOT_CHECK);
+    ota_job_event_data_t ev = { .event = OTA_JOB_EVENT_REBOOT_CHECK_REQUESTED, .payload = NULL };
+    bool should_free = true;
+
+    rmaker_ota_status_test_set_publish_fail(1);
+    ota_job_state_t next = handle_state_reboot_check(&ev, &should_free);
+    rmaker_ota_status_test_set_publish_fail(0);
+
+    TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, next);
+    TEST_ASSERT_FALSE(should_free);
+    assert_custom_recovery_ready(&ev, OTA_JOB_STATE_REBOOT_CHECK);
+#endif
+}
+
+void test_fsm_job_doc_reject_publish_fail_recovery_state_job_doc_received(void)
+{
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
+    TEST_IGNORE_MESSAGE("post_error_event uses event loop; wrap required");
+#else
+    ota_status_deinit();
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, ota_status_init("test-thing", strlen("test-thing")));
+    reset_ctx_state(OTA_JOB_STATE_JOB_DOC_RECEIVED);
+
+    /* No afr_ota and no custom job callback: the job doc is rejected */
+    static const char payload_str[] =
+        "{\"execution\":{\"jobId\":\"1234\",\"jobDocument\":{\"foo\":\"bar\"},\"versionNumber\":1}}";
+    ota_job_event_data_payload_t payload = { .data = (void *)payload_str, .len = sizeof(payload_str) - 1 };
+    ota_job_event_data_t ev = { .event = OTA_JOB_EVENT_JOB_DOC_ACCEPTED, .payload = &payload };
+    bool should_free = true;
+
+    rmaker_ota_status_test_set_publish_fail(1);
+    ota_job_state_t next = handle_state_job_doc_received(&ev, &should_free);
+    rmaker_ota_status_test_set_publish_fail(0);
+
+    TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, next);
+    TEST_ASSERT_FALSE(should_free);
+    assert_custom_recovery_ready(&ev, OTA_JOB_STATE_JOB_DOC_RECEIVED);
+    ota_status_deinit();
+#endif
+}
+
+void test_fsm_custom_job_progress_publish_fail_recovery_state_custom_job_execution(void)
+{
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE || !CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT
+    TEST_IGNORE_MESSAGE("custom-job support + wrap required");
+#else
+    reset_ctx_state(OTA_JOB_STATE_CUSTOM_JOB_EXECUTION);
+    strcpy(g_ota_state_ctx.current_job.job_id, "1234");
+    static const char details[] = "{\"step\":\"1\"}";
+    ota_job_event_data_payload_t payload = { .data = (void *)details, .len = sizeof(details) - 1 };
+    ota_job_event_data_t ev = { .event = OTA_JOB_EVENT_CUSTOM_JOB_PROGRESS, .payload = &payload };
+    bool should_free = true;
+
+    rmaker_ota_status_test_set_publish_fail(1);
+    ota_job_state_t next = handle_state_custom_job_execution(&ev, &should_free);
+    rmaker_ota_status_test_set_publish_fail(0);
+
+    TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, next);
+    TEST_ASSERT_FALSE(should_free);
+    assert_custom_recovery_ready(&ev, OTA_JOB_STATE_CUSTOM_JOB_EXECUTION);
 #endif
 }
 
@@ -1311,7 +1461,7 @@ void test_fsm_waiting_for_pending_jobs_accepted_enqueue_failure_enters_error_sta
 /* Recovery path: recovery.event_data lifecycle                               */
 /* ========================================================================== */
 
-void test_fsm_error_recovery_event_data_nulled_on_enqueue_failure(void)
+void test_fsm_error_recovery_event_data_kept_on_enqueue_failure(void)
 {
 #if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
     TEST_IGNORE_MESSAGE("recovery path uses enqueue_event; wrap required");
@@ -1322,7 +1472,7 @@ void test_fsm_error_recovery_event_data_nulled_on_enqueue_failure(void)
     reset_ctx_state(OTA_JOB_STATE_ERROR);
     g_ota_state_ctx.last_error = OTA_ERROR_RETRY_WITH_BACKOFF;
     g_ota_state_ctx.recovery.state = OTA_JOB_STATE_IDLE;
-    g_ota_state_ctx.recovery.event = OTA_JOB_EVENT_ERROR_OCCURRED;
+    g_ota_state_ctx.recovery.event = OTA_JOB_EVENT_EMPTY_TRANSITION;
     g_ota_state_ctx.recovery.event_data = copy_event_data(&empty_transition_event);
     TEST_ASSERT_NOT_NULL(g_ota_state_ctx.recovery.event_data);
     TEST_ASSERT_TRUE(is_in_event_pool(g_ota_state_ctx.recovery.event_data));
@@ -1333,13 +1483,13 @@ void test_fsm_error_recovery_event_data_nulled_on_enqueue_failure(void)
     bool should_free = true;
     ota_job_state_t next = handle_state_error(&ev, &should_free);
 
-    /* Recovery enqueue failed -> FSM stays in ERROR, event_data must be nulled
-     * (and freed back to the pool) to prevent use-after-free on retry. */
+    /* Recovery enqueue failed -> FSM stays in ERROR, the original stays for the retry. */
     TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, next);
-    TEST_ASSERT_NULL_MESSAGE(g_ota_state_ctx.recovery.event_data, "recovery.event_data must be nulled after failed enqueue");
+    TEST_ASSERT_NOT_NULL_MESSAGE(g_ota_state_ctx.recovery.event_data, "recovery.event_data must stay after failed enqueue");
     TEST_ASSERT_EQUAL(0, g_test_work_queue_fail_countdown);
 
-    /* Freed event returned to pool: draining must yield OTA_JOB_EVENT_POOL_SIZE slots. */
+    /* The failed copy is back in the pool and the original holds one slot. */
+    recovery_reset_context();
     uint32_t drained = 0;
     ota_job_event_data_t *slots[OTA_JOB_EVENT_POOL_SIZE];
     for (; drained < OTA_JOB_EVENT_POOL_SIZE; ++drained) {
@@ -1348,7 +1498,7 @@ void test_fsm_error_recovery_event_data_nulled_on_enqueue_failure(void)
             break;
         }
     }
-    TEST_ASSERT_EQUAL_MESSAGE(OTA_JOB_EVENT_POOL_SIZE, drained, "failed recovery slot was not returned to pool");
+    TEST_ASSERT_EQUAL_MESSAGE(OTA_JOB_EVENT_POOL_SIZE, drained, "recovery slots were not returned to pool");
     for (uint32_t i = 0; i < drained; ++i) {
         (void)event_pool_return(slots[i]);
     }
@@ -1367,7 +1517,7 @@ void test_fsm_error_recovery_event_data_nulled_on_enqueue_success(void)
     reset_ctx_state(OTA_JOB_STATE_ERROR);
     g_ota_state_ctx.last_error = OTA_ERROR_RETRY_WITH_BACKOFF;
     g_ota_state_ctx.recovery.state = OTA_JOB_STATE_IDLE;
-    g_ota_state_ctx.recovery.event = OTA_JOB_EVENT_ERROR_OCCURRED;
+    g_ota_state_ctx.recovery.event = OTA_JOB_EVENT_EMPTY_TRANSITION;
     g_ota_state_ctx.recovery.event_data = copy_event_data(&empty_transition_event);
     TEST_ASSERT_NOT_NULL(g_ota_state_ctx.recovery.event_data);
 
@@ -1379,6 +1529,179 @@ void test_fsm_error_recovery_event_data_nulled_on_enqueue_success(void)
     TEST_ASSERT_EQUAL(OTA_JOB_STATE_IDLE, next);
     TEST_ASSERT_NULL(g_ota_state_ctx.recovery.event_data);
 
+    event_pool_deinit();
+#endif
+}
+
+void test_fsm_custom_error_recovery_is_accepted(void)
+{
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
+    TEST_IGNORE_MESSAGE("recovery path uses enqueue_event; wrap required");
+#else
+    event_pool_deinit();
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, event_pool_init());
+    reset_ctx_state(OTA_JOB_STATE_REBOOT_CHECK);
+    g_pre_init_event_queue.state_initialized = true;
+
+    esp_rmaker_ota_status_details_t final_status_details;
+    esp_rmaker_ota_status_details_fill_succeeded(&final_status_details, NULL, "1.0.0");
+    ota_job_event_data_payload_t payload = {
+        .data = (void *) &final_status_details,
+        .len = sizeof(final_status_details),
+    };
+    ota_job_event_data_t src = {
+        .event = OTA_JOB_EVENT_FINAL_STATUS_REPORT_REQUESTED,
+        .payload = &payload,
+    };
+    ota_job_event_data_t *ev = copy_event_data(&src);
+    TEST_ASSERT_NOT_NULL(ev);
+    bool should_free = true;
+
+    rmaker_ota_status_test_set_publish_fail(1);
+    ota_job_state_t next = handle_state_reboot_check(ev, &should_free);
+    rmaker_ota_status_test_set_publish_fail(0);
+
+    TEST_ASSERT_EQUAL(OTA_JOB_STATE_ERROR, next);
+    TEST_ASSERT_FALSE(should_free);
+    TEST_ASSERT_EQUAL_PTR(ev, g_ota_state_ctx.recovery.event_data);
+    TEST_ASSERT_EQUAL(OTA_JOB_EVENT_FINAL_STATUS_REPORT_REQUESTED, g_ota_state_ctx.recovery.event);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, ota_job_state_recover());
+
+    recovery_reset_context();
+    g_pre_init_event_queue.state_initialized = false;
+    event_pool_deinit();
+#endif
+}
+
+void test_fsm_enter_error_custom_frees_previous_recovery_event_data(void)
+{
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
+    TEST_IGNORE_MESSAGE("enter_error_state_custom posts to event loop; wrap required");
+#else
+    event_pool_deinit();
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, event_pool_init());
+    reset_ctx_state(OTA_JOB_STATE_ERROR);
+    g_ota_state_ctx.recovery.event_data = copy_event_data(&empty_transition_event);
+    TEST_ASSERT_TRUE(is_in_event_pool(g_ota_state_ctx.recovery.event_data));
+
+    ota_job_event_data_t ev = { .event = OTA_JOB_EVENT_REBOOT_CHECK_REQUESTED, .payload = NULL };
+    enter_error_state_custom(OTA_ERROR_RETRY_WITH_BACKOFF, OTA_JOB_STATE_REBOOT_CHECK, &ev);
+    TEST_ASSERT_EQUAL_PTR(&ev, g_ota_state_ctx.recovery.event_data);
+    g_ota_state_ctx.recovery.event_data = NULL;
+
+    /* The old event must be back in the pool */
+    uint32_t drained = 0;
+    ota_job_event_data_t *slots[OTA_JOB_EVENT_POOL_SIZE];
+    for (; drained < OTA_JOB_EVENT_POOL_SIZE; ++drained) {
+        slots[drained] = event_pool_take();
+        if (slots[drained] == NULL) {
+            break;
+        }
+    }
+    TEST_ASSERT_EQUAL_MESSAGE(OTA_JOB_EVENT_POOL_SIZE, drained, "old recovery event was not returned to pool");
+    for (uint32_t i = 0; i < drained; ++i) {
+        (void)event_pool_return(slots[i]);
+    }
+    event_pool_deinit();
+#endif
+}
+
+void test_fsm_enter_error_frees_stored_recovery_event_data(void)
+{
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
+    TEST_IGNORE_MESSAGE("enter_error_state posts to event loop; wrap required");
+#else
+    event_pool_deinit();
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, event_pool_init());
+    reset_ctx_state(OTA_JOB_STATE_ERROR);
+    g_ota_state_ctx.recovery.event_data = copy_event_data(&empty_transition_event);
+    TEST_ASSERT_TRUE(is_in_event_pool(g_ota_state_ctx.recovery.event_data));
+
+    enter_error_state(OTA_ERROR_RETRY_WITH_BACKOFF);
+    TEST_ASSERT_NULL(g_ota_state_ctx.recovery.event_data);
+    TEST_ASSERT_EQUAL(OTA_JOB_STATE_IDLE, g_ota_state_ctx.recovery.state);
+    TEST_ASSERT_EQUAL(OTA_JOB_EVENT_FETCH_REQUESTED, g_ota_state_ctx.recovery.event);
+
+    /* The stored event must be back in the pool */
+    uint32_t drained = 0;
+    ota_job_event_data_t *slots[OTA_JOB_EVENT_POOL_SIZE];
+    for (; drained < OTA_JOB_EVENT_POOL_SIZE; ++drained) {
+        slots[drained] = event_pool_take();
+        if (slots[drained] == NULL) {
+            break;
+        }
+    }
+    TEST_ASSERT_EQUAL_MESSAGE(OTA_JOB_EVENT_POOL_SIZE, drained, "stored recovery event was not returned to pool");
+    for (uint32_t i = 0; i < drained; ++i) {
+        (void)event_pool_return(slots[i]);
+    }
+    event_pool_deinit();
+#endif
+}
+
+void test_suback_fetch_failure_schedules_fetch_retry(void)
+{
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
+    TEST_IGNORE_MESSAGE("needs work-queue/backoff wrap");
+#else
+    event_pool_deinit();
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, event_pool_init());
+    reset_ctx_state(OTA_JOB_STATE_POST_DOWNLOAD);
+    g_pre_init_event_queue.state_initialized = true;
+
+    /* A stored custom recovery context that the MQTT handler must not change */
+    ota_job_event_data_t stored = { .event = OTA_JOB_EVENT_FINAL_STATUS_REPORT_REQUESTED, .payload = NULL };
+    g_ota_state_ctx.recovery.state = OTA_JOB_STATE_POST_DOWNLOAD;
+    g_ota_state_ctx.recovery.event = stored.event;
+    g_ota_state_ctx.recovery.event_data = &stored;
+
+    osal_mqtt_event_loop_data_on_complete_t suback = {
+        .status = OSAL_ERR_OK,
+        .channel = { .main = MQTT_CHANNEL_MAIN_OTA, .sub = MQTT_CHANNEL_SUB_OTA_JOBS_SUBSCRIBE },
+    };
+    g_test_work_queue_fail_countdown = 1;
+    on_rmaker_mqtt_event(NULL, RMAKER_COMMON_EVENT, RMAKER_MQTT_EVENT_SUBSCRIBED, &suback);
+
+    TEST_ASSERT_EQUAL_INT(0, g_test_work_queue_fail_countdown);
+    TEST_ASSERT_TRUE(g_ota_state_ctx.subscribed);
+    TEST_ASSERT_EQUAL(OTA_ERROR_NONE, g_ota_state_ctx.last_error);
+    TEST_ASSERT_EQUAL(OTA_JOB_STATE_POST_DOWNLOAD, g_ota_state_ctx.recovery.state);
+    TEST_ASSERT_EQUAL(stored.event, g_ota_state_ctx.recovery.event);
+    TEST_ASSERT_EQUAL_PTR(&stored, g_ota_state_ctx.recovery.event_data);
+
+    TEST_ASSERT_EQUAL_INT(1, g_test_backoff_retry_calls);
+    TEST_ASSERT_EQUAL_PTR(&g_fetch_retry_ctx, g_test_last_backoff_ctx);
+    TEST_ASSERT_EQUAL_PTR((const void *)fetch_retry_task, g_test_last_backoff_task);
+
+    g_ota_state_ctx.recovery.event_data = NULL;
+    g_pre_init_event_queue.state_initialized = false;
+    event_pool_deinit();
+#endif
+}
+
+void test_fetch_retry_task_reschedules_then_stops(void)
+{
+#if !RMAKER_OTA_JOBS_TEST_WRAP_AVAILABLE
+    TEST_IGNORE_MESSAGE("needs work-queue/backoff wrap");
+#else
+    event_pool_deinit();
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, event_pool_init());
+    reset_ctx_state(OTA_JOB_STATE_IDLE);
+    g_pre_init_event_queue.state_initialized = true;
+
+    /* Work queue fails: the task re-arms the fetch retry */
+    g_test_work_queue_fail_countdown = 1;
+    fetch_retry_task(NULL);
+    TEST_ASSERT_EQUAL_INT(1, g_test_backoff_retry_calls);
+    TEST_ASSERT_EQUAL_PTR(&g_fetch_retry_ctx, g_test_last_backoff_ctx);
+    TEST_ASSERT_EQUAL_PTR((const void *)fetch_retry_task, g_test_last_backoff_task);
+
+    /* Work queue accepts: no re-arm */
+    fetch_retry_task(NULL);
+    TEST_ASSERT_EQUAL_INT(1, g_test_backoff_retry_calls);
+    TEST_ASSERT_EQUAL(OTA_ERROR_NONE, g_ota_state_ctx.last_error);
+
+    g_pre_init_event_queue.state_initialized = false;
     event_pool_deinit();
 #endif
 }

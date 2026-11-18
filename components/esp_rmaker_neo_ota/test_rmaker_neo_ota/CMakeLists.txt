@@ -93,11 +93,6 @@ else ()
                                                   ${RMNG_OTA_OPT_PRIV_REQUIRES} unity::framework
     )
 
-    # Force-enable custom-job branch in the test TU only so we can exercise the alternative memcpy/null-term path in
-    # handle_state_job_doc_received. The test TU is the sole compiler of ota_jobs.c (REMOVE_ITEM above); other lib TUs
-    # are unaffected.
-    target_compile_definitions(${TEST_ESP_RMAKER_NEO_OTA_TARGET} PRIVATE CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT=1)
-
     add_test(NAME ${TEST_ESP_RMAKER_NEO_OTA_TARGET} COMMAND ${TEST_ESP_RMAKER_NEO_OTA_TARGET})
 
     # Strategy A (Linux/ESP): linker --wrap. Strategy B (Apple): stub object with real symbol names linked first.

@@ -110,6 +110,7 @@ int test_rmaker_neo_ota_all_tests_unity(void)
     RUN_TEST(test_fsm_job_doc_received_wrong_event_stays);
     RUN_TEST(test_fsm_job_doc_received_oversized_job_id_rejected);
     RUN_TEST(test_fsm_job_doc_received_missing_job_id_rejected);
+    RUN_TEST(test_set_ota_data_second_job_doc_replaces_previous_strings);
     RUN_TEST(test_fsm_job_doc_received_shorter_job_id_terminated_correctly);
     RUN_TEST(test_fsm_job_doc_received_standard_path_shorter_job_id_terminated_correctly);
     RUN_TEST(test_fsm_job_execution_null_stays);
@@ -120,11 +121,16 @@ int test_rmaker_neo_ota_all_tests_unity(void)
     RUN_TEST(test_fsm_error_null_stays_error);
     RUN_TEST(test_fsm_error_error_occurred_stays_error);
     RUN_TEST(test_fsm_error_other_events_stay_error);
+    RUN_TEST(test_fsm_error_occurred_with_recovery_replay_keeps_active_job);
     RUN_TEST(test_fsm_enter_error_sets_last_error_and_recovery);
     RUN_TEST(test_fsm_reboot_check_final_status_publish_fail_recovery_state_reboot_check);
-    RUN_TEST(test_fsm_post_download_final_status_publish_fail_recovery_state_idle);
+    RUN_TEST(test_fsm_post_download_final_status_publish_fail_recovery_state_post_download);
     RUN_TEST(test_fsm_post_download_queued_final_status_publish_fail_recovery_state_post_download);
+    RUN_TEST(test_fsm_reboot_check_status_publish_fail_recovery_state_reboot_check);
+    RUN_TEST(test_fsm_job_doc_reject_publish_fail_recovery_state_job_doc_received);
+    RUN_TEST(test_fsm_custom_job_progress_publish_fail_recovery_state_custom_job_execution);
     RUN_TEST(test_fsm_final_status_publish_fail_consecutive_increments_backoff_delay);
+    RUN_TEST(test_fsm_final_status_null_payload_enters_error);
 
     /* Static event pool + enqueue-failure propagation */
     RUN_TEST(test_event_pool_init_creates_queue_with_configured_size);
@@ -145,8 +151,13 @@ int test_rmaker_neo_ota_all_tests_unity(void)
     RUN_TEST(test_post_terminal_event_enqueue_failure_schedules_backoff_redelivery);
     RUN_TEST(test_terminal_repost_task_redelivers_then_stops);
     RUN_TEST(test_terminal_repost_task_reschedules_on_repeated_failure);
-    RUN_TEST(test_fsm_error_recovery_event_data_nulled_on_enqueue_failure);
+    RUN_TEST(test_fsm_error_recovery_event_data_kept_on_enqueue_failure);
     RUN_TEST(test_fsm_error_recovery_event_data_nulled_on_enqueue_success);
+    RUN_TEST(test_fsm_custom_error_recovery_is_accepted);
+    RUN_TEST(test_fsm_enter_error_custom_frees_previous_recovery_event_data);
+    RUN_TEST(test_fsm_enter_error_frees_stored_recovery_event_data);
+    RUN_TEST(test_suback_fetch_failure_schedules_fetch_retry);
+    RUN_TEST(test_fetch_retry_task_reschedules_then_stops);
 
     /* Default filetype handler version parsing (patch-version regression) */
     RUN_TEST(test_ft_version_basic_xyz);

@@ -20,3 +20,6 @@ CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT=y
 
 # Keep local control off port 8080, which httpbin might need to use.
 CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_HTTP_PORT=8090
+
+# Build the OTA custom-job paths, so their tests run
+CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT=y
