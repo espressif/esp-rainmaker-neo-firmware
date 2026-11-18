@@ -12,7 +12,7 @@
 # Functions:
 #
 #   rmng_python_venv_prepare(OUT_VENV [DEPS <pkg1;pkg2;...>] [PYTHON_EXECUTABLE <path>])
-#     - Creates or reuses a venv at ${CMAKE_BINARY_DIR}/.venv
+#     - Creates or reuses a venv at ${CMAKE_BINARY_DIR}/.venv, or at env RMNG_PYTHON_VENV_DIR if set
 #     - Upgrades pip/setuptools/wheel
 #     - Ensures DEPS are installed (installs only if missing)
 #     - Sets OUT_VENV to the venv path in the caller's scope
@@ -45,7 +45,19 @@ function (rmng_python_venv_prepare OUT_VENV)
         set(_python_exec "${Python3_EXECUTABLE}")
     endif ()
 
-    set(_venv_dir "${CMAKE_BINARY_DIR}/.venv")
+    # Env RMNG_PYTHON_VENV_DIR shares one venv between build dirs; the lock serialises concurrent configures.
+    if (NOT "$ENV{RMNG_PYTHON_VENV_DIR}" STREQUAL "")
+        set(_venv_dir "$ENV{RMNG_PYTHON_VENV_DIR}")
+    else ()
+        set(_venv_dir "${CMAKE_BINARY_DIR}/.venv")
+    endif ()
+    get_filename_component(_venv_parent "${_venv_dir}" DIRECTORY)
+    file(MAKE_DIRECTORY "${_venv_parent}")
+    file(
+        LOCK "${_venv_dir}.lock"
+        GUARD FUNCTION
+        TIMEOUT 600
+    )
 
     # Create venv if missing
     set(_first_time FALSE)

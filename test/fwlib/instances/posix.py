@@ -646,6 +646,9 @@ class FirmwareInstanceFactoryPosix(FirmwareInstanceFactory):
                 cmd = [
                     gcovr,
                     *_gcovr_verbose_cli_flags(),
+                    # Capped: gcovr's -j 0 uses the host core count, not the container's.
+                    "-j",
+                    str(min(os.cpu_count() or 1, 8)),
                     "-r",
                     str(root),
                     *_GCOVR_MERGE_FUNCTIONS_ARGS,

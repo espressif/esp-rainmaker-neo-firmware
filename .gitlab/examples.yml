@@ -203,6 +203,8 @@ build_examples_posix:
     POSIX_EXAMPLES_DIR: "examples"
     # Same selection rationale as ESP_ALWAYS_APPS above.
     POSIX_ALWAYS_APPS: "multi_device ota-custom"
+    # One venv for the kconfig/component-manager tools of every configure below.
+    RMNG_PYTHON_VENV_DIR: "/tmp/rmng-cmake-venv"
     # Cloned shallow (.rules_build_gate sets GIT_DEPTH:1); the change-detection
     # diff below uses ensure_base_sha to reach the diff base without full history.
   script:
