@@ -27,6 +27,8 @@ picks a random CCT on a long press.
 
 ## Build and Run
 
+Supported targets: esp32, esp32s3, esp32c3.
+
 Standard flow for every Matter example (esp-matter checkout, factory partition,
 onboarding modes) — see the [Matter examples README](../README.md).
 

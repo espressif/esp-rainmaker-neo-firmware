@@ -146,11 +146,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The examples' CMakeLists.txt also map esp32, esp32s3 and esp32c6 to an
-        # esp-matter device_hal, but only esp32c3 is built in CI. A target that fails
-        # here skips the Pages deploy for EVERY example, so validate a chip in
-        # .gitlab/matter.yml before you add it.
-        target: [esp32c3]
+        # Keep in sync with MATTER_TARGET in .gitlab/matter.yml; a target that
+        # fails here skips the Pages deploy for EVERY example.
+        target: [esp32, esp32s3, esp32c3]
     steps:
       - uses: actions/checkout@v7
         with:
