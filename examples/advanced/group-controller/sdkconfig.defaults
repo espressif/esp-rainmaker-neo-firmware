@@ -1,0 +1,64 @@
+# Baseline config for the group-controller example. The example supports ESP32-S3 only.
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+
+# Default to BLE provisioning.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_APP_NETWORK_PROV_TRANSPORT_BLE=y
+CONFIG_APP_NETWORK_PROV_COMPACT_QR=y
+# Peripheral-only, legacy advertising; Wi-Fi needs no SoftAP.
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+CONFIG_BT_NIMBLE_50_FEATURE_SUPPORT=n
+CONFIG_BT_NIMBLE_LOG_LEVEL_WARNING=y
+CONFIG_ESP_WIFI_SOFTAP_SUPPORT=n
+# Security2 provisioning runs its big-integer math in the NimBLE host task, which on Xtensa needs more
+# stack than the ~4 KB default.
+CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE=8192
+
+# Optimize build for size for all targets.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
+
+## Trim flash size
+# Common CA roots only, not the full Mozilla bundle. It keeps the Amazon roots the REST API uses.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
+# Log v2 drops the per-callsite format glue.
+CONFIG_LOG_VERSION_2=y
+# mbedTLS error strings and self-tests are development-only.
+CONFIG_MBEDTLS_ERROR_STRINGS=n
+CONFIG_MBEDTLS_SELF_TEST=n
+# Nothing here terminates TLS: MQTT and the signed REST calls are the client side.
+CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
+# AWS IoT and the REST API use P-256, BLE provisioning uses Curve25519; drop the rest.
+CONFIG_MBEDTLS_ECP_DP_SECP384R1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_SECP521R1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_SECP256K1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_BP256R1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_BP384R1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_BP512R1_ENABLED=n
+# No WPA2-Enterprise.
+CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT=n
+
+# Factory partition: keep the Neo and rmaker_app_network values the same.
+CONFIG_ESP_RMAKER_NEO_FACTORY_PARTITION_NAME="fctry"
+CONFIG_ESP_RMAKER_NEO_FACTORY_NAMESPACE="rmaker_creds"
+CONFIG_APP_NETWORK_FACTORY_NVS_PARTITION_NAME="fctry"
+CONFIG_APP_NETWORK_PROV_DATA_NAMESPACE="rmaker_creds"
+
+# The group controller is an internal, Kconfig-gated feature of esp_rmaker_neo.
+CONFIG_ESP_RMAKER_NEO_CONTROLLER=y
+
+# Shadow observation shares one subscription table with the agent's own filters. Sized for the
+# worst-case group: 5 subgroups with a node in at most 3 gives 26 distinct shadow names
+# (1 root + 5 + 10 + 10 combinations), 2 filters each, plus the agent's 7.
+CONFIG_OSAL_MQTT_SUBSCRIPTION_MANAGER_MAX_SUBSCRIPTIONS=64
+
+# Interactive UART console for the controller CLI.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+
+# Room for node config responses: the signed-request layer buffers each whole response on the heap,
+# sized from its Content-Length, so this is a ceiling rather than a reservation.
+CONFIG_ESP_RMAKER_AWS_SIGN_REQUEST_RESPONSE_MAX=16384

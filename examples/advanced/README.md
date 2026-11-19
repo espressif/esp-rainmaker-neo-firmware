@@ -9,5 +9,6 @@ yourself.
 | Example | Purpose |
 | --- | --- |
 | [`ota-custom`](ota-custom/) | Custom OTA filetype handler and custom (non-OTA) job callback |
+| [`group-controller`](group-controller/) | Controller node: REST + MQTT control of the other nodes in its group |
 
 These are **not** published to [ESP Launchpad](https://espressif.github.io/esp-launchpad/).

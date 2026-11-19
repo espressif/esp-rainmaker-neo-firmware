@@ -1,0 +1,17 @@
+# Same style as ESP-IDF defaults; the POSIX build reads this one.
+
+# The group controller is an internal, Kconfig-gated feature of esp_rmaker_neo. Enabling it here
+# also enables the "Group Controller" menu the sources read, and selects osal's HTTP
+# client for the SigV4 signer.
+CONFIG_ESP_RMAKER_NEO_CONTROLLER=y
+
+# Shadow observation shares one subscription table with the agent's own filters. Sized for the
+# worst-case group: 5 subgroups with a node in at most 3 gives 26 distinct shadow names
+# (1 root + 5 + 10 + 10 combinations), 2 filters each, plus the agent's 7.
+CONFIG_OSAL_MQTT_SUBSCRIPTION_MANAGER_MAX_SUBSCRIPTIONS=64
+
+# Room for node config responses: the signed-request layer buffers whole responses.
+CONFIG_ESP_RMAKER_AWS_SIGN_REQUEST_RESPONSE_MAX=16384
+
+# POSIX has no provisioning session, so the phone app associates the node over the network.
+CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE=y
