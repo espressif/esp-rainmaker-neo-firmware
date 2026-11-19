@@ -119,7 +119,7 @@ static int encode_strlike(jparse_ctx_t *jctx, bytebuf_t *b,
 
 /* Probe the "value" field, preserving its JSON lexical category. Order:
  * string/object/array (token-typed getters), then int (rejects "1.5"/"true"),
- * float, bool. Appends the value bytes; returns the VT tag, or -1. */
+ * int64 (only outside the int range), float, bool. Appends the value bytes; returns the VT tag, or -1. */
 static int encode_value(jparse_ctx_t *jctx, bytebuf_t *b, uint8_t *out_vt)
 {
     int slen = 0;
@@ -149,6 +149,12 @@ static int encode_value(jparse_ctx_t *jctx, bytebuf_t *b, uint8_t *out_vt)
         int32_t v = (int32_t)iv;
         bb_bytes(b, &v, sizeof(v));
         *out_vt = RMAKER_TRIGGER_VT_INT;
+        return 0;
+    }
+    int64_t lv = 0;
+    if (json_obj_get_int64(jctx, "value", &lv) == OS_SUCCESS) {
+        bb_bytes(b, &lv, sizeof(lv));
+        *out_vt = RMAKER_TRIGGER_VT_INT64;
         return 0;
     }
     float fv = 0.0f;
@@ -374,11 +380,23 @@ esp_rmaker_error_t esp_rmaker_trigger_details_iter_next(esp_rmaker_trigger_iter_
         break;
     }
     case RMAKER_TRIGGER_VT_INT: {
-        if (it->off + 4 > it->len) {
+        int32_t v;
+        if (it->off + sizeof(v) > it->len) {
             return ESP_RMAKER_FAIL;
         }
-        memcpy(&out->value_int, it->buf + it->off, 4);
-        it->off += 4;
+        memcpy(&v, it->buf + it->off, sizeof(v));
+        it->off += sizeof(v);
+        out->value_int = v;
+        break;
+    }
+    case RMAKER_TRIGGER_VT_INT64: {
+        int64_t v;
+        if (it->off + sizeof(v) > it->len) {
+            return ESP_RMAKER_FAIL;
+        }
+        memcpy(&v, it->buf + it->off, sizeof(v));
+        it->off += sizeof(v);
+        out->value_int = v;
         break;
     }
     case RMAKER_TRIGGER_VT_FLOAT: {

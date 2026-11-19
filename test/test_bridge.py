@@ -59,6 +59,7 @@ from helpers.config import (
     _set_test_node_config,
     _verify_config_with_named_shadow_reported,
     _verify_uploaded_node_config,
+    _wrap_int64_values,
 )
 from helpers.fixtures import (
     HeapStatusTracker,
@@ -94,7 +95,7 @@ def _load_child_config(config_path: Path) -> dict:
     do not own tags (they share the parent's), so the verify helper used here
     skips the tag pass.
     """
-    config = json.loads(config_path.read_text())
+    config = _wrap_int64_values(json.loads(config_path.read_text()))
     return {
         "devices": config.get("devices", []),
         "services": config.get("services", []),

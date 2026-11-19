@@ -15,6 +15,7 @@
 /* Includes *******************************************************/
 
 /* Standard includes. */
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -78,6 +79,22 @@ typedef struct {
     const _esp_rmaker_param_t *param;
 } _esp_rmaker_state_update_id_t;
 
+/**
+ * @brief Pre-int64 layout of esp_rmaker_param_val_t, which sets the stored blob size of non-int64 params.
+ */
+typedef struct {
+    esp_rmaker_val_type_t type;
+    union {
+        bool b;
+        int i;
+        float f;
+        char *s;
+    } val;
+} _esp_rmaker_param_val_legacy_t;
+
+_Static_assert(offsetof(esp_rmaker_param_val_t, val) == offsetof(_esp_rmaker_param_val_legacy_t, val),
+               "esp_rmaker_param_val_t no longer matches the stored blob layout");
+
 /* Public functions *******************************************************/
 
 #ifdef __cplusplus
@@ -113,6 +130,7 @@ esp_rmaker_state_update_id_t esp_rmaker_state_update_id_create(const esp_rmaker_
 
 /**
  * @brief Get the stored value of the parameter from NVS.
+ * @note A stored value of a narrower type widens to the param type; any other mismatch returns ESP_RMAKER_NOT_FOUND.
  *
  * @param[in] param Pointer to the parameter.
  * @param[out] val Pointer to the value to get.

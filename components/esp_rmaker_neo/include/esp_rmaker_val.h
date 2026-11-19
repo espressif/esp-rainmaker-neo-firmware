@@ -14,11 +14,15 @@
 
 /* Standard includes */
 #include <stdbool.h>
+#include <stdint.h>
 
 /* Error includes */
 #include "esp_rmaker_error_types.h"
 
 /* Public structures *******************************************************/
+
+/** 64 bit integer with 4-byte alignment, so the value stays at offset 4 in saved 32-bit param blobs. */
+typedef int64_t esp_rmaker_int64_t __attribute__((aligned(4)));
 
 /**
  * @brief RainMaker Neo Value Type.
@@ -38,6 +42,8 @@ typedef enum {
     RMAKER_VAL_TYPE_OBJECT,
     /** NULL terminated JSON Array string Eg. [1,2,3] */
     RMAKER_VAL_TYPE_ARRAY,
+    /** 64 bit signed integer */
+    RMAKER_VAL_TYPE_INT64,
 } esp_rmaker_val_type_t;
 
 /**
@@ -72,6 +78,8 @@ typedef union {
     float f;
     /** NULL terminated string */
     char *s;
+    /** 64 bit integer */
+    esp_rmaker_int64_t i64;
 } esp_rmaker_val_t;
 
 /**
@@ -135,6 +143,15 @@ esp_rmaker_param_val_t esp_rmaker_bool(bool bval);
  * @return Value structure.
  */
 esp_rmaker_param_val_t esp_rmaker_int(int ival);
+
+/**
+ * @brief Initialise a 64 bit Integer value
+ *
+ * @param[in] ival Initialising value.
+ *
+ * @return Value structure.
+ */
+esp_rmaker_param_val_t esp_rmaker_int64(int64_t ival);
 
 /**
  * @brief Initialise a Float value

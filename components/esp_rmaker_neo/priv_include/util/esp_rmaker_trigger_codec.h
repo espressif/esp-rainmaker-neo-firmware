@@ -33,6 +33,7 @@
  *     [value]                         // by value type:
  *                                     //   bool   -> u8 (0/1)
  *                                     //   int    -> i32
+ *                                     //   int64  -> i64 (only outside the i32 range)
  *                                     //   float  -> f32
  *                                     //   string -> [u16 len][bytes]
  *                                     //   object -> [u16 len][raw json bytes]
@@ -63,6 +64,7 @@ extern "C" {
 #define RMAKER_TRIGGER_VT_STRING 3u
 #define RMAKER_TRIGGER_VT_OBJECT 4u
 #define RMAKER_TRIGGER_VT_ARRAY  5u
+#define RMAKER_TRIGGER_VT_INT64  6u
 
 /** Operator codes (stable, persisted). */
 #define RMAKER_TRIGGER_OP_EQ 0u
@@ -85,7 +87,7 @@ typedef struct {
     bool        enabled;
     uint8_t     value_type;    /**< RMAKER_TRIGGER_VT_*. */
     bool        value_bool;    /**< Valid when value_type == BOOL. */
-    int32_t     value_int;     /**< Valid when value_type == INT. */
+    int64_t     value_int;     /**< Valid when value_type is INT or INT64. */
     float       value_float;   /**< Valid when value_type == FLOAT. */
     const char *value_str;     /**< Valid when value_type is STRING/OBJECT/ARRAY (raw bytes). */
     size_t      value_str_len;

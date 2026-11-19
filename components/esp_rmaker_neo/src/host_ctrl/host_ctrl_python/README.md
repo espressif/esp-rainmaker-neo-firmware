@@ -15,9 +15,9 @@ Schema:
   - `params`: array of param objects
     - `id`: string (required)
     - `type`: string (required)
-    - `data_type`: one of `int`, `float`, `bool`, `string`, `object`, `array` (required)
+    - `data_type`: one of `int`, `int64`, `float`, `bool`, `string`, `object`, `array` (required)
     - `value`: matches `data_type` (required)
-    - `bounds`: object (optional; only if needed for `int`/`float`)
+    - `bounds`: object (optional; only if needed for `int`/`int64`/`float`)
       - `min`: lower bound
       - `max`: upper bound
       - `step`: step
@@ -37,3 +37,5 @@ Schema:
   - `<tag name>`: `<tag value>`
 
 An example is provided as `example_config.json`.
+
+`NodeConfig` sends an `int64` param value with the int64 type. When you call `update_param()` for an `int64` param, wrap the value in `Int64(...)` from `host_ctrl`. A plain `int` goes out with the int type, and the device rejects it as a type mismatch.

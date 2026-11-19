@@ -135,6 +135,9 @@ esp_rmaker_error_t esp_rmaker_report_value(const esp_rmaker_param_val_t *val, ch
     case RMAKER_VAL_TYPE_INTEGER:
         json_gen_obj_set_int(jptr, key, val->val.i);
         break;
+    case RMAKER_VAL_TYPE_INT64:
+        json_gen_obj_set_int64(jptr, key, val->val.i64);
+        break;
     case RMAKER_VAL_TYPE_FLOAT:
         json_gen_obj_set_float(jptr, key, val->val.f);
         break;
@@ -161,6 +164,9 @@ esp_rmaker_error_t esp_rmaker_report_data_type(esp_rmaker_val_type_t type, char 
         break;
     case RMAKER_VAL_TYPE_INTEGER:
         json_gen_obj_set_string(jptr, data_type_key, "int");
+        break;
+    case RMAKER_VAL_TYPE_INT64:
+        json_gen_obj_set_string(jptr, data_type_key, "int64");
         break;
     case RMAKER_VAL_TYPE_FLOAT:
         json_gen_obj_set_string(jptr, data_type_key, "float");

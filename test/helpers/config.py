@@ -16,7 +16,19 @@ import json
 from pathlib import Path
 from random import randint
 
+from host_ctrl_python.commands import Int64
 from host_ctrl_python.host_ctrl import NodeConfig
+
+
+def _wrap_int64_values(config):
+    """
+    Wrap the values of int64 params in Int64, so host_ctrl sends them with the int64 type char.
+    """
+    for device in config.get("devices", []):
+        for param in device.get("params", []):
+            if param.get("data_type") == "int64":
+                param["value"] = Int64(param["value"])
+    return config
 
 
 def _get_new_param_value(param_value, param_bounds):
@@ -32,13 +44,13 @@ def _get_new_param_value(param_value, param_bounds):
     param_value_type = type(param_value)
     if param_value_type is bool:
         return not param_value
-    elif param_value_type is int or param_value_type is float:
+    elif param_value_type in (int, Int64, float):
         new_val = param_value
         while new_val == param_value:
             new_val = min_val + randint(0, int((max_val - min_val) / step)) * step
 
-        if param_value_type is int:
-            new_val = int(new_val)
+        if param_value_type in (int, Int64):
+            new_val = param_value_type(new_val)
         elif param_value_type is float:
             new_val = round(new_val, 3)
 
@@ -52,10 +64,33 @@ def _get_new_param_value(param_value, param_bounds):
     return param_value
 
 
+# Types that the cloud shadow returns as a different type
+_CLOUD_TYPES = {
+    Int64: int,  # The cloud returns an int64 value as a plain int
+}
+
+
+def _cloud_type(value) -> type:
+    """
+    Get the type that the cloud shadow uses for the value.
+    """
+    val_type = type(value)
+    return _CLOUD_TYPES.get(val_type, val_type)
+
+
+def _to_cloud_value(value):
+    """
+    Convert the value to the type that the cloud shadow uses.
+    """
+    cloud_type = _cloud_type(value)
+    return value if cloud_type is type(value) else cloud_type(value)
+
+
 def _are_values_equal(value1, value2) -> bool:
     """
     Check if the values are equal.
     """
+    value1, value2 = _to_cloud_value(value1), _to_cloud_value(value2)
     if type(value1) is not type(value2):
         return False
     if type(value1) is int or type(value1) is float:
@@ -87,8 +122,8 @@ def _verify_config_with_named_shadow_reported(node_config, named_shadow_reported
             assert named_shadow_param_value is not None, (
                 f"Param {full_param_id} not found in named shadow"
             )
-            assert type(named_shadow_param_value) is type(param_value), (
-                f"Param {full_param_id} value type does not match in named shadow, expected {type(param_value)} but got {type(named_shadow_param_value)}"
+            assert type(named_shadow_param_value) is _cloud_type(param_value), (
+                f"Param {full_param_id} value type does not match in named shadow, expected {_cloud_type(param_value)} but got {type(named_shadow_param_value)}"
             )
             assert _are_values_equal(named_shadow_param_value, param_value), (
                 f"Param {full_param_id} value does not match in named shadow, expected {param_value} but got {named_shadow_param_value}"
@@ -164,8 +199,10 @@ def _verify_config_with_indexed_shadow_reported(node_config, indexed_shadow_repo
             assert indexed_shadow_param_value is not None, (
                 f"Param {full_param_id} not found in indexed shadow"
             )
-            assert type(indexed_shadow_param_value) is type(config_param_value), (
-                f"Param {full_param_id} value type does not match in indexed shadow, expected {type(config_param_value)} but got {type(indexed_shadow_param_value)}"
+            assert type(indexed_shadow_param_value) is _cloud_type(
+                config_param_value
+            ), (
+                f"Param {full_param_id} value type does not match in indexed shadow, expected {_cloud_type(config_param_value)} but got {type(indexed_shadow_param_value)}"
             )
             assert _are_values_equal(indexed_shadow_param_value, config_param_value), (
                 f"Param {full_param_id} value does not match in indexed shadow, expected {config_param_value} but got {indexed_shadow_param_value}"
@@ -371,7 +408,7 @@ def _set_test_node_config(
     Set the test node config.
     """
 
-    config = json.loads(config_json_path.read_text())
+    config = _wrap_int64_values(json.loads(config_json_path.read_text()))
     tags = json.loads(tags_json_path.read_text())
 
     # drill into actual tags

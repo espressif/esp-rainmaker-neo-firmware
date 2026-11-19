@@ -255,8 +255,8 @@ static char *__dup_n(const char *p, size_t n)
 }
 
 /* Coerce a decoded lexical value to the data-model expected type, mirroring
- * the JSON path (``esp_rmaker_parse_val_from_object``): int promotes to float
- * and 0/1 to bool; everything else must match the expected category. */
+ * the JSON path (``esp_rmaker_parse_val_from_object``): int promotes to int64,
+ * int and int64 to float, and 0/1 to bool; everything else must match the expected category. */
 static esp_rmaker_error_t __coerce_value(const esp_rmaker_trigger_entry_t *e,
         esp_rmaker_val_type_t expected, esp_rmaker_param_val_t *val)
 {
@@ -275,13 +275,20 @@ static esp_rmaker_error_t __coerce_value(const esp_rmaker_trigger_entry_t *e,
         if (e->value_type != RMAKER_TRIGGER_VT_INT) {
             return ESP_RMAKER_INVALID_ARG;
         }
-        val->val.i = e->value_int;
+        val->val.i = (int)e->value_int;
         val->type = RMAKER_VAL_TYPE_INTEGER;
+        return ESP_RMAKER_OK;
+    case RMAKER_VAL_TYPE_INT64:
+        if (e->value_type != RMAKER_TRIGGER_VT_INT && e->value_type != RMAKER_TRIGGER_VT_INT64) {
+            return ESP_RMAKER_INVALID_ARG;
+        }
+        val->val.i64 = e->value_int;
+        val->type = RMAKER_VAL_TYPE_INT64;
         return ESP_RMAKER_OK;
     case RMAKER_VAL_TYPE_FLOAT:
         if (e->value_type == RMAKER_TRIGGER_VT_FLOAT) {
             val->val.f = e->value_float;
-        } else if (e->value_type == RMAKER_TRIGGER_VT_INT) {
+        } else if (e->value_type == RMAKER_TRIGGER_VT_INT || e->value_type == RMAKER_TRIGGER_VT_INT64) {
             val->val.f = (float)e->value_int;
         } else {
             return ESP_RMAKER_INVALID_ARG;

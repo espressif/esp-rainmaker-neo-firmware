@@ -10,11 +10,13 @@ in bounds, raw-data verification via the user REST API.
 import random
 from time import sleep
 
+from host_ctrl_python.commands import Int64
+
 
 def get_timeseries_node_config():
     """
-    Standard timeseries-only node config: a humidity int param
-    (``time_series``) and an energy float param (``ts_cumulative``).
+    Standard timeseries-only node config: a humidity int param and a total
+    int64 param (``time_series``), and an energy float param (``ts_cumulative``).
     """
     return {
         "devices": [
@@ -29,7 +31,15 @@ def get_timeseries_node_config():
                         "value": 65,
                         "bounds": {"min": 0, "max": 100, "step": 1},
                         "properties": ["read", "write", "time_series"],
-                    }
+                    },
+                    {
+                        "id": "total",
+                        "type": "esp.param.total",
+                        "data_type": "int64",
+                        "value": 5000000000,
+                        "bounds": {"min": 4000000000, "max": 6000000000, "step": 1},
+                        "properties": ["read", "write", "time_series"],
+                    },
                 ],
             },
             {
@@ -82,6 +92,11 @@ def timeseries_random_value_in_bounds(bounds, data_type, exclude_value):
     step = bounds.get("step")
     if min_v is None or max_v is None:
         raise ValueError("bounds must have min and max")
+    if data_type == "int64":
+        while True:
+            v = Int64(random.randrange(int(min_v), int(max_v) + 1, int(step or 1)))
+            if v != exclude_value:
+                return v
     if data_type == "int":
         min_v, max_v = int(min_v), int(max_v)
         step = 1 if step is None else int(step)

@@ -18,7 +18,7 @@ The path separator is `.`; device and parameter ids must not contain `.` and mus
 ```javascript
 {
     "k": <path>,                 // e.g. "Light.Power"
-    "dt": <data type>,           // "int", "float", "bool", or "string"
+    "dt": <data type>,           // "int", "int64", "float", "bool", or "string"
     "v": <parameter value>,      // The actual value matching the data type
     "cumulative": <boolean>,     // true if value is cumulative (e.g., energy meter)
     "t": <timestamp>,            // Unix timestamp in milliseconds (UTC), int64
@@ -39,7 +39,8 @@ The path separator is `.`; device and parameter ids must not contain `.` and mus
 
 The `dt` field indicates the data type:
 
-- `"int"`: Integer values
+- `"int"`: Integer values (32-bit)
+- `"int64"`: Integer values (64-bit)
 - `"float"`: Floating-point values
 - `"bool"`: Boolean values (true/false)
 - `"string"`: String values

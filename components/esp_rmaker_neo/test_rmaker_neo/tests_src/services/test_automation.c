@@ -372,6 +372,59 @@ void test_automation_parse_details_enabled_false_single_no_triggers(void)
     automation_test_node_teardown(node);
 }
 
+void test_automation_parse_details_int64(void)
+{
+    esp_rmaker_config_t cfg = { .enable_time_sync = false };
+    esp_rmaker_node_t *node = esp_rmaker_node_init(&cfg, "auto_i64", "type");
+    TEST_ASSERT_NOT_NULL(node);
+
+    esp_rmaker_device_t *dev = esp_rmaker_device_create("dev_a", "dtype", NULL);
+    TEST_ASSERT_NOT_NULL(dev);
+    esp_rmaker_param_t *param = esp_rmaker_param_create("param_l", "ltype", esp_rmaker_int64(0), PROP_FLAG_READ);
+    esp_rmaker_param_t *param_i = esp_rmaker_param_create("param_i", "itype", esp_rmaker_int(0), PROP_FLAG_READ);
+    esp_rmaker_param_t *param_f = esp_rmaker_param_create("param_f", "ftype", esp_rmaker_float(0), PROP_FLAG_READ);
+    TEST_ASSERT_NOT_NULL(param);
+    TEST_ASSERT_NOT_NULL(param_i);
+    TEST_ASSERT_NOT_NULL(param_f);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(dev, param));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(dev, param_i));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(dev, param_f));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_node_add_device(node, dev));
+
+    /* An integer value widens to int64, and ordered operators are allowed */
+    const char *json = "[{\"id\":\"tl_gt\",\"path\":\"dev_a.param_l\",\"operator\":\"gt\",\"value\":-42}]";
+    esp_rmaker_node_lock(node);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, __build_trigger_details_for_node_locked(node, json, strlen(json), NULL, NULL));
+    const node_automation_trigger_state_t *a = NODE_AUTO(node);
+    TEST_ASSERT_EQUAL_UINT8(1, a->count);
+    TEST_ASSERT_EQUAL(RMAKER_VAL_COMPARE_GT, a->list[0].compare_op);
+    TEST_ASSERT_EQUAL(RMAKER_VAL_TYPE_INT64, a->list[0].expected_val.type);
+    TEST_ASSERT_TRUE(a->list[0].expected_val.val.i64 == -42);
+
+    /* A value above the 32-bit range keeps its full value */
+    json = "[{\"id\":\"tl_big\",\"path\":\"dev_a.param_l\",\"operator\":\"eq\",\"value\":-5000000000}]";
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, __build_trigger_details_for_node_locked(node, json, strlen(json), NULL, NULL));
+    a = NODE_AUTO(node);
+    TEST_ASSERT_EQUAL_UINT8(1, a->count);
+    TEST_ASSERT_EQUAL(RMAKER_VAL_TYPE_INT64, a->list[0].expected_val.type);
+    TEST_ASSERT_TRUE(a->list[0].expected_val.val.i64 == -5000000000LL);
+
+    /* A float param accepts it too */
+    json = "[{\"id\":\"tf_big\",\"path\":\"dev_a.param_f\",\"operator\":\"gt\",\"value\":5000000000}]";
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, __build_trigger_details_for_node_locked(node, json, strlen(json), NULL, NULL));
+    a = NODE_AUTO(node);
+    TEST_ASSERT_EQUAL(RMAKER_VAL_TYPE_FLOAT, a->list[0].expected_val.type);
+    TEST_ASSERT_EQUAL_FLOAT(5e9f, a->list[0].expected_val.val.f);
+
+    /* An int param rejects it instead of truncating it */
+    json = "[{\"id\":\"ti_big\",\"path\":\"dev_a.param_i\",\"operator\":\"eq\",\"value\":5000000000}]";
+    TEST_ASSERT_NOT_EQUAL(ESP_RMAKER_OK, __build_trigger_details_for_node_locked(node, json, strlen(json), NULL, NULL));
+    esp_rmaker_node_unlock(node);
+
+    esp_rmaker_node_clear_stored_values(node);
+    esp_rmaker_node_deinit(node);
+}
+
 void test_automation_parse_details_enabled_omitted_adds_trigger(void)
 {
     static const automation_parse_expected_row_t k_exp[] = {

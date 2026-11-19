@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import utils as crypto_utils
 from .data import ParamData, HeapStatusData
 from .globals import Globals
-from .commands import PortManager, Command, Response
+from .commands import PortManager, Command, Response, Int64
 from .commands.flow import (
     CommandPing,
     CommandStart,
@@ -151,9 +151,17 @@ class NodeConfig:
                     raise ValueError(
                         f"devices[{idx}].params[{pidx}].type must be a non-empty string"
                     )
-                if dtype not in ("int", "float", "bool", "string", "object", "array"):
+                if dtype not in (
+                    "int",
+                    "int64",
+                    "float",
+                    "bool",
+                    "string",
+                    "object",
+                    "array",
+                ):
                     raise ValueError(
-                        f"devices[{idx}].params[{pidx}].data_type must be one of int|float|bool|string|object|array"
+                        f"devices[{idx}].params[{pidx}].data_type must be one of int|int64|float|bool|string|object|array"
                     )
                 if not isinstance(props, list):
                     raise ValueError(
@@ -169,9 +177,9 @@ class NodeConfig:
 
                 # If bounds key is present, enforce completeness and dtype constraints
                 bounds_key_present = "bounds" in param
-                if bounds_key_present and dtype not in ("int", "float"):
+                if bounds_key_present and dtype not in ("int", "int64", "float"):
                     raise ValueError(
-                        f"devices[{idx}].params[{pidx}].bounds is only allowed for int/float data types"
+                        f"devices[{idx}].params[{pidx}].bounds is only allowed for int/int64/float data types"
                     )
                 if bounds_key_present:
                     missing = [k for k in ("min", "max", "step") if k not in bounds]
@@ -180,10 +188,10 @@ class NodeConfig:
                             f"devices[{idx}].params[{pidx}].bounds is missing required fields: {', '.join(missing)}"
                         )
 
-                if dtype == "int":
+                if dtype in ("int", "int64"):
                     if not isinstance(pvalue, int) or isinstance(pvalue, bool):
                         raise ValueError(
-                            f"devices[{idx}].params[{pidx}].value must be an integer for data_type=int"
+                            f"devices[{idx}].params[{pidx}].value must be an integer for data_type={dtype}"
                         )
                     # Validate optional bounds
                     if pmin is not None and (
@@ -287,8 +295,10 @@ class NodeConfig:
                     "value": pvalue,
                     "properties": props,
                 }
-                # Keep bounds under a nested object for int/float
-                if dtype in ("int", "float"):
+                if dtype == "int64":
+                    norm_param["value"] = Int64(pvalue)
+                # Keep bounds under a nested object for int/int64/float
+                if dtype in ("int", "int64", "float"):
                     norm_param["bounds"] = {"min": pmin, "max": pmax, "step": pstep}
 
                 # Add UI type if available

@@ -500,7 +500,7 @@ Comparisons are performed as `<current parameter value> <operator> <value>`:
   - For all data types:
     - "eq": equals to
     - "ne": not equals to
-  - Only for *integer, float parameters*:
+  - Only for *integer, int64, float parameters*:
     - "lt": less than
     - "le": less than or equal to
     - "gt": greater than
@@ -512,6 +512,7 @@ Comparisons are performed as `<current parameter value> <operator> <value>`:
 
 - **boolean** parameter: accepts `true`/`false`, or the integers `0`/`1`.
 - **integer** parameter: accepts an integer only.
+- **int64** parameter: accepts an integer only, in the full 64-bit range.
 - **float** parameter: accepts a float or an integer (promoted).
 - **string**, **object**, **array** parameter: accepts only the matching JSON kind; the raw JSON text is compared. Only `eq`/`ne` are allowed.
 
