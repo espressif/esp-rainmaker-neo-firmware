@@ -67,8 +67,8 @@ static char *empty_payload = "{}";
  * @brief The reported document cache for the indexed and named shadows.
  */
 static struct {
-    char *indexed; /* Reported document cache for the indexed shadow. */
-    char *named; /* Reported document cache for the named shadow. */
+    _Atomic(char *) indexed; /* Reported document cache for the indexed shadow. */
+    _Atomic(char *) named; /* Reported document cache for the named shadow. */
 } __shadows_reported_documents_t = {
     .indexed = NULL,
     .named = NULL,
@@ -243,44 +243,53 @@ static void __mqtt_on_accepted_cb(const char *topic, size_t topic_len, void *pay
     OSAL_LOGD(TAG, "Payload: %.*s", (int) payload_len, (const char *) payload);
     /* Get the reported document */
     jparse_ctx_t jctx;
-    json_parse_start(&jctx, (const char *) payload, payload_len);
-    if (json_obj_get_object(&jctx, "state") != 0) {
-        OSAL_LOGE(TAG, "Failed to get state object from reported document");
+    if (json_parse_start(&jctx, (const char *) payload, payload_len) != 0) {
+        OSAL_LOGE(TAG, "Failed to parse reported document");
         return;
     }
 
-    /* Read the 'reported' object directly into a string */
+    char *reported_str = NULL;
     int reported_len = 0;
+    if (json_obj_get_object(&jctx, "state") != 0) {
+        OSAL_LOGE(TAG, "Failed to get state object from reported document");
+        goto parse_end;
+    }
+
+    /* Read the 'reported' object directly into a string */
     if (json_obj_get_object_strlen(&jctx, "reported", &reported_len) != 0) {
         OSAL_LOGE(TAG, "Failed to get reported object string length from reported document");
-        return;
+        goto parse_end;
     }
 
     /* Add 1 for the null terminator */
     reported_len++;
 
     /* Allocate a buffer for the reported document */
-    char *reported_str = (char *) OSAL_CALLOC_EXTRAM(reported_len, sizeof(char));
+    reported_str = (char *) OSAL_CALLOC_EXTRAM(reported_len, sizeof(char));
     if (reported_str == NULL) {
         OSAL_LOGE(TAG, "Failed to allocate buffer for reported document");
-        return;
+        goto parse_end;
     }
 
     /* Read the 'reported' object directly into the buffer */
     if (json_obj_get_object_str(&jctx, "reported", reported_str, reported_len) != 0) {
         OSAL_LOGE(TAG, "Failed to get reported object string from reported document");
         free(reported_str);
-        return;
+        reported_str = NULL;
     }
 
+parse_end:
     json_parse_end(&jctx);
+    if (reported_str == NULL) {
+        return;
+    }
 
     OSAL_LOGD(TAG, "Received reported document: %s", reported_str);
 
 
     /* Determine the type of shadow and set the reported document and event group bit */
     __shadows_type_t type = (__shadows_type_t)(uintptr_t) priv_data;
-    char **p_reported_document = NULL;
+    _Atomic(char *) *p_reported_document = NULL;
     osal_event_group_bits_t event_group_bit = 0;
     switch (type) {
     case __SHADOWS_TYPE_INDEXED:
@@ -297,11 +306,8 @@ static void __mqtt_on_accepted_cb(const char *topic, size_t topic_len, void *pay
         return;
     }
 
-    /* Set the reported document */
-    if (*p_reported_document != NULL) {
-        free(*p_reported_document);
-    }
-    *p_reported_document = reported_str;
+    /* Set the reported document; the atomic exchange stops a concurrent getter from returning freed memory */
+    free(atomic_exchange(p_reported_document, reported_str));
 
     /* Set the bit */
     esp_rmaker_network_set_bits(event_group_bit);
@@ -429,7 +435,7 @@ static char *__shadows_get_reported_document(__shadows_type_t type, uint32_t tim
 {
     /* Get variables based on shadow type */
     osal_event_group_bits_t subscribed_bit, reported_bit;
-    char **p_reported_document = NULL;
+    _Atomic(char *) *p_reported_document = NULL;
     switch (type) {
     case __SHADOWS_TYPE_INDEXED:
         subscribed_bit = RMAKER_NETWORK_EVENT_GROUP_BIT_INDEXED_SHADOW_SUBSCRIBED;
@@ -471,9 +477,7 @@ static char *__shadows_get_reported_document(__shadows_type_t type, uint32_t tim
     esp_rmaker_network_clear_bits(reported_bit);
 
     /* Return the reported document and set it to NULL */
-    char *to_report = *p_reported_document;
-    *p_reported_document = NULL;
-    return to_report;
+    return atomic_exchange(p_reported_document, NULL);
 }
 
 /* Public function definitions **************************************************/
@@ -502,14 +506,8 @@ esp_rmaker_error_t esp_rmaker_shadows_deinit(void)
     }
 
     /* Free the reported documents */
-    if (__shadows_reported_documents_t.indexed) {
-        free(__shadows_reported_documents_t.indexed);
-        __shadows_reported_documents_t.indexed = NULL;
-    }
-    if (__shadows_reported_documents_t.named) {
-        free(__shadows_reported_documents_t.named);
-        __shadows_reported_documents_t.named = NULL;
-    }
+    free(atomic_exchange(&__shadows_reported_documents_t.indexed, NULL));
+    free(atomic_exchange(&__shadows_reported_documents_t.named, NULL));
     return ESP_RMAKER_OK;
 }
 
