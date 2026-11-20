@@ -176,6 +176,10 @@ unit_tests_host_python:
     - .posix_env_template
   rules:
     - !reference [.rules_tests_gate, rules]
+  # Waits for the prepare stage (posix_test_env image) through the build job; needs no artifacts.
+  needs:
+    - job: build_unit_tests_posix
+      artifacts: false
   variables:
     HOST_PYTHON_REPORT_DIR: "$CI_PROJECT_DIR/host_python_reports"
     HOST_PYTHON_VENV_DIR: "$CI_PROJECT_DIR/.venv-host-python"
