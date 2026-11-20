@@ -260,7 +260,14 @@ esp_rmaker_error_t esp_rmaker_device_add_param(const esp_rmaker_device_t *device
     esp_rmaker_param_val_t stored_val;
     stored_val.type = _new_param->val.type;
     if (_new_param->prop_flags & PROP_FLAG_PERSIST) {
-        if (esp_rmaker_param_get_stored_value(_new_param, &stored_val) == ESP_RMAKER_OK) {
+        esp_rmaker_error_t stored_err = esp_rmaker_param_get_stored_value(_new_param, &stored_val);
+        if (stored_err == ESP_RMAKER_OK && stored_val.type == RMAKER_VAL_TYPE_STRING &&
+                !esp_rmaker_str_is_utf8(stored_val.val.s)) {
+            OSAL_LOGW(TAG, "Stored value of param %s is not UTF-8. Using the default.", _new_param->id);
+            free(stored_val.val.s);
+            stored_err = ESP_RMAKER_FAIL;
+        }
+        if (stored_err == ESP_RMAKER_OK) {
             if (lnode) {
                 esp_rmaker_node_lock(lnode);
             }
@@ -304,6 +311,10 @@ esp_rmaker_error_t esp_rmaker_device_add_attribute(const esp_rmaker_device_t *de
 {
     if (!device || !attr_name || !val) {
         OSAL_LOGE(TAG, "Device handle, attribute name or value cannot be NULL");
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    if (!esp_rmaker_str_is_utf8(attr_name) || !esp_rmaker_str_is_utf8(val)) {
+        OSAL_LOGE(TAG, "Device attribute name or value is not UTF-8");
         return ESP_RMAKER_INVALID_ARG;
     }
     _esp_rmaker_device_t *_device = ( _esp_rmaker_device_t *)device;

@@ -133,6 +133,13 @@ static void __emit_nodes(json_gen_str_t *jstr, const esp_rmaker_server_config_no
     }
 }
 
+static void __emit_request(json_gen_str_t *jstr, const esp_rmaker_server_config_node_t *nodes, size_t num_nodes)
+{
+    json_gen_start_object(jstr);
+    __emit_nodes(jstr, nodes, num_nodes);
+    json_gen_end_object(jstr);
+}
+
 /* Public functions ***************************************************************/
 
 esp_rmaker_error_t esp_rmaker_server_config_init(void)
@@ -179,16 +186,19 @@ int esp_rmaker_server_config_build_request(const esp_rmaker_server_config_node_t
         return -1;
     }
     json_gen_str_t jstr;
-    json_gen_str_start(&jstr, buf, (int)buf_size, NULL, NULL);
-    json_gen_start_object(&jstr);
-    __emit_nodes(&jstr, nodes, num_nodes);
-    json_gen_end_object(&jstr);
-    /* json_gen keeps the count after an overflow, so this is the full size. */
+    json_gen_str_start_measure(&jstr);
+    __emit_request(&jstr, nodes, num_nodes);
     int req_size = json_gen_str_end(&jstr);
-    if (buf && req_size > (int)buf_size) {
-        buf[0] = '\0';
+    if (!buf || req_size < 0) {
+        return req_size;
     }
-    return req_size;
+    if (req_size > (int)buf_size) {
+        buf[0] = '\0';
+        return req_size;
+    }
+    json_gen_str_start(&jstr, buf, (int)buf_size, NULL, NULL);
+    __emit_request(&jstr, nodes, num_nodes);
+    return json_gen_str_end(&jstr);
 }
 
 const char *esp_rmaker_server_config_request_data(void)

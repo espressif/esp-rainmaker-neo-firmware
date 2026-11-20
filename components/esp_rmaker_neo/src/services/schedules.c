@@ -172,7 +172,7 @@
  */
 typedef struct {
     char *data;       /**< Raw action JSON string. */
-    size_t data_len;  /**< Length of ``data`` (incl. NUL). */
+    size_t data_len;  /**< Length of ``data`` (excl. NUL). */
 } __schedule_action_t;
 
 /**
@@ -336,7 +336,7 @@ static void __schedule_action_free(__schedule_action_t *action);
 /**
  * @brief Allocate a new ``__schedule_priv_data_t``.
  * @param[in] action_json     NUL-terminated action JSON to deep-copy.
- * @param[in] action_json_len Length of ``action_json`` including NUL.
+ * @param[in] action_json_len Length of ``action_json`` without the NUL.
  * @param[in] node_key        Owning child NVS key (NULL/"" for self).
  */
 static __schedule_priv_data_t *__schedule_priv_data_new(const char *action_json, size_t action_json_len,
@@ -718,12 +718,13 @@ static __schedule_priv_data_t *__schedule_priv_data_new(const char *action_json,
         return NULL;
     }
     if (action_json && action_json_len > 0) {
-        p->action.data = OSAL_MALLOC_EXTRAM(action_json_len);
+        p->action.data = OSAL_MALLOC_EXTRAM(action_json_len + 1);
         if (!p->action.data) {
             free(p);
             return NULL;
         }
         memcpy(p->action.data, action_json, action_json_len);
+        p->action.data[action_json_len] = '\0';
         p->action.data_len = action_json_len;
     } else {
         p->action.data = NULL;
@@ -1169,14 +1170,14 @@ static esp_rmaker_error_t __parse_action(jparse_ctx_t *jctx, __schedule_action_t
         err = ESP_RMAKER_INVALID_ARG;
         goto __parse_action_fail;
     }
-    action->data_len = (size_t)data_len + 1;
-    action->data = (char *)OSAL_CALLOC_EXTRAM(1, action->data_len);
+    action->data_len = (size_t)data_len;
+    action->data = (char *)OSAL_CALLOC_EXTRAM(1, action->data_len + 1);
     if (!action->data) {
         OSAL_LOGE(TAG, "Could not allocate schedule action data");
         err = ESP_RMAKER_NO_MEM;
         goto __parse_action_fail;
     }
-    if (json_obj_get_object_str(jctx, "action", action->data, action->data_len) != 0) {
+    if (json_obj_get_object_str(jctx, "action", action->data, action->data_len + 1) != 0) {
         err = ESP_RMAKER_INVALID_ARG;
         goto __parse_action_fail;
     }

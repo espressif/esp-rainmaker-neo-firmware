@@ -31,6 +31,18 @@ void test_param_create_rejects_long_id(void);
 void test_path_round_trip(void);
 void test_path_to_update_id_invalid(void);
 
+/** UTF-8 validation tests. */
+void test_utf8_check_cases(void);
+void test_utf8_param_create(void);
+void test_utf8_param_update(void);
+void test_utf8_param_valid_values(void);
+void test_utf8_device_attribute(void);
+void test_utf8_node_attribute_and_tag(void);
+void test_utf8_node_info(void);
+void test_utf8_restore_invalid_stored_value(void);
+void test_utf8_restore_valid_stored_value(void);
+void test_utf8_cloud_write_keeps_reports_working(void);
+
 /**
  * @brief Test the error paths of the node model.
  */
@@ -320,16 +332,6 @@ void test_pb_c_resp_pack_to_buffer(void);
  * @brief Test the claiming fragment bounds, including the 32-bit offset wrap.
  */
 void test_claim_validate_data_bounds(void);
-
-/**
- * @brief Test escaping newlines in the CSR for transport inside a JSON string.
- */
-void test_claim_escape_new_line(void);
-
-/**
- * @brief Test unescaping newlines, including a lone trailing backslash.
- */
-void test_claim_unescape_new_line(void);
 
 /**
  * @brief Test the claiming command guards, including the terminal state.

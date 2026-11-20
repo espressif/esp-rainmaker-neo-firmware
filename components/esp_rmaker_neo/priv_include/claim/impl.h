@@ -43,8 +43,7 @@
  *
  * ECDSA P-256 is not configurable: the ESP RainMaker claiming service only accepts ECDSA CSRs.
  *
- * ::MAX_CSR_SIZE covers the escaped form too, since the buffer holds the CSR before and after
- * newline escaping. Neither value is a protocol constant; nothing on the wire depends on them.
+ * Neither value is a protocol constant; nothing on the wire depends on them.
  */
 #define CLAIM_KEY_TYPE   RMAKER_CRYPTO_KEY_TYPE_ECDSA_P256
 #define MAX_CSR_SIZE     RMAKER_CRYPTO_CSR_PEM_LEN_ECDSA_P256
@@ -69,7 +68,7 @@
  */
 typedef struct {
     esp_rmaker_claim_state_t state;
-    unsigned char csr[MAX_CSR_SIZE];   /**< PEM CSR, newlines escaped for JSON. */
+    unsigned char csr[MAX_CSR_SIZE];   /**< PEM CSR, without the trailing newline. */
     char payload[MAX_PAYLOAD_SIZE];    /**< Time-multiplexed request/response buffer. */
     size_t payload_offset;             /**< Fragmentation cursor into `payload`. */
     size_t payload_len;                /**< Valid length of `payload`. */

@@ -102,6 +102,10 @@ static esp_rmaker_error_t __esp_rmaker_node_add_tag(const esp_rmaker_node_t *nod
         OSAL_LOGE(TAG, "Node handle, tag name or value cannot be NULL.");
         return ESP_RMAKER_INVALID_ARG;
     }
+    if (!esp_rmaker_str_is_utf8(tag_name) || !esp_rmaker_str_is_utf8(tag_value)) {
+        OSAL_LOGE(TAG, "Tag name or value is not UTF-8.");
+        return ESP_RMAKER_INVALID_ARG;
+    }
     esp_rmaker_tag_t *tag = ((_esp_rmaker_node_t *)node)->tags, *prev_tag = NULL;
     while (tag) {
         if (strcmp(tag->name, tag_name) == 0) {
@@ -276,6 +280,11 @@ esp_rmaker_error_t esp_rmaker_node_fill_with_info(const esp_rmaker_node_t *node,
         OSAL_LOGE(TAG, "Node info must have name, type, fw_version and model set.");
         return ESP_RMAKER_INVALID_ARG;
     }
+    if (!esp_rmaker_str_is_utf8(info->name) || !esp_rmaker_str_is_utf8(info->type) ||
+            !esp_rmaker_str_is_utf8(info->fw_version) || !esp_rmaker_str_is_utf8(info->model)) {
+        OSAL_LOGE(TAG, "Node info fields must be UTF-8.");
+        return ESP_RMAKER_INVALID_ARG;
+    }
     _esp_rmaker_node_t *_node = (_esp_rmaker_node_t *)node;
     if (_node->info) {
         OSAL_LOGE(TAG, "Node already filled with info.");
@@ -411,6 +420,10 @@ esp_rmaker_error_t esp_rmaker_node_add_attribute(const esp_rmaker_node_t *node, 
 {
     if (!node || !attr_name || !value) {
         OSAL_LOGE(TAG, "Node handle, attribute name or value cannot be NULL.");
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    if (!esp_rmaker_str_is_utf8(attr_name) || !esp_rmaker_str_is_utf8(value)) {
+        OSAL_LOGE(TAG, "Node attribute name or value is not UTF-8.");
         return ESP_RMAKER_INVALID_ARG;
     }
     esp_rmaker_attr_t *attr = ((_esp_rmaker_node_t *)node)->attributes, *prev_attr = NULL;

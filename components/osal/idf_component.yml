@@ -10,8 +10,8 @@ dependencies:
     rules:
       - if: "target not in [linux]"
   # external dependencies
-  espressif/json_generator: ^1.2.0
-  espressif/json_parser: ^1.0.3
+  espressif/json_generator: ^2.1.0
+  espressif/json_parser: ^2.0.0
   # mqtt (esp-mqtt implementation; pulled from the registry, not the built-in component)
   espressif/mqtt:
     version: ^1.0.0

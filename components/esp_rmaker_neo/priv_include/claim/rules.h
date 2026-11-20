@@ -9,9 +9,8 @@
  * @brief Decision logic for assisted claiming, separated from the transport.
  *
  * These are the parts of claiming that are pure functions of their arguments: which command
- * is legal in which state, whether an inbound fragment fits the reassembly buffer, and the
- * newline escaping the JSON payloads need. They hold the bounds checks and the state-machine
- * guards, which is where claiming's sharp edges are.
+ * is legal in which state, and whether an inbound fragment fits the reassembly buffer. They
+ * hold the bounds checks and the state-machine guards, which is where claiming's sharp edges are.
  *
  * Kept out of claim.c, and compiled on every platform, so the unit tests link the same object
  * the firmware does. claim.c itself is BLE-only and therefore ESP-only; testing through it
@@ -121,42 +120,15 @@ bool claim_rules_fragment_in_sequence(uint32_t offset, size_t expected);
 bool claim_rules_fragment_total_pinned(uint32_t offset, uint32_t totallen, uint32_t expected_total);
 
 /**
- * @brief Replace real newlines with the two characters '\' and 'n'.
- *
- * The CSR travels inside a JSON string, and the claiming service expects the PEM on a single
- * line with escaped newlines. A trailing newline in @p src is dropped first, so the JSON
- * string does not end with an escaped one.
- *
- * @param[out] dst      Destination buffer.
- * @param[in]  dst_size Size of @p dst.
- * @param[in,out] src   NUL-terminated source. A trailing newline is removed in place.
- * @return ESP_RMAKER_OK on success.
- * @return ESP_RMAKER_NO_MEM if the escaped form does not fit @p dst, rather than truncating.
- * @return ESP_RMAKER_INVALID_ARG on a NULL argument, or a destination smaller than the three
- *         bytes one escape plus a NUL needs.
- */
-esp_rmaker_error_t claim_rules_escape_new_line(char *dst, size_t dst_size, char *src);
-
-/**
- * @brief Turn the two characters '\' and 'n' back into real newlines, in place.
- *
- * Tolerates a value ending in a lone backslash: consuming it would otherwise step past the
- * terminator and walk on through whatever follows the buffer.
- *
- * @param[in,out] str NUL-terminated string to unescape.
- */
-void claim_rules_unescape_new_line(char *str);
-
-/**
  * @brief Build the claim-verify request body.
  *
- * Format: {"csr":"<escaped PEM CSR>","send_mqtt_host":true}, plus "capabilities":[...]
+ * Format: {"csr":"<PEM CSR>","send_mqtt_host":true}, plus "capabilities":[...]
  * when any feature asks for a cloud service. The phone app forwards this body to
  * claim/verify unchanged.
  *
  * @note Lists every enabled capability; a re-claim replaces the certificate's policies.
  *
- * @param[in] escaped_csr PEM CSR with newlines already escaped for JSON.
+ * @param[in] csr PEM CSR; json_generator escapes it.
  * @param[out] buf Receives the NUL-terminated JSON.
  * @param[in] buf_size Size of @p buf.
  * @param[out] p_len Receives strlen() of the JSON. Optional.
@@ -164,7 +136,7 @@ void claim_rules_unescape_new_line(char *str);
  * @return ESP_RMAKER_INVALID_ARG on a NULL argument or a zero-sized buffer.
  * @return ESP_RMAKER_NO_MEM if the JSON does not fit in @p buf.
  */
-esp_rmaker_error_t claim_rules_build_verify_request(const char *escaped_csr, char *buf, size_t buf_size,
+esp_rmaker_error_t claim_rules_build_verify_request(const char *csr, char *buf, size_t buf_size,
         size_t *p_len);
 
 #ifdef __cplusplus

@@ -396,6 +396,11 @@ esp_rmaker_tag_t *esp_rmaker_node_get_tag_by_name(const esp_rmaker_node_t *node,
 /* --- JSON formatting functions --- */
 
 /**
+ * @brief Check that a string is well-formed UTF-8, as json_generator requires. NULL counts as valid.
+ */
+bool esp_rmaker_str_is_utf8(const char *s);
+
+/**
  * @brief Parse a parameter's value from a JSON object.
  * @param[in] p_jctx The JSON context.
  * @param[in] param_id The id of the parameter.

@@ -148,6 +148,8 @@ esp_rmaker_param_val_t esp_rmaker_float(float fval);
 /**
  * @brief Initialise a String value
  *
+ * @note sval must be valid UTF-8. The param setters return ESP_RMAKER_INVALID_ARG otherwise.
+ *
  * @param[in] sval Initialising value.
  *
  * @return Value structure.

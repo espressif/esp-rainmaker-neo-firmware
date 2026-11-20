@@ -119,6 +119,7 @@ static esp_rmaker_error_t __notify_make_json_payload(esp_rmaker_notification_t *
     }
 
     esp_rmaker_error_t err;
+    int len;
     json_gen_str_t jpayload;
     json_gen_str_start(&jpayload, payload, *payload_size, NULL, NULL);
     if (json_gen_start_object(&jpayload) != 0) {
@@ -151,7 +152,13 @@ static esp_rmaker_error_t __notify_make_json_payload(esp_rmaker_notification_t *
     }
 
 __notify_make_json_payload_end:
-    *payload_size = json_gen_str_end(&jpayload);
+    len = json_gen_str_end(&jpayload);
+    if (len < 0) {
+        OSAL_LOGE(TAG, "Failed to generate notify JSON: %d", len);
+        *payload_size = 0;
+        return err != ESP_RMAKER_OK ? err : ESP_RMAKER_FAIL;
+    }
+    *payload_size = (size_t)len;
     return err;
 }
 

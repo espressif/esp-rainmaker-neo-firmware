@@ -64,6 +64,10 @@ esp_rmaker_param_t *esp_rmaker_param_create(const char *param_id, const char *ty
         OSAL_LOGE(TAG, "Param id '%s' exceeds %d characters", param_id, RMAKER_NVS_KEY_LEN_MAX);
         return NULL;
     }
+    if (val.type == RMAKER_VAL_TYPE_STRING && !esp_rmaker_str_is_utf8(val.val.s)) {
+        OSAL_LOGE(TAG, "Value of param %s is not UTF-8.", param_id);
+        return NULL;
+    }
     bool is_ts = properties & PROP_FLAG_TIME_SERIES;
     bool is_ts_cumulative = properties & PROP_FLAG_TS_CUMULATIVE;
 
@@ -270,6 +274,11 @@ esp_rmaker_error_t esp_rmaker_param_add_valid_values(const esp_rmaker_param_t *p
             OSAL_LOGE(TAG, "Valid value %u of param %s is incomplete.", i, _param->id);
             return ESP_RMAKER_INVALID_ARG;
         }
+        if (!esp_rmaker_str_is_utf8(valid_values[i].label) || ((_param->val.type == RMAKER_VAL_TYPE_STRING) &&
+                !esp_rmaker_str_is_utf8(valid_values[i].value.val.s))) {
+            OSAL_LOGE(TAG, "Valid value %u of param %s is not UTF-8.", i, _param->id);
+            return ESP_RMAKER_INVALID_ARG;
+        }
     }
     esp_rmaker_param_value_label_t *copy = OSAL_CALLOC_EXTRAM(count, sizeof(esp_rmaker_param_value_label_t));
     if (!copy) {
@@ -413,6 +422,10 @@ esp_rmaker_error_t esp_rmaker_param_update(const esp_rmaker_param_t *param, esp_
         return ESP_RMAKER_INVALID_ARG;
     }
     _esp_rmaker_param_t *_param = (_esp_rmaker_param_t *)param;
+    if (val.type == RMAKER_VAL_TYPE_STRING && !esp_rmaker_str_is_utf8(val.val.s)) {
+        OSAL_LOGE(TAG, "New value of param %s is not UTF-8.", _param->id);
+        return ESP_RMAKER_INVALID_ARG;
+    }
 
     /* Owning node for locking. NULL until the param's device is attached to
      * a node (construction phase has no report contention). */

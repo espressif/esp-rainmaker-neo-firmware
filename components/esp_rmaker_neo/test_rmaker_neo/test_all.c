@@ -18,6 +18,16 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_param_create_rejects_path_separator);
     RUN_TEST(test_device_create_rejects_long_id);
     RUN_TEST(test_param_create_rejects_long_id);
+    RUN_TEST(test_utf8_check_cases);
+    RUN_TEST(test_utf8_param_create);
+    RUN_TEST(test_utf8_param_update);
+    RUN_TEST(test_utf8_param_valid_values);
+    RUN_TEST(test_utf8_device_attribute);
+    RUN_TEST(test_utf8_node_attribute_and_tag);
+    RUN_TEST(test_utf8_node_info);
+    RUN_TEST(test_utf8_restore_invalid_stored_value);
+    RUN_TEST(test_utf8_restore_valid_stored_value);
+    RUN_TEST(test_utf8_cloud_write_keeps_reports_working);
     RUN_TEST(test_path_round_trip);
     RUN_TEST(test_path_to_update_id_invalid);
     RUN_TEST(test_node_model_error_paths);
@@ -104,8 +114,6 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_pb_c_cmd_challenge_roundtrip);
     RUN_TEST(test_claim_validate_data_bounds);
     RUN_TEST(test_claim_fragment_sequencing);
-    RUN_TEST(test_claim_escape_new_line);
-    RUN_TEST(test_claim_unescape_new_line);
     RUN_TEST(test_claim_command_guards);
     RUN_TEST(test_claim_verify_request);
 

@@ -284,7 +284,10 @@ static char *__build_add_child_payload(const char *request_id, const char *suffi
     json_gen_obj_set_string(&j, "child_suffix", (char *)suffix);
     json_gen_obj_set_string(&j, "child_local_id", (char *)bridge_local_id);
     json_gen_end_object(&j);
-    (void)json_gen_str_end(&j);
+    if (json_gen_str_end(&j) < 0) {
+        OSAL_LOGE(TAG, "Failed to generate the bridge request JSON.");
+        return NULL;
+    }
     return OSAL_STRDUP_EXTRAM(buf);
 }
 
@@ -297,7 +300,10 @@ static char *__build_remove_child_payload(const char *request_id, const char *ch
     json_gen_obj_set_string(&j, "request_id", (char *)request_id);
     json_gen_obj_set_string(&j, "child_node_id", (char *)child_thing_name);
     json_gen_end_object(&j);
-    (void)json_gen_str_end(&j);
+    if (json_gen_str_end(&j) < 0) {
+        OSAL_LOGE(TAG, "Failed to generate the bridge request JSON.");
+        return NULL;
+    }
     return OSAL_STRDUP_EXTRAM(buf);
 }
 

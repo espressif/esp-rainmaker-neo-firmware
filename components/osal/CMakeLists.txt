@@ -60,7 +60,7 @@ endif ()
 if (NOT ESP_PLATFORM)
     include("${OSAL_DIR}/../../cmake/esp_component_manager.cmake")
     rmng_idf_components_import(
-        OSAL_JSON_COMPONENTS_DIR DEPENDENCIES "espressif/json_generator:^1.2.0" "espressif/json_parser:^1.0.3"
+        OSAL_JSON_COMPONENTS_DIR DEPENDENCIES "espressif/json_generator:^2.1.0" "espressif/json_parser:^2.0.0"
     )
     set(_JSON_GENERATOR_DIR "${OSAL_JSON_COMPONENTS_DIR}/espressif__json_generator")
     set(_JSON_PARSER_DIR "${OSAL_JSON_COMPONENTS_DIR}/espressif__json_parser")

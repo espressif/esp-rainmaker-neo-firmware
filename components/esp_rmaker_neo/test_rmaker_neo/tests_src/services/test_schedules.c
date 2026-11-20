@@ -146,7 +146,7 @@ void test_schedules_parse_action_empty_object_returns_empty(void)
 
     __schedule_action_t action = {0};
     TEST_ASSERT_EQUAL(ESP_RMAKER_OK, __parse_action(&jctx, &action));
-    TEST_ASSERT_EQUAL_MESSAGE(3, action.data_len, "Action data_len should be 3 for {} with NUL termination");
+    TEST_ASSERT_EQUAL_MESSAGE(2, action.data_len, "Action data_len should be 2 for {}, without the NUL");
     TEST_ASSERT_EQUAL_STRING_MESSAGE("{}", action.data, "Action data should be empty object");
     __schedule_action_free(&action);
     json_parse_end(&jctx);

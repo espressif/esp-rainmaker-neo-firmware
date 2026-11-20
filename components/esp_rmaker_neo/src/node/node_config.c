@@ -102,6 +102,11 @@ static esp_rmaker_error_t esp_rmaker_report_node_attributes(const esp_rmaker_nod
     return ESP_RMAKER_OK;
 }
 
+bool esp_rmaker_str_is_utf8(const char *s)
+{
+    return !s || json_gen_escape_string(s, strlen(s), NULL, 0) != JSON_GEN_ERR_INVALID_UTF8;
+}
+
 esp_rmaker_error_t esp_rmaker_report_attribute(const esp_rmaker_attr_t *attr, json_gen_str_t *jptr)
 {
     if (!attr || !jptr) {
