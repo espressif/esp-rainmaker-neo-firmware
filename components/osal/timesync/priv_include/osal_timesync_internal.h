@@ -83,6 +83,21 @@ const char *osal_timesync_tz_db_get_posix_str(const char *name);
  */
 bool osal_timesync_time_is_valid(void);
 
+/**
+ * @brief Record that the SNTP client got a time
+ */
+void osal_timesync_sntp_mark_synced(void);
+
+/**
+ * @brief Record that the app started SNTP before osal_timesync_init()
+ */
+void osal_timesync_sntp_mark_external(void);
+
+/**
+ * @brief Clear the SNTP state on deinit
+ */
+void osal_timesync_sntp_state_reset(void);
+
 #ifdef __cplusplus
 }
 #endif

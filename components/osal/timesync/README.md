@@ -13,6 +13,7 @@ POSIX `TZ` string. Schedules and time-series data depend on it.
 - Lifecycle: `osal_timesync_init()`, `osal_timesync_deinit()`,
   `osal_timesync_is_initialized()`.
 - Clock validity: `osal_timesync_is_synced()`,
+  `osal_timesync_sntp_has_synced()` (the SNTP client got a time since `init()`),
   `osal_timesync_epoch_ms_is_valid()`, `osal_timesync_wait_for_sync()`,
   `osal_timesync_set_time()` (coarse, best-effort, e.g. a time delivered from the
   cloud).
@@ -36,7 +37,10 @@ All the `int`-returning calls use `0` for success, negative for failure.
 - ESP-IDF: [`src/time_esp.c`](src/time_esp.c) runs SNTP (`esp_sntp`, or
   `lwip/apps/sntp` below IDF 5.1) against a built-in server list
   (`time.google.com`, `time.cloudflare.com`, `pool.ntp.org`,
-  `time.windows.com`), overridable via `config->server_name`.
+  `time.windows.com`), overridable via `config->server_name`. Its SNTP sync
+  callback records the sync, then calls `config->sync_time_cb` or the default
+  print callback. If SNTP already runs at `init()`, `osal_timesync_sntp_has_synced()`
+  follows `osal_timesync_is_synced()`.
 - POSIX: [`src/time_posix.c`](src/time_posix.c) starts **no** time client. The
   host OS owns the clock, so `init()` just records whether the current clock is
   valid, `server_name` and `sync_time_cb` are unused, and
@@ -51,6 +55,10 @@ host it fails without sufficient privileges.
 
 Always built: `timezone_db.c` and `timesync_common_impl.c` are in the shared
 source list, with the per-platform file added alongside.
+
+`CONFIG_OSAL_TIMESYNC_TEST_HOOKS` builds `osal_timesync_test_set_sntp_synced()`
+([`priv_include/osal_timesync_test_hooks.h`](priv_include/osal_timesync_test_hooks.h))
+for the unit tests.
 
 ## Notes
 

@@ -12,8 +12,9 @@ Provides device-wide timezone management exposed as a service named `Time` with 
 - Parameters (under `params : Time`):
   - `TZ` (type string): IANA timezone name, e.g., `America/New_York`
   - `TZ-POSIX` (type string): POSIX timezone string, e.g., `EST5EDT,M3.2.0,M11.1.0`
+  - `Timestamp` (type int64): epoch time in seconds. The value is 0 until the first write. Present only when `CONFIG_ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM` is enabled. Use it on nodes that cannot reach a time server, for example nodes under local control only.
 
-Both parameters have properties: `read`, `write`.
+All parameters have properties: `read`, `write`.
 
 ### Behavior
 
@@ -27,6 +28,15 @@ Both parameters have properties: `read`, `write`.
   - Node applies the timezone using the provided POSIX string.
   - On success, node updates local state for `TZ-POSIX`.
   - The IANA `TZ` will not change since it cannot be derived from the POSIX string; only `TZ-POSIX` is guaranteed to update.
+- When `Timestamp` is written:
+  - Node sets its local clock from the epoch value, and reports back its clock reading after the write.
+  - The reported value can differ from the value written, because the write is a coarse time source bounded by delivery latency.
+  - The reported `Timestamp` is the node's clock reading at the last write. It does not advance, so do not display it as the current time.
+  - When the clock owner already set the clock, the node ignores the write and reports its own clock. A late or replayed write then cannot step a synced clock. `CONFIG_ESP_RMAKER_NEO_TIME_CLOCK_OWNER` selects the clock owner:
+    - `SDK` (default): use this when the SDK runs SNTP (`enable_time_sync` is true), or when the node has no time source. The node applies writes until the SDK SNTP client gets a time. If the app started SNTP before the SDK, the node applies writes only while the clock is not valid.
+    - `EXTERNAL`: use this when the app, not the SDK, gets the time. For example, the app runs its own SNTP client or reads a GPS or RTC chip, or the OS runs NTP. The SDK cannot see when that source syncs, so the node applies writes only while the clock is not valid.
+    - On POSIX and the ESP-IDF linux target, the SDK runs no SNTP, so with `SDK` every write tries to set the host clock. Pick `EXTERNAL` when the host runs NTP.
+  - After the node applies a write, SNTP steps the clock again on its next sync.
 
 Whenever possible, it is preferred to **update ``TZ`` instead of ``TZ-POSIX``**.
 
@@ -95,6 +105,7 @@ Whenever possible, it is preferred to **update ``TZ`` instead of ``TZ-POSIX``**.
 ### Error Handling
 
 - If applying a timezone fails, the node should not update `TZ` or `TZ-POSIX` in reported state for that request.
+- If setting the clock fails, the node does not update `Timestamp` in reported state for that request. A value at or before the build-time reference, or a value above 4294967295 (`UINT32_MAX`, the year 2106), is rejected. The upper limit also rejects a value in milliseconds sent by mistake. See [Time Synchronization](../time_sync.md).
 - When `TZ` is accepted and applied but the POSIX string cannot be derived from it, `TZ` is still updated in reported state and `TZ-POSIX` is left unchanged.
 
 ## System

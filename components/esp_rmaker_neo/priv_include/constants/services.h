@@ -17,6 +17,7 @@
 #define RMAKER_SERVICES_TIMEZONE_SERVICE_ID     "Time"
 #define RMAKER_SERVICES_TIMEZONE_PARAM_ID       "TZ"
 #define RMAKER_SERVICES_TIMEZONE_POSIX_PARAM_ID "TZ-POSIX"
+#define RMAKER_SERVICES_TIMESTAMP_PARAM_ID      "Timestamp"
 
 /* System service **************************************************************/
 

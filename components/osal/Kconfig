@@ -102,6 +102,12 @@ menu "OSAL Timesync Configuration"
         help
             Default timezone used.
 
+    config OSAL_TIMESYNC_TEST_HOOKS
+        bool
+        default n
+        help
+            Build the internal hooks that the unit tests use to set the SNTP state.
+
 endmenu
 
 menu "OSAL HTTP Interface"

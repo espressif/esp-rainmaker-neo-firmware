@@ -328,6 +328,15 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_automation_parse_details_int64);
     RUN_TEST(test_automation_parse_details_enabled_explicit_true_and_false_skips);
 
+    /* Time service Timestamp *******************************************************/
+#if CONFIG_ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM
+    RUN_TEST(test_time_timestamp_param_rejects_invalid);
+    RUN_TEST(test_time_timestamp_param_ignored_when_synced);
+#if !CONFIG_ESP_RMAKER_NEO_TIME_CLOCK_OWNER_EXTERNAL
+    RUN_TEST(test_time_timestamp_param_applies_before_sntp_sync);
+#endif
+#endif
+
     /* System control ****************************************************************/
     /* System control tests removed due to potential interference with test execution */
 

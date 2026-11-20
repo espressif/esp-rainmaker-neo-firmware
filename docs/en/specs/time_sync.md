@@ -6,7 +6,7 @@ Time synchronization is required for accurate scheduling and timeseries data tim
 
 Throughout the firmware, "time is synced" is a **wall-clock validity** test, not an SNTP success flag: the clock counts as valid once it reads later than a reference instant baked in at compile time. Consequences:
 
-- A clock set by an external SNTP owner, by the host OS, or by the cloud `getTimeSync` response counts as synced — the SDK does not have to own SNTP.
+- A clock set by an external SNTP owner, by the host OS, by the cloud `getTimeSync` response, or by a write of the `Timestamp` param (see [Timezone Service](services/optional.md#timezone)) counts as synced — the SDK does not have to own SNTP.
 - Any attempt to set the clock to a value at or before the build-time reference is rejected, so garbage values cannot make the clock "valid".
 
 ## Synchronization Flows
@@ -40,7 +40,7 @@ No time client is started. `osal_timesync_init()` records whether the OS clock a
 - **Retry**: on ESP-IDF, SNTP automatically retries at its configured interval
 - **Synchronous flow**: startup blocks until sync succeeds (a valid clock is required for the TLS handshake)
 - **Decoupled flow**: startup is never blocked; time-sensitive work waits for a valid clock
-- **Fallback**: If time sync is disabled, the node proceeds without synchronized time (may affect schedule accuracy); the clock may still be set by an external SNTP owner or the cloud `getTimeSync` response
+- **Fallback**: If time sync is disabled, the node proceeds without synchronized time (may affect schedule accuracy); the clock may still be set by an external SNTP owner, the cloud `getTimeSync` response, or a `Timestamp` param write
 
 ## Relationship to Services
 

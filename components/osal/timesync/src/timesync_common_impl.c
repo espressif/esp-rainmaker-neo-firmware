@@ -12,8 +12,10 @@
 /** Includes ***************************************/
 
 #include "osal_timesync_internal.h"
+#include "osal_timesync_test_hooks.h"
 
 // Standard library includes
+#include <stdatomic.h>
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +36,9 @@
 /** Variables ***************************************/
 
 static const char *TAG = "osal_time_common";
+
+static atomic_bool s_sntp_synced;
+static atomic_bool s_sntp_external;
 
 static osal_timesync_event_loop_registration_info_t xEventLoopRegistrationInfo;
 
@@ -151,6 +156,38 @@ bool osal_timesync_epoch_ms_is_valid(int64_t epoch_ms)
      * values fold to <= 0, which is below the floor, so they return false. */
     return (epoch_ms / 1000) > (int64_t)OSAL_TIMESYNC_REF_TIME;
 }
+
+void osal_timesync_sntp_mark_synced(void)
+{
+    atomic_store(&s_sntp_synced, true);
+}
+
+void osal_timesync_sntp_mark_external(void)
+{
+    atomic_store(&s_sntp_external, true);
+}
+
+void osal_timesync_sntp_state_reset(void)
+{
+    atomic_store(&s_sntp_synced, false);
+    atomic_store(&s_sntp_external, false);
+}
+
+bool osal_timesync_sntp_has_synced(void)
+{
+    /* No sync callback reaches this layer when the app owns SNTP */
+    if (atomic_load(&s_sntp_external)) {
+        return osal_timesync_is_synced();
+    }
+    return atomic_load(&s_sntp_synced);
+}
+
+#if CONFIG_OSAL_TIMESYNC_TEST_HOOKS
+void osal_timesync_test_set_sntp_synced(bool synced)
+{
+    atomic_store(&s_sntp_synced, synced);
+}
+#endif /* CONFIG_OSAL_TIMESYNC_TEST_HOOKS */
 
 int osal_timesync_print_current_time(void)
 {

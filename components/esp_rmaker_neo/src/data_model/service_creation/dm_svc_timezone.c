@@ -16,6 +16,8 @@
 #include "services/standard_creation.h"
 
 /* Standard includes */
+#include <inttypes.h>
+#include <stdint.h>
 #include <string.h>
 
 /* Constants */
@@ -27,10 +29,15 @@
 #include "osal_mem_alloc.h"
 
 /* Timesync includes */
+#include "osal_time.h"
 #include "osal_timesync.h"
 
 /* RainMaker Neo includes */
 #include "node_internal.h"
+#include "esp_rmaker_standard_params.h"
+
+/* Configuration includes */
+#include "sdkconfig.h"
 
 /* Constants *******************************************************/
 
@@ -106,6 +113,26 @@ static esp_rmaker_error_t __timezone_service_cb(const esp_rmaker_device_t *devic
                   val.val.s, esp_rmaker_device_get_id(device), esp_rmaker_param_get_id(param));
         err = osal_timesync_set_timezone_posix(val.val.s);
     }
+#if CONFIG_ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM
+    else if (strcmp(esp_rmaker_param_get_type(param), ESP_RMAKER_PARAM_TIMESTAMP) == 0) {
+        const int64_t epoch_s = val.val.i64;
+        OSAL_LOGI(TAG, "Received value = %" PRId64 " for %s - %s",
+                  epoch_s, esp_rmaker_device_get_id(device), esp_rmaker_param_get_id(param));
+#if CONFIG_ESP_RMAKER_NEO_TIME_CLOCK_OWNER_EXTERNAL
+        const bool owner_set_clock = osal_timesync_is_synced();
+#else
+        const bool owner_set_clock = osal_timesync_sntp_has_synced();
+#endif
+        if (owner_set_clock) {
+            OSAL_LOGW(TAG, "The clock owner set the clock, so the Timestamp write is ignored");
+        } else if (epoch_s <= 0 || epoch_s > (int64_t)UINT32_MAX || osal_timesync_set_time(epoch_s * 1000) != 0) {
+            OSAL_LOGE(TAG, "Failed to set local time");
+            return ESP_RMAKER_FAIL;
+        }
+        esp_rmaker_param_update(param, esp_rmaker_int64(osal_get_time(NULL)));
+        return ESP_RMAKER_OK;
+    }
+#endif /* CONFIG_ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM */
     if (err == 0) {
         esp_rmaker_param_update(param, val);
     }
@@ -121,6 +148,10 @@ static esp_rmaker_device_t *__timezone_service_create(const char *timezone, cons
         esp_rmaker_param_t *tz_posix_param = esp_rmaker_param_create(RMAKER_SERVICES_TIMEZONE_POSIX_PARAM_ID, ESP_RMAKER_PARAM_TIMEZONE_POSIX, esp_rmaker_str(timezone_posix), properties);
         esp_rmaker_device_add_param(service, tz_param);
         esp_rmaker_device_add_param(service, tz_posix_param);
+#if CONFIG_ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM
+        /* 0 until the first write; a boot-time clock reading would go stale */
+        esp_rmaker_device_add_param(service, esp_rmaker_timestamp_param_create(RMAKER_SERVICES_TIMESTAMP_PARAM_ID, 0));
+#endif
     }
     return service;
 }
