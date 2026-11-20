@@ -97,7 +97,12 @@ static esp_rmaker_error_t __esp_rmaker_populate_node_state_locked(const esp_rmak
         json_gen_end_object(&jstr);
     }
 
-    *node_state_len = json_gen_str_end(&jstr);
+    int len = json_gen_str_end(&jstr);
+    if (len < 0) {
+        OSAL_LOGE(TAG, "Failed to generate node state JSON: %d", len);
+        return ESP_RMAKER_FAIL;
+    }
+    *node_state_len = (size_t)len;
     return ESP_RMAKER_OK;
 }
 

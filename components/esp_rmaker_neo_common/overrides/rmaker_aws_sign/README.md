@@ -38,8 +38,8 @@ firmware tests.
 
 `osal/json` already ships `json_parser` (jsmn), so the port uses it instead of the component's own scanner. It
 tokenizes only: the member walk, the duplicate-key refusal, the string-type check and the RFC 8259 unescaping
-(including surrogate pairs) are in `_osal_json.c`, because `json_parser` copies token bytes verbatim and cannot tell an
-absent key from a wrongly-typed one. Two things jsmn accepts that the contract does not — a member with no colon, and
+(including surrogate pairs) are in `_osal_json.c`, because the port walks the raw jsmn tokens, which hold the
+undecoded text, and `json_parser` cannot tell an absent key from a wrongly-typed one. Two things jsmn accepts that the contract does not — a member with no colon, and
 raw control characters inside a string — are rejected there as well.
 
 ### osal's HTTP client is required

@@ -1149,14 +1149,7 @@ static esp_rmaker_error_t __populate_shadow_payloads(const esp_rmaker_node_t *no
             json_gen_push_object(&jstr_named, "notify");
 
             /* Overall notification version */
-#if CONFIG_LIBC_NEWLIB_NANO_FORMAT
-            // Newlib nano format does not support int64_t, so we cast to int.
-            // (truncation is acceptable as long as the version number is different from the previous update)
-            // TODO: remove this workaround once Newlib nano format is fully supported by the JSON generator.
-            json_gen_obj_set_int(&jstr_named, "version", (int)(p_notify_info->version));
-#else
             json_gen_obj_set_int64(&jstr_named, "version", p_notify_info->version);
-#endif /* CONFIG_LIBC_NEWLIB_NANO_FORMAT */
 
             /* Alexa notification enabled */
             json_gen_obj_set_bool(&jstr_named, "alexa", p_notify_info->alexa_enabled);
@@ -1182,8 +1175,14 @@ static esp_rmaker_error_t __populate_shadow_payloads(const esp_rmaker_node_t *no
     __shadow_common_end(&jstr_indexed);
 
     /* Get the payload lengths */
-    *named_payload_len = json_gen_str_end(&jstr_named);
-    *indexed_payload_len = json_gen_str_end(&jstr_indexed);
+    int named_len = json_gen_str_end(&jstr_named);
+    int indexed_len = json_gen_str_end(&jstr_indexed);
+    if (named_len < 0 || indexed_len < 0) {
+        OSAL_LOGE(TAG, "Failed to generate shadow payloads: named %d, indexed %d", named_len, indexed_len);
+        return ESP_RMAKER_FAIL;
+    }
+    *named_payload_len = (size_t)named_len;
+    *indexed_payload_len = (size_t)indexed_len;
 
     return ESP_RMAKER_OK;
 }

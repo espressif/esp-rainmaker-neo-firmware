@@ -23,6 +23,7 @@ set(TEST_ESP_RMAKER_NEO_SRCS
     "tests_src/test_mqtt_topics.c"
     "tests_src/test_local_config.c"
     "tests_src/test_val.c"
+    "tests_src/test_utf8.c"
     "tests_src/test_state_changes.c"
     "tests_src/test_state_changes_get_all.c"
     "tests_src/test_state_changes_subgroup.c"

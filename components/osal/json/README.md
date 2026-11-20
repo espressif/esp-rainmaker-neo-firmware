@@ -17,8 +17,8 @@ so anything linking osal can `#include` them directly.
 
 There is only one implementation; the difference is purely how it is obtained.
 
-- ESP-IDF: `espressif/json_generator` (`^1.2.0`) and `espressif/json_parser`
-  (`^1.0.3`) are declared in [`../idf_component.yml`](../idf_component.yml) and
+- ESP-IDF: `espressif/json_generator` (`^2.1.0`) and `espressif/json_parser`
+  (`^2.0.0`) are declared in [`../idf_component.yml`](../idf_component.yml) and
   listed as public `REQUIRES` of the osal component, so the component manager
   fetches and builds them.
 - POSIX: the same versioned dependencies are imported at configure time by
@@ -33,6 +33,12 @@ There is only one implementation; the difference is purely how it is obtained.
 Always built. There is no `OSAL_INCLUDE_*` switch.
 
 ## Notes
+
+`json_generator` 2.x escapes strings itself and rejects a string that is not
+valid UTF-8 with `JSON_GEN_ERR_INVALID_UTF8`. One invalid string fails the
+whole document, so callers must not escape strings first, and must pass only
+valid UTF-8. `json_gen_escape_string(s, len, NULL, 0)` checks a string without
+output. `json_parser` 2.x returns decoded strings.
 
 Because the POSIX path resolves the dependencies through the ESP component
 manager, configuring a POSIX build needs the component registry to be reachable

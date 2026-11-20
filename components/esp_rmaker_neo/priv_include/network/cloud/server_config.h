@@ -70,7 +70,7 @@ void esp_rmaker_server_config_deinit(void);
  * @param[in] num_nodes Number of top-level nodes.
  * @param[out] buf Output buffer, or NULL with @p buf_size 0 to get the size. Set to "" if too small.
  * @param[in] buf_size Size of @p buf.
- * @return The required size, NUL included, or -1 for bad arguments.
+ * @return The required size, NUL included, or a negative value for bad arguments or a JSON_GEN_ERR_* error.
  */
 int esp_rmaker_server_config_build_request(const esp_rmaker_server_config_node_t *nodes, size_t num_nodes, char *buf,
         size_t buf_size);

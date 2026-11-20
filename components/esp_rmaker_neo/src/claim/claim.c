@@ -130,7 +130,6 @@ static const osal_event_group_bits_t CLAIM_WORKER_BIT = (1 << 1);
 
 /* Private function declarations *******************************************************/
 
-static esp_rmaker_error_t __escape_new_line(esp_rmaker_claim_data_t *claim_data);
 static esp_rmaker_error_t __run_in_worker_task(esp_rmaker_error_t (*fn)(esp_rmaker_claim_data_t *),
         esp_rmaker_claim_data_t *claim_data, uint32_t priority);
 static esp_rmaker_error_t __load_or_generate_key(esp_rmaker_claim_data_t *claim_data);
@@ -165,31 +164,6 @@ static const prov_capability_t claim_capability = {
 /* Private function definitions *******************************************************/
 
 /**
- * @brief Escape the CSR's newlines in place, using `payload` as scratch.
- *
- * Must not be called while `payload` holds anything live.
- */
-static esp_rmaker_error_t __escape_new_line(esp_rmaker_claim_data_t *claim_data)
-{
-    esp_rmaker_error_t err = claim_rules_escape_new_line(claim_data->payload, sizeof(claim_data->payload),
-                             (char *)claim_data->csr);
-    if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to escape the CSR: %d", err);
-        return err;
-    }
-
-    size_t escaped_len = strlen(claim_data->payload);
-    if (escaped_len + 1 > sizeof(claim_data->csr)) {
-        OSAL_LOGE(TAG, "Escaped CSR is %" PRIu32 " bytes, larger than the %" PRIu32 "-byte CSR buffer.",
-                  (uint32_t)escaped_len, (uint32_t)sizeof(claim_data->csr));
-        return ESP_RMAKER_NO_MEM;
-    }
-    memcpy(claim_data->csr, claim_data->payload, escaped_len + 1);
-    OSAL_LOGD(TAG, "Escaped CSR: %s", claim_data->csr);
-    return ESP_RMAKER_OK;
-}
-
-/**
  * @brief Generate the CSR for the node's current node ID.
  */
 static esp_rmaker_error_t __generate_csr(esp_rmaker_claim_data_t *claim_data)
@@ -219,8 +193,13 @@ static esp_rmaker_error_t __generate_csr(esp_rmaker_claim_data_t *claim_data)
     memset(claim_data->csr, 0, sizeof(claim_data->csr));
     memcpy(claim_data->csr, csr_pem, csr_pem_len);
     free(csr_pem);
+    /* The claiming service expects no trailing newline in the CSR. */
+    size_t csr_len = strnlen((char *)claim_data->csr, sizeof(claim_data->csr));
+    if (csr_len > 0 && claim_data->csr[csr_len - 1] == '\n') {
+        claim_data->csr[csr_len - 1] = '\0';
+    }
     /* Deliberately no state change: the caller advances to INIT_DONE once the CSR has also
-     * been escaped into the verify request. Leaving the state at INIT until then is what lets
+     * been written into the verify request. Leaving the state at INIT until then is what lets
      * the app retry a failed init with a fresh TypeCmdClaimInit. */
     return ESP_RMAKER_OK;
 }
@@ -317,7 +296,7 @@ static esp_rmaker_error_t __generate_claim_init_request(esp_rmaker_claim_data_t 
  * @brief Handle the claim-init response and build the claim-verify request.
  *
  * Init response: {"node_id":"<cloud-assigned-node-id>"}
- * Verify request: {"csr":"<escaped PEM CSR>","send_mqtt_host":true}, plus
+ * Verify request: {"csr":"<PEM CSR>","send_mqtt_host":true}, plus
  * "capabilities":[...] when any feature asks (see claim_rules_build_verify_request()).
  */
 static esp_rmaker_error_t __handle_claim_init_response(esp_rmaker_claim_data_t *claim_data)
@@ -353,10 +332,6 @@ static esp_rmaker_error_t __handle_claim_init_response(esp_rmaker_claim_data_t *
     err = __run_in_worker_task(__generate_csr, claim_data, CONFIG_ESP_RMAKER_NEO_WORK_QUEUE_TASK_PRIORITY + 1);
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to generate the CSR.");
-        return err;
-    }
-    err = __escape_new_line(claim_data);
-    if (err != ESP_RMAKER_OK) {
         return err;
     }
 
@@ -431,7 +406,6 @@ static esp_rmaker_error_t __handle_claim_verify_response(esp_rmaker_claim_data_t
         goto cleanup;
     }
 
-    claim_rules_unescape_new_line(cert_buf);
     err = esp_rmaker_credentials_set_client_cert((const uint8_t *)cert_buf, strlen(cert_buf));
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to store the certificate: %d", err);

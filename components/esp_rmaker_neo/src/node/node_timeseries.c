@@ -285,7 +285,12 @@ static esp_rmaker_error_t __timeseries_generate_json(const __timeseries_data_t *
         return ESP_RMAKER_FAIL;
     }
 
-    *buffer_len = json_gen_str_end(&jstr);
+    int len = json_gen_str_end(&jstr);
+    if (len < 0) {
+        OSAL_LOGE(TAG, "Failed to generate time series JSON: %d", len);
+        return ESP_RMAKER_FAIL;
+    }
+    *buffer_len = (size_t)len;
     return ESP_RMAKER_OK;
 }
 

@@ -81,9 +81,9 @@ if (DEFINED CONFIG_ESP_RMAKER_NEO_CONSOLE_ENABLE)
 endif ()
 message(STATUS "RMNG_CONSOLE_ENABLED: ${RMNG_CONSOLE_ENABLED}")
 # Assisted claiming. Lets a node without pre-flashed cloud credentials obtain them at first setup, via the phone app
-# over the provisioning session. claim_rules.c carries the state-machine guards, fragment bounds and JSON escaping. It
-# is compiled unconditionally, and on every platform, so the host tests link the same object the firmware does rather
-# than reaching into claim.c (which is BLE-only, hence ESP-only).
+# over the provisioning session. claim_rules.c carries the state-machine guards and fragment bounds. It is compiled
+# unconditionally, and on every platform, so the host tests link the same object the firmware does rather than reaching
+# into claim.c (which is BLE-only, hence ESP-only).
 list(APPEND RMNG_SRCS "${RMNG_SRC_DIR}/claim/claim_rules.c" "${RMNG_SRC_DIR}/claim/claim_pb-c.c")
 if (CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM)
     list(APPEND RMNG_SRCS "${RMNG_SRC_DIR}/claim/claim.c")

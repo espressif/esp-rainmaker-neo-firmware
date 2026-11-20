@@ -109,91 +109,6 @@ void test_claim_fragment_sequencing(void)
     TEST_ASSERT_FALSE(claim_rules_fragment_total_pinned(200, 4000, 3000));
 }
 
-/* Newline escaping ************************************************/
-
-void test_claim_escape_new_line(void)
-{
-    char dst[512];
-
-    /* --- Round trip: real newlines become '\' 'n' and back --- */
-    char pem[] = "-----BEGIN CERTIFICATE REQUEST-----\nQUJD\nREVG\n-----END CERTIFICATE REQUEST-----\n";
-    char expected[sizeof(pem)];
-    strcpy(expected, pem);
-    expected[strlen(expected) - 1] = '\0';   /* the trailing newline is dropped, not escaped */
-
-    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_escape_new_line(dst, sizeof(dst), pem));
-    TEST_ASSERT_NULL(strchr(dst, '\n'));
-    TEST_ASSERT_NOT_NULL(strstr(dst, "\\n"));
-
-    claim_rules_unescape_new_line(dst);
-    TEST_ASSERT_EQUAL_STRING(expected, dst);
-
-    /* --- An empty source must not read src[-1] --- */
-    char empty[] = "";
-    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_escape_new_line(dst, sizeof(dst), empty));
-    TEST_ASSERT_EQUAL_STRING("", dst);
-
-    /* --- A source whose escaped form does not fit is refused, not truncated --- */
-    char newlines[64];
-    memset(newlines, '\n', sizeof(newlines) - 1);
-    newlines[sizeof(newlines) - 1] = '\0';
-    char small[32];
-    TEST_ASSERT_EQUAL(ESP_RMAKER_NO_MEM, claim_rules_escape_new_line(small, sizeof(small), newlines));
-
-    /* --- Bad arguments --- */
-    char src[] = "x";
-    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_escape_new_line(NULL, sizeof(dst), src));
-    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_escape_new_line(dst, sizeof(dst), NULL));
-    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_escape_new_line(dst, 0, src));
-    /* Under three bytes there is no room for an escape plus the NUL, and computing the write
-     * limit would land before the buffer. Rejected on the size alone, before any arithmetic. */
-    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_escape_new_line(dst, 1, src));
-    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_escape_new_line(dst, 2, src));
-    /* Three bytes is the smallest accepted destination: room for the escape it reserves and the
-     * NUL, so an empty source fits and any character is refused rather than truncated. */
-    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_escape_new_line(dst, 3, empty));
-    TEST_ASSERT_EQUAL_STRING("", dst);
-    TEST_ASSERT_EQUAL(ESP_RMAKER_NO_MEM, claim_rules_escape_new_line(dst, 3, src));
-    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_escape_new_line(dst, 4, src));
-    TEST_ASSERT_EQUAL_STRING("x", dst);
-}
-
-void test_claim_unescape_new_line(void)
-{
-    char buf[64];
-
-    /* --- The ordinary case --- */
-    strcpy(buf, "line1\\nline2");
-    claim_rules_unescape_new_line(buf);
-    TEST_ASSERT_EQUAL_STRING("line1\nline2", buf);
-
-    /* --- A value ending in an escaped newline: the common upstream walk-off trigger --- */
-    strcpy(buf, "line1\\n");
-    claim_rules_unescape_new_line(buf);
-    TEST_ASSERT_EQUAL_STRING("line1\n", buf);
-
-    /* --- A lone trailing backslash. Without the guard the terminator is copied and the walk
-     *     continues, so the sentinel planted after the NUL must survive. --- */
-    memset(buf, 0, sizeof(buf));
-    strcpy(buf, "abc\\");
-    strcpy(buf + 5, "SENTINEL");
-    claim_rules_unescape_new_line(buf);
-    TEST_ASSERT_EQUAL_STRING("abc", buf);
-    TEST_ASSERT_EQUAL_STRING("SENTINEL", buf + 5);
-
-    /* --- A backslash before something other than 'n' is dropped, matching the JSON the
-     *     claiming service sends --- */
-    strcpy(buf, "a\\tb");
-    claim_rules_unescape_new_line(buf);
-    TEST_ASSERT_EQUAL_STRING("atb", buf);
-
-    /* --- Nothing to do, and NULL tolerated --- */
-    strcpy(buf, "plain");
-    claim_rules_unescape_new_line(buf);
-    TEST_ASSERT_EQUAL_STRING("plain", buf);
-    claim_rules_unescape_new_line(NULL);
-}
-
 /* Command guards **************************************************/
 
 void test_claim_command_guards(void)
@@ -269,16 +184,16 @@ void test_claim_verify_request(void)
 
     char buf[256];
     size_t len = 0;
-    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_build_verify_request("A\\nB", buf, sizeof(buf), &len));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_build_verify_request("A\nB", buf, sizeof(buf), &len));
     TEST_ASSERT_EQUAL_STRING(expected, buf);
     TEST_ASSERT_EQUAL_UINT32(strlen(expected), len);
 
     /* Exactly enough room (NUL included) fits; one byte less is reported, not truncated
      * silently. */
     char exact[256];
-    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_build_verify_request("A\\nB", exact, strlen(expected) + 1, NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, claim_rules_build_verify_request("A\nB", exact, strlen(expected) + 1, NULL));
     TEST_ASSERT_EQUAL_STRING(expected, exact);
-    TEST_ASSERT_EQUAL(ESP_RMAKER_NO_MEM, claim_rules_build_verify_request("A\\nB", exact, strlen(expected), NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_NO_MEM, claim_rules_build_verify_request("A\nB", exact, strlen(expected), NULL));
 
     TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_build_verify_request(NULL, buf, sizeof(buf), NULL));
     TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, claim_rules_build_verify_request("x", NULL, sizeof(buf), NULL));

@@ -15,7 +15,6 @@
 #include "claim/rules.h"
 
 /* Standard includes */
-#include <string.h>
 #include <stdbool.h>
 
 /* JSON includes */
@@ -104,69 +103,6 @@ bool claim_rules_fragment_total_pinned(uint32_t offset, uint32_t totallen, uint3
     return offset == 0 || totallen == expected_total;
 }
 
-esp_rmaker_error_t claim_rules_escape_new_line(char *dst, size_t dst_size, char *src)
-{
-    /* Under three bytes there is no room for even one escape plus the NUL, and the `limit`
-     * below would be computed before the start of the buffer, which is undefined behaviour
-     * however the comparison then happens to turn out. */
-    if (!dst || !src || dst_size < 3) {
-        return ESP_RMAKER_INVALID_ARG;
-    }
-
-    memset(dst, 0, dst_size);
-
-    /* Drop a trailing newline so the JSON string does not end with an escaped one. Testing the
-     * length first keeps this off src[-1] for an empty string. */
-    size_t src_len = strlen(src);
-    if (src_len > 0 && src[src_len - 1] == '\n') {
-        src[src_len - 1] = '\0';
-    }
-
-    char *target = dst;
-    /* Leave room for a two-character escape plus the NUL. */
-    const char *limit = dst + dst_size - 3;
-    while (*src) {
-        if (target >= limit) {
-            return ESP_RMAKER_NO_MEM;
-        }
-        if (*src == '\n') {
-            *target++ = '\\';
-            *target++ = 'n';
-            src++;
-            continue;
-        }
-        *target++ = *src++;
-    }
-    *target = '\0';
-    return ESP_RMAKER_OK;
-}
-
-void claim_rules_unescape_new_line(char *str)
-{
-    if (!str) {
-        return;
-    }
-    char *target = str;
-    while (*str) {
-        if (*str == '\\') {
-            str++;
-            if (*str == '\0') {
-                /* A lone trailing backslash. Consuming it and falling through would copy the
-                 * NUL and step past it, and the loop would walk on through whatever follows
-                 * the buffer. */
-                break;
-            }
-            if (*str == 'n') {
-                *target++ = '\n';
-                str++;
-                continue;
-            }
-        }
-        *target++ = *str++;
-    }
-    *target = '\0';
-}
-
 /** Capabilities of the enabled features, NULL-terminated. */
 static const char *const s_capabilities[] = {
 #if CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT
@@ -181,16 +117,16 @@ static const char *const s_capabilities[] = {
     NULL,
 };
 
-esp_rmaker_error_t claim_rules_build_verify_request(const char *escaped_csr, char *buf, size_t buf_size,
+esp_rmaker_error_t claim_rules_build_verify_request(const char *csr, char *buf, size_t buf_size,
         size_t *p_len)
 {
-    if (!escaped_csr || !buf || buf_size == 0 || buf_size > INT32_MAX) {
+    if (!csr || !buf || buf_size == 0 || buf_size > INT32_MAX) {
         return ESP_RMAKER_INVALID_ARG;
     }
     json_gen_str_t jstr;
     json_gen_str_start(&jstr, buf, (int)buf_size, NULL, NULL);
     json_gen_start_object(&jstr);
-    json_gen_obj_set_string(&jstr, "csr", (char *)escaped_csr);
+    json_gen_obj_set_string(&jstr, "csr", (char *)csr);
     json_gen_obj_set_bool(&jstr, "send_mqtt_host", true);
     if (s_capabilities[0]) {
         json_gen_push_array(&jstr, "capabilities");
@@ -200,7 +136,7 @@ esp_rmaker_error_t claim_rules_build_verify_request(const char *escaped_csr, cha
         json_gen_pop_array(&jstr);
     }
     json_gen_end_object(&jstr);
-    /* The total length counts what did not fit, so a larger value means truncation. */
+    /* A negative value means an error, such as a full buffer. */
     int total = json_gen_str_end(&jstr);
     if (total < 0 || (size_t)total > buf_size) {
         return ESP_RMAKER_NO_MEM;
