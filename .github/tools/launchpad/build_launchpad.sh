@@ -15,6 +15,8 @@
 #   SITE_DIR          required, output root (per-target; artifacts are merged later)
 #   EXAMPLES_DIR      default "examples"
 #   LAUNCHPAD_EXCLUDE optional, space-separated example names or paths to skip
+#   APP_PREFIX        optional, prepended to each published app name, e.g. "camera_"
+#                     so examples/camera/standalone publishes as camera_standalone
 #   BUILD_TMP         default "$PWD/launchpad_build_tmp"
 #
 # Must run with the IDF environment exported and idf-build-apps installed.
@@ -25,6 +27,7 @@ set -euo pipefail
 : "${SITE_DIR:?SITE_DIR is not set}"
 EXAMPLES_DIR="${EXAMPLES_DIR:-examples}"
 LAUNCHPAD_EXCLUDE="${LAUNCHPAD_EXCLUDE:-}"
+APP_PREFIX="${APP_PREFIX:-}"
 BUILD_TMP="${BUILD_TMP:-$PWD/launchpad_build_tmp}"
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
@@ -131,7 +134,8 @@ for build_dir in "$BUILD_TMP"/*; do
   [ -f "$build_dir/flash_args" ] || continue
 
   build_name=$(basename "$build_dir")   # "<app>_default"
-  app="${build_name%_default}"
+  dir_name="${build_name%_default}"
+  app="${APP_PREFIX}${dir_name}"
   desc="$build_dir/project_description.json"
   project_path=""
   elf=""
@@ -148,7 +152,7 @@ for build_dir in "$BUILD_TMP"/*; do
   staged=$((staged + 1))
   echo "merged: $app/$IDF_TARGET/${app}-merged.bin ($(du -h "$out_dir/${app}-merged.bin" | cut -f1))"
 
-  [ -n "$elf" ] || elf="${app}.elf"
+  [ -n "$elf" ] || elf="${dir_name}.elf"
   if [ ! -f "$build_dir/$elf" ]; then
     echo "ERROR: no app ELF for $app ($build_dir/$elf)." >&2
     exit 1
@@ -172,12 +176,11 @@ for build_dir in "$BUILD_TMP"/*; do
   # in the Launchpad UI, so it is deliberately not used.
   #
   # The fallback (only reached when build metadata is unreadable) can assume
-  # $EXAMPLES_DIR/<app>: discovery is bounded to that depth, so $app — the project
-  # name — is also the top-level directory name.
+  # $EXAMPLES_DIR/<dir_name>: discovery is bounded to that depth.
   if [ -n "$project_path" ] && [ -f "$project_path/LAUNCHPAD.md" ]; then
     cp "$project_path/LAUNCHPAD.md" "$SITE_DIR/$app/LAUNCHPAD.md"
-  elif [ -f "$REPO_ROOT/$EXAMPLES_DIR/$app/LAUNCHPAD.md" ]; then
-    cp "$REPO_ROOT/$EXAMPLES_DIR/$app/LAUNCHPAD.md" "$SITE_DIR/$app/LAUNCHPAD.md"
+  elif [ -f "$REPO_ROOT/$EXAMPLES_DIR/$dir_name/LAUNCHPAD.md" ]; then
+    cp "$REPO_ROOT/$EXAMPLES_DIR/$dir_name/LAUNCHPAD.md" "$SITE_DIR/$app/LAUNCHPAD.md"
   else
     echo "WARN: no LAUNCHPAD.md for $app; readme.text will be omitted" >&2
   fi
