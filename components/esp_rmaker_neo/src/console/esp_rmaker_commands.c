@@ -12,6 +12,7 @@
  * command follows the esp_console handler/registration pattern.
  */
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -235,6 +236,10 @@ static int set_param_handler(int argc, char **argv)
         json_len = snprintf(json_str, sizeof(json_str), "{\"%s\":{\"%s\":%d}}",
                             device_id, param_id, atoi(value_str));
         break;
+    case RMAKER_VAL_TYPE_INT64:
+        json_len = snprintf(json_str, sizeof(json_str), "{\"%s\":{\"%s\":%" PRId64 "}}",
+                            device_id, param_id, (int64_t)strtoll(value_str, NULL, 10));
+        break;
     case RMAKER_VAL_TYPE_FLOAT:
         json_len = snprintf(json_str, sizeof(json_str), "{\"%s\":{\"%s\":%f}}",
                             device_id, param_id, (float) atof(value_str));
@@ -304,6 +309,9 @@ static int update_param_handler(int argc, char **argv)
     case RMAKER_VAL_TYPE_INTEGER:
         new_val.val.i = atoi(value_str);
         break;
+    case RMAKER_VAL_TYPE_INT64:
+        new_val.val.i64 = strtoll(value_str, NULL, 10);
+        break;
     case RMAKER_VAL_TYPE_FLOAT:
         new_val.val.f = (float) atof(value_str);
         break;
@@ -366,6 +374,9 @@ static int get_param_handler(int argc, char **argv)
         break;
     case RMAKER_VAL_TYPE_INTEGER:
         printf("%s.%s = %d\n", device_id, param_id, val->val.i);
+        break;
+    case RMAKER_VAL_TYPE_INT64:
+        printf("%s.%s = %" PRId64 "\n", device_id, param_id, val->val.i64);
         break;
     case RMAKER_VAL_TYPE_FLOAT:
         printf("%s.%s = %f\n", device_id, param_id, val->val.f);

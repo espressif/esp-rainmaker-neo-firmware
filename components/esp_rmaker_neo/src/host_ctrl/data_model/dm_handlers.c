@@ -16,6 +16,7 @@
 #include "data_model/dm_param_helpers.h"
 
 /* Standard includes */
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -111,6 +112,9 @@ esp_rmaker_error_t esp_rmaker_host_ctrl_device_write_cb(const esp_rmaker_device_
         break;
     case RMAKER_VAL_TYPE_INTEGER:
         OSAL_LOGI(TAG, "Device write callback called for device: %s | %s -> %d", device_id, param_id, val.val.i);
+        break;
+    case RMAKER_VAL_TYPE_INT64:
+        OSAL_LOGI(TAG, "Device write callback called for device: %s | %s -> %" PRId64, device_id, param_id, val.val.i64);
         break;
     case RMAKER_VAL_TYPE_FLOAT:
         OSAL_LOGI(TAG, "Device write callback called for device: %s | %s -> %f", device_id, param_id, val.val.f);
@@ -251,6 +255,10 @@ void esp_rmaker_host_ctrl_handle_add_param_with_hook(
             min_bound.val.i = atoi(min_bound_start);
             max_bound.val.i = atoi(max_bound_start);
             step.val.i = atoi(step_start);
+        } else if (val_type == RMAKER_VAL_TYPE_INT64) {
+            min_bound.val.i64 = strtoll(min_bound_start, NULL, 10);
+            max_bound.val.i64 = strtoll(max_bound_start, NULL, 10);
+            step.val.i64 = strtoll(step_start, NULL, 10);
         } else if (val_type == RMAKER_VAL_TYPE_FLOAT) {
             min_bound.val.f = atof(min_bound_start);
             max_bound.val.f = atof(max_bound_start);

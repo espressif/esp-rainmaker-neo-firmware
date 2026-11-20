@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from ..commands import Command, CommunicationProtocol
+from ..commands import Command, CommunicationProtocol, Int64
 from ..color import ColorFormatter
 
 
@@ -54,7 +54,7 @@ class CommandAddParam(Command):
         value_field = protocol.get_param_value_str(self.value)
 
         # Bounds fields: only applicable to int/float, but always include empty delimiters when not provided
-        if type(self.value) is int:
+        if type(self.value) in (int, Int64):
             min_field = "" if self.min_bound is None else str(self.min_bound)
             max_field = "" if self.max_bound is None else str(self.max_bound)
             step_field = "" if self.step is None else str(self.step)

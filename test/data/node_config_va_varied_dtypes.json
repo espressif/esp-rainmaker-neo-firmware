@@ -35,6 +35,15 @@
           "value": 22.5,
           "bounds": { "min": -10.0, "max": 50.0, "step": 0.1 },
           "properties": ["read", "write", "time_series", "indexed"]
+        },
+        {
+          "id": "Uptime",
+          "type": "esp.param.uptime",
+          "ui_type": "esp.ui.text",
+          "data_type": "int64",
+          "value": 5000000000,
+          "bounds": { "min": 4000000000, "max": 6000000000, "step": 1 },
+          "properties": ["read", "write", "indexed"]
         }
       ]
     },

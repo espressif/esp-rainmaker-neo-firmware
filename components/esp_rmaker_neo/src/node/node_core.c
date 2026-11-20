@@ -573,6 +573,15 @@ esp_rmaker_error_t esp_rmaker_parse_val_from_object(jparse_ctx_t *p_jctx, const 
             return ESP_RMAKER_OK;
         }
         break;
+    case RMAKER_VAL_TYPE_INT64: {
+        int64_t i64 = 0;
+        if (json_obj_get_int64(p_jctx, param_id, &i64) == 0) {
+            val->val.i64 = i64;
+            val->type = RMAKER_VAL_TYPE_INT64;
+            return ESP_RMAKER_OK;
+        }
+        break;
+    }
     case RMAKER_VAL_TYPE_FLOAT:
         if (json_obj_get_float(p_jctx, param_id, &val->val.f) == 0) {
             val->type = RMAKER_VAL_TYPE_FLOAT;

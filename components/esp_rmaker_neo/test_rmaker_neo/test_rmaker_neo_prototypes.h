@@ -241,6 +241,26 @@ void test_param_model_handle_set_payload(void);
  */
 void test_param_model_handle_set_payload_typed(void);
 
+/**
+ * @brief Test int64 params: node config, reports, cloud writes, bounds and persistence.
+ */
+void test_param_model_int64(void);
+
+/**
+ * @brief Test that only int64 params store a full-size value blob, and that an old-size blob still loads.
+ */
+void test_param_model_stored_blob_len(void);
+
+/**
+ * @brief Test that a stored int widens to int64, and that any other stored type mismatch keeps the default.
+ */
+void test_param_model_stored_type_mismatch(void);
+
+/**
+ * @brief Test the int64 value constructor, compare and copy.
+ */
+void test_val_int64(void);
+
 /* Timeseries *******************************************************************/
 
 /**
@@ -451,6 +471,8 @@ void test_checksum_store_invalid_key(void);
 /* Utilities - trigger codec *****************************************************/
 void test_trigger_codec_value_bool(void);
 void test_trigger_codec_value_int(void);
+void test_trigger_codec_value_int64(void);
+void test_trigger_codec_int_blob_unchanged(void);
 void test_trigger_codec_value_float(void);
 void test_trigger_codec_value_string(void);
 void test_trigger_codec_value_object(void);
@@ -464,6 +486,7 @@ void test_trigger_codec_encode_rejects_unknown_operator(void);
 void test_trigger_codec_encode_rejects_missing_path(void);
 void test_trigger_codec_encode_rejects_null_value(void);
 void test_trigger_codec_iter_rejects_wrong_version(void);
+void test_trigger_codec_iter_rejects_truncated_int64(void);
 void test_trigger_codec_iter_rejects_truncated(void);
 void test_trigger_codec_invalid_args(void);
 
@@ -556,6 +579,11 @@ void test_host_ctrl_seq_response_echoes_id(void);
 void test_host_ctrl_seq_take_strips_id(void);
 void test_host_ctrl_seq_take_leaves_untagged_command(void);
 void test_host_ctrl_seq_take_ignores_id_without_command(void);
+
+/**
+ * @brief Test the host_ctrl int64 value codec.
+ */
+void test_host_ctrl_param_value_int64(void);
 
 /* Schedules *********************************************************************/
 
@@ -659,6 +687,11 @@ void test_automation_parse_details_boolean_non_eq_ne_operators_rejected(void);
 void test_automation_parse_details_partial_failure_rolls_back(void);
 void test_automation_parse_details_enabled_false_single_no_triggers(void);
 void test_automation_parse_details_enabled_omitted_adds_trigger(void);
+
+/**
+ * @brief Test that int64 and float params accept a trigger value above 32 bits, and an int param rejects it.
+ */
+void test_automation_parse_details_int64(void);
 void test_automation_parse_details_enabled_explicit_true_and_false_skips(void);
 
 /**

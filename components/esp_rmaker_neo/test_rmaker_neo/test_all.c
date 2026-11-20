@@ -72,6 +72,10 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_param_model_error_paths);
     RUN_TEST(test_param_model_handle_set_payload);
     RUN_TEST(test_param_model_handle_set_payload_typed);
+    RUN_TEST(test_param_model_int64);
+    RUN_TEST(test_param_model_stored_blob_len);
+    RUN_TEST(test_param_model_stored_type_mismatch);
+    RUN_TEST(test_val_int64);
 
     /* Timeseries ******************************************************************/
     RUN_TEST(test_timeseries_init_deinit);
@@ -156,6 +160,8 @@ int test_rmaker_neo_all_tests_unity(void)
     /* Utilities - trigger codec ******************************************************/
     RUN_TEST(test_trigger_codec_value_bool);
     RUN_TEST(test_trigger_codec_value_int);
+    RUN_TEST(test_trigger_codec_value_int64);
+    RUN_TEST(test_trigger_codec_int_blob_unchanged);
     RUN_TEST(test_trigger_codec_value_float);
     RUN_TEST(test_trigger_codec_value_string);
     RUN_TEST(test_trigger_codec_value_object);
@@ -169,6 +175,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_trigger_codec_encode_rejects_missing_path);
     RUN_TEST(test_trigger_codec_encode_rejects_null_value);
     RUN_TEST(test_trigger_codec_iter_rejects_wrong_version);
+    RUN_TEST(test_trigger_codec_iter_rejects_truncated_int64);
     RUN_TEST(test_trigger_codec_iter_rejects_truncated);
     RUN_TEST(test_trigger_codec_invalid_args);
 
@@ -318,6 +325,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_automation_parse_details_partial_failure_rolls_back);
     RUN_TEST(test_automation_parse_details_enabled_false_single_no_triggers);
     RUN_TEST(test_automation_parse_details_enabled_omitted_adds_trigger);
+    RUN_TEST(test_automation_parse_details_int64);
     RUN_TEST(test_automation_parse_details_enabled_explicit_true_and_false_skips);
 
     /* System control ****************************************************************/
@@ -423,6 +431,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_host_ctrl_seq_take_strips_id);
     RUN_TEST(test_host_ctrl_seq_take_leaves_untagged_command);
     RUN_TEST(test_host_ctrl_seq_take_ignores_id_without_command);
+    RUN_TEST(test_host_ctrl_param_value_int64);
 #endif
 
     return UNITY_END();

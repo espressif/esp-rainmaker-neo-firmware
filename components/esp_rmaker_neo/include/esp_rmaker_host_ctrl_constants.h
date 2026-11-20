@@ -148,6 +148,7 @@
 #define RMAKER_HOST_CTRL_DATA_TYPE_CHAR_STRING         's'
 #define RMAKER_HOST_CTRL_DATA_TYPE_CHAR_OBJECT         'o'
 #define RMAKER_HOST_CTRL_DATA_TYPE_CHAR_ARRAY          'a'
+#define RMAKER_HOST_CTRL_DATA_TYPE_CHAR_INT64          'l'
 
 /* Properties ****************************************************************/
 

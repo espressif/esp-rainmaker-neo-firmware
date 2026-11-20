@@ -189,6 +189,8 @@ static int __timeseries_extract_data_type(json_gen_str_t *jgen, esp_rmaker_val_t
         return json_gen_obj_set_string(jgen, "dt", "bool");
     case RMAKER_VAL_TYPE_INTEGER:
         return json_gen_obj_set_string(jgen, "dt", "int");
+    case RMAKER_VAL_TYPE_INT64:
+        return json_gen_obj_set_string(jgen, "dt", "int64");
     case RMAKER_VAL_TYPE_FLOAT:
         return json_gen_obj_set_string(jgen, "dt", "float");
     case RMAKER_VAL_TYPE_STRING:
@@ -212,6 +214,8 @@ static int __timeseries_extract_value(json_gen_str_t *jgen, const esp_rmaker_par
         return json_gen_obj_set_bool(jgen, "v", val->val.b);
     case RMAKER_VAL_TYPE_INTEGER:
         return json_gen_obj_set_int(jgen, "v", val->val.i);
+    case RMAKER_VAL_TYPE_INT64:
+        return json_gen_obj_set_int64(jgen, "v", val->val.i64);
     case RMAKER_VAL_TYPE_FLOAT:
         return json_gen_obj_set_float(jgen, "v", val->val.f);
     case RMAKER_VAL_TYPE_STRING:

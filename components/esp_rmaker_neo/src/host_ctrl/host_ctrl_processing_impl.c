@@ -15,6 +15,7 @@
 #include "host_ctrl_processing.h"
 
 /* Standard includes */
+#include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -73,6 +74,10 @@ bool esp_rmaker_host_ctrl_get_param_value(char *param_value_start, char *param_v
         p_param_value->type = RMAKER_VAL_TYPE_INTEGER;
         p_param_value->val.i = atoi(param_value_start + 1);
         break;
+    case RMAKER_HOST_CTRL_DATA_TYPE_CHAR_INT64:
+        p_param_value->type = RMAKER_VAL_TYPE_INT64;
+        p_param_value->val.i64 = strtoll(param_value_start + 1, NULL, 10);
+        break;
     case RMAKER_HOST_CTRL_DATA_TYPE_CHAR_FLOAT:
         p_param_value->type = RMAKER_VAL_TYPE_FLOAT;
         p_param_value->val.f = atof(param_value_start + 1);
@@ -106,6 +111,8 @@ int esp_rmaker_host_ctrl_format_param_value(esp_rmaker_param_val_t *p_param_valu
     switch (p_param_value->type) {
     case RMAKER_VAL_TYPE_INTEGER:
         return snprintf(buffer, buffer_length, "%c%d", RMAKER_HOST_CTRL_DATA_TYPE_CHAR_INT, p_param_value->val.i);
+    case RMAKER_VAL_TYPE_INT64:
+        return snprintf(buffer, buffer_length, "%c%" PRId64, RMAKER_HOST_CTRL_DATA_TYPE_CHAR_INT64, p_param_value->val.i64);
     case RMAKER_VAL_TYPE_FLOAT:
         return snprintf(buffer, buffer_length, "%c%f", RMAKER_HOST_CTRL_DATA_TYPE_CHAR_FLOAT, p_param_value->val.f);
     case RMAKER_VAL_TYPE_BOOLEAN:

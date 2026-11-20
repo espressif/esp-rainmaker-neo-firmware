@@ -34,6 +34,10 @@ if OSAL_EXT_IO_ESP_PYTHON_DIR not in sys.path:
 from uart_multiplexer import UARTMultiplexer
 
 
+class Int64(int):
+    """An int sent with the int64 data type char."""
+
+
 class CommunicationProtocol:
     def __init__(self):
         # Load constants from the C header using a file-relative path
@@ -210,6 +214,9 @@ class CommunicationProtocol:
         )
         self.data_type_array = self._constants.get(
             "RMAKER_HOST_CTRL_DATA_TYPE_CHAR_ARRAY"
+        )
+        self.data_type_int64 = self._constants.get(
+            "RMAKER_HOST_CTRL_DATA_TYPE_CHAR_INT64"
         )
 
         # Gettables
@@ -508,7 +515,9 @@ class CommunicationProtocol:
         return constants
 
     def __get_dtype_char(self, dtype: Type) -> str:
-        if dtype is int:
+        if dtype is Int64:
+            return self.data_type_int64
+        elif dtype is int:
             return self.data_type_int
         elif dtype is float:
             return self.data_type_float
@@ -545,6 +554,8 @@ class CommunicationProtocol:
             value_str = value_str[1:]
             if dtype == self.data_type_int:
                 return int(value_str)
+            elif dtype == self.data_type_int64:
+                return Int64(value_str)
             elif dtype == self.data_type_float:
                 return float(value_str)
             elif dtype == self.data_type_boolean:

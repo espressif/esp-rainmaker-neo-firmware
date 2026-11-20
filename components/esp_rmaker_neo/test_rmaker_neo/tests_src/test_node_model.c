@@ -1615,6 +1615,9 @@ static void __check_val_equal(esp_rmaker_param_val_t expected, esp_rmaker_param_
     case RMAKER_VAL_TYPE_INTEGER:
         TEST_ASSERT_EQUAL(expected.val.i, actual->val.i);
         break;
+    case RMAKER_VAL_TYPE_INT64:
+        TEST_ASSERT_TRUE_MESSAGE(expected.val.i64 == actual->val.i64, "int64 value mismatch");
+        break;
     case RMAKER_VAL_TYPE_FLOAT:
         TEST_ASSERT_EQUAL(expected.val.f, actual->val.f);
         break;
@@ -1708,6 +1711,176 @@ void test_param_model_handle_set_payload(void)
     __check_val_equal(esp_rmaker_array("[1,2,3,4]"), esp_rmaker_param_get_val(params[5]));
 
     /* Clean up */
+    __teardown(node);
+}
+
+void test_param_model_int64(void)
+{
+    esp_rmaker_node_t *node = __setup();
+    const char *device_id = "td_i64";
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, __clear_nvs(device_id));
+
+    const int64_t big = 5000000000LL; /* above INT32_MAX */
+    esp_rmaker_device_t *device = esp_rmaker_device_create(device_id, "type", NULL);
+    TEST_ASSERT_NOT_NULL(device);
+    esp_rmaker_param_t *p64 = esp_rmaker_param_create("p64", "type", esp_rmaker_int64(big),
+                              PROP_FLAG_READ | PROP_FLAG_WRITE | PROP_FLAG_PERSIST);
+    esp_rmaker_param_t *p32 = esp_rmaker_param_create("p32", "type", esp_rmaker_int(1), PROP_FLAG_READ | PROP_FLAG_WRITE);
+    TEST_ASSERT_NOT_NULL(p64);
+    TEST_ASSERT_NOT_NULL(p32);
+
+    /* Bounds must match the param type */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG,
+                      esp_rmaker_param_add_bounds(p64, esp_rmaker_int(0), esp_rmaker_int(10), esp_rmaker_int(1)));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_add_bounds(p64, esp_rmaker_int64(-1), esp_rmaker_int64(6000000000LL),
+                      esp_rmaker_int64(1)));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, p64));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, p32));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_cb(device, __test_param_model_handle_set_payload_device_cb, NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_node_add_device(node, device));
+
+    /* Node config carries the int64 data type and 64-bit bounds */
+    char *config_str = esp_rmaker_get_node_config();
+    TEST_ASSERT_NOT_NULL(config_str);
+    TEST_ASSERT_NOT_NULL(strstr(config_str, "\"data_type\":\"int64\""));
+    TEST_ASSERT_NOT_NULL(strstr(config_str, "\"bounds\":{\"min\":-1,\"max\":6000000000,\"step\":1}"));
+    free(config_str);
+
+    /* Params report the full 64-bit value */
+    char *node_params = data_model_node_get_node_params();
+    TEST_ASSERT_NOT_NULL(node_params);
+    TEST_ASSERT_NOT_NULL(strstr(node_params, "\"p64\":5000000000"));
+    free(node_params);
+
+    /* Cloud write in range */
+    char payload[128];
+    snprintf(payload, sizeof(payload), "{\"%s\":{\"p64\":5000000001}}", device_id);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, data_model_state_handle_update_payload_json(node, payload, strlen(payload), ESP_RMAKER_REQ_SRC_CLOUD));
+    __check_val_equal(esp_rmaker_int64(big + 1), esp_rmaker_param_get_val(p64));
+
+    /* Out of bounds, out of int64 range, and non-integer writes are dropped */
+    const char *rejected[] = { "7000000000", "9223372036854775808", "1.5", "\"5\"" };
+    for (size_t i = 0; i < sizeof(rejected) / sizeof(rejected[0]); i++) {
+        snprintf(payload, sizeof(payload), "{\"%s\":{\"p64\":%s}}", device_id, rejected[i]);
+        data_model_state_handle_update_payload_json(node, payload, strlen(payload), ESP_RMAKER_REQ_SRC_CLOUD);
+        __check_val_equal(esp_rmaker_int64(big + 1), esp_rmaker_param_get_val(p64));
+    }
+
+    /* A 32-bit param rejects a 64-bit value instead of wrapping it */
+    snprintf(payload, sizeof(payload), "{\"%s\":{\"p32\":5000000000}}", device_id);
+    data_model_state_handle_update_payload_json(node, payload, strlen(payload), ESP_RMAKER_REQ_SRC_CLOUD);
+    __check_val_equal(esp_rmaker_int(1), esp_rmaker_param_get_val(p32));
+
+    /* Persisted value reads back intact */
+    esp_rmaker_param_val_t stored = {0};
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_get_stored_value((_esp_rmaker_param_t *)p64, &stored));
+    __check_val_equal(esp_rmaker_int64(big + 1), &stored);
+
+    __teardown(node);
+}
+
+static size_t __stored_blob_len(const char *device_id, const char *param_id)
+{
+    osal_storage_handle_t handle;
+    size_t len = 0;
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_open(RMAKER_NVS_PART_NAME, device_id, OSAL_STORAGE_OPEN_READONLY, &handle));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_get(handle, param_id, NULL, &len, OSAL_STORAGE_TYPE_BINARY));
+    osal_storage_close(handle);
+    return len;
+}
+
+void test_param_model_stored_blob_len(void)
+{
+    esp_rmaker_node_t *node = __setup();
+    const char *device_id = "td_blob";
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, __clear_nvs(device_id));
+    const size_t legacy_len = sizeof(_esp_rmaker_param_val_legacy_t);
+
+    esp_rmaker_device_t *device = esp_rmaker_device_create(device_id, "type", NULL);
+    TEST_ASSERT_NOT_NULL(device);
+    esp_rmaker_param_t *pb = esp_rmaker_param_create("pb", "type", esp_rmaker_bool(true), PROP_FLAG_PERSIST);
+    esp_rmaker_param_t *pi = esp_rmaker_param_create("pi", "type", esp_rmaker_int(7), PROP_FLAG_PERSIST);
+    esp_rmaker_param_t *pf = esp_rmaker_param_create("pf", "type", esp_rmaker_float(1.5f), PROP_FLAG_PERSIST);
+    esp_rmaker_param_t *pl = esp_rmaker_param_create("pl", "type", esp_rmaker_int64(5000000000LL), PROP_FLAG_PERSIST);
+    TEST_ASSERT_NOT_NULL(pb);
+    TEST_ASSERT_NOT_NULL(pi);
+    TEST_ASSERT_NOT_NULL(pf);
+    TEST_ASSERT_NOT_NULL(pl);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, pb));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, pi));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, pf));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, pl));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_node_add_device(node, device));
+
+    /* Non-int64 blobs keep the pre-int64 length; only int64 uses the full struct */
+    TEST_ASSERT_EQUAL(legacy_len, __stored_blob_len(device_id, "pb"));
+    TEST_ASSERT_EQUAL(legacy_len, __stored_blob_len(device_id, "pi"));
+    TEST_ASSERT_EQUAL(legacy_len, __stored_blob_len(device_id, "pf"));
+    TEST_ASSERT_EQUAL(sizeof(esp_rmaker_param_val_t), __stored_blob_len(device_id, "pl"));
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_update(pi, esp_rmaker_int(8)));
+    TEST_ASSERT_EQUAL(legacy_len, __stored_blob_len(device_id, "pi"));
+
+    /* A blob of the pre-int64 length still loads */
+    esp_rmaker_param_val_t old_val = esp_rmaker_int(42);
+    osal_storage_handle_t handle;
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_open(RMAKER_NVS_PART_NAME, device_id, OSAL_STORAGE_OPEN_READWRITE, &handle));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_set(handle, "pi", &old_val, legacy_len, OSAL_STORAGE_TYPE_BINARY));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_commit(handle));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_close(handle));
+    esp_rmaker_param_val_t stored = {0};
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_get_stored_value((_esp_rmaker_param_t *)pi, &stored));
+    __check_val_equal(esp_rmaker_int(42), &stored);
+
+    __teardown(node);
+}
+
+static void __plant_blob(const char *device_id, const char *param_id, const esp_rmaker_param_val_t *val, size_t len)
+{
+    osal_storage_handle_t handle;
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_open(RMAKER_NVS_PART_NAME, device_id, OSAL_STORAGE_OPEN_READWRITE, &handle));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_set(handle, param_id, val, len, OSAL_STORAGE_TYPE_BINARY));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_commit(handle));
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, osal_storage_close(handle));
+}
+
+void test_param_model_stored_type_mismatch(void)
+{
+    esp_rmaker_node_t *node = __setup();
+    const char *device_id = "td_type";
+    TEST_ASSERT_EQUAL(OSAL_ERR_OK, __clear_nvs(device_id));
+
+    /* An int blob with junk after val.i, as a 12-byte read of an 8-byte blob leaves on 32-bit chips */
+    esp_rmaker_param_val_t old_int;
+    memset(&old_int, 0xA5, sizeof(old_int));
+    old_int.type = RMAKER_VAL_TYPE_INTEGER;
+    old_int.val.i = -5;
+    __plant_blob(device_id, "pl", &old_int, sizeof(old_int));
+    esp_rmaker_param_val_t old_float = esp_rmaker_float(2.5f);
+    __plant_blob(device_id, "pi", &old_float, sizeof(_esp_rmaker_param_val_legacy_t));
+
+    esp_rmaker_device_t *device = esp_rmaker_device_create(device_id, "type", NULL);
+    TEST_ASSERT_NOT_NULL(device);
+    esp_rmaker_param_t *pl = esp_rmaker_param_create("pl", "type", esp_rmaker_int64(1), PROP_FLAG_PERSIST);
+    esp_rmaker_param_t *pi = esp_rmaker_param_create("pi", "type", esp_rmaker_int(3), PROP_FLAG_PERSIST);
+    TEST_ASSERT_NOT_NULL(pl);
+    TEST_ASSERT_NOT_NULL(pi);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, pl));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(device, pi));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_node_add_device(node, device));
+
+    /* A stored int widens to int64 with its sign */
+    __check_val_equal(esp_rmaker_int64(-5), esp_rmaker_param_get_val(pl));
+    esp_rmaker_param_val_t stored = {0};
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_get_stored_value((_esp_rmaker_param_t *)pl, &stored));
+    __check_val_equal(esp_rmaker_int64(-5), &stored);
+
+    /* Any other mismatch keeps the default and stores it again with the param type */
+    __check_val_equal(esp_rmaker_int(3), esp_rmaker_param_get_val(pi));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_param_get_stored_value((_esp_rmaker_param_t *)pi, &stored));
+    __check_val_equal(esp_rmaker_int(3), &stored);
+
     __teardown(node);
 }
 

@@ -94,6 +94,9 @@ static void __validate_json_payload(const char *payload, test_timeseries_data_t 
     case RMAKER_VAL_TYPE_INTEGER:
         TEST_ASSERT_EQUAL_STRING_MESSAGE("int", data_type, "Should have correct data type");
         break;
+    case RMAKER_VAL_TYPE_INT64:
+        TEST_ASSERT_EQUAL_STRING_MESSAGE("int64", data_type, "Should have correct data type");
+        break;
     case RMAKER_VAL_TYPE_FLOAT:
         TEST_ASSERT_EQUAL_STRING_MESSAGE("float", data_type, "Should have correct data type");
         break;
@@ -108,6 +111,7 @@ static void __validate_json_payload(const char *payload, test_timeseries_data_t 
     // Validate value
     bool value_bool;
     int value_int;
+    int64_t value_int64;
     float value_float;
     char value_string[128];
     switch (expected->val.type) {
@@ -120,6 +124,11 @@ static void __validate_json_payload(const char *payload, test_timeseries_data_t 
         err = json_obj_get_int(&jctx, "v", &value_int);
         TEST_ASSERT_EQUAL_MESSAGE(0, err, "Should get value");
         TEST_ASSERT_EQUAL_MESSAGE(expected->val.val.i, value_int, "Should have correct value");
+        break;
+    case RMAKER_VAL_TYPE_INT64:
+        err = json_obj_get_int64(&jctx, "v", &value_int64);
+        TEST_ASSERT_EQUAL_MESSAGE(0, err, "Should get value");
+        TEST_ASSERT_TRUE_MESSAGE(expected->val.val.i64 == value_int64, "Should have correct value");
         break;
     case RMAKER_VAL_TYPE_FLOAT:
         err = json_obj_get_float(&jctx, "v", &value_float);
@@ -486,7 +495,8 @@ void test_timeseries_data_types(void)
         {"float_param", esp_rmaker_float(22.5f), false, TEST_TIMESTAMP_BASE + 2},
         {"string_param", esp_rmaker_str("test_string"), false, TEST_TIMESTAMP_BASE + 3},
         {"cumulative_int", esp_rmaker_int(100), true, TEST_TIMESTAMP_BASE + 4},
-        {"cumulative_float", esp_rmaker_float(50.5f), true, TEST_TIMESTAMP_BASE + 5}
+        {"cumulative_float", esp_rmaker_float(50.5f), true, TEST_TIMESTAMP_BASE + 5},
+        {"int64_param", esp_rmaker_int64(5000000000LL), false, TEST_TIMESTAMP_BASE + 6}
     };
 
     uint32_t test_count = sizeof(test_cases) / sizeof(test_cases[0]);

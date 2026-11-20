@@ -43,6 +43,15 @@ esp_rmaker_param_val_t esp_rmaker_int(int ival)
     return param_val;
 }
 
+esp_rmaker_param_val_t esp_rmaker_int64(int64_t ival)
+{
+    esp_rmaker_param_val_t param_val = {
+        .type = RMAKER_VAL_TYPE_INT64,
+        .val.i64 = ival
+    };
+    return param_val;
+}
+
 esp_rmaker_param_val_t esp_rmaker_float(float fval)
 {
     esp_rmaker_param_val_t param_val = {
@@ -127,6 +136,31 @@ esp_rmaker_error_t esp_rmaker_val_compare(const esp_rmaker_param_val_t *val1, co
             break;
         default:
             OSAL_LOGE(TAG, "Invalid comparison type for integer: %d.", compare_type);
+            return ESP_RMAKER_INVALID_ARG;
+        }
+        break;
+    case RMAKER_VAL_TYPE_INT64:
+        switch (compare_type) {
+        case RMAKER_VAL_COMPARE_EQ:
+            result = val1->val.i64 == val2->val.i64;
+            break;
+        case RMAKER_VAL_COMPARE_NEQ:
+            result = val1->val.i64 != val2->val.i64;
+            break;
+        case RMAKER_VAL_COMPARE_GT:
+            result = val1->val.i64 > val2->val.i64;
+            break;
+        case RMAKER_VAL_COMPARE_LT:
+            result = val1->val.i64 < val2->val.i64;
+            break;
+        case RMAKER_VAL_COMPARE_GTE:
+            result = val1->val.i64 >= val2->val.i64;
+            break;
+        case RMAKER_VAL_COMPARE_LTE:
+            result = val1->val.i64 <= val2->val.i64;
+            break;
+        default:
+            OSAL_LOGE(TAG, "Invalid comparison type for int64: %d.", compare_type);
             return ESP_RMAKER_INVALID_ARG;
         }
         break;

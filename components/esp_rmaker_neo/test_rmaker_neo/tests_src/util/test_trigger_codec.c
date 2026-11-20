@@ -13,6 +13,7 @@
 #include "test_rmaker_neo_prototypes.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -76,6 +77,52 @@ void test_trigger_codec_value_int(void)
     TEST_ASSERT_EQUAL_UINT8(RMAKER_TRIGGER_VT_INT, e.value_type);
     TEST_ASSERT_EQUAL_INT32(50, e.value_int);
     TEST_ASSERT_EQUAL_UINT8(RMAKER_TRIGGER_OP_GT, e.op_code);
+    free(blob);
+}
+
+void test_trigger_codec_value_int64(void)
+{
+    static const struct {
+        const char *json_val;
+        uint8_t vt;
+        int64_t val;
+    } cases[] = {
+        { "-42", RMAKER_TRIGGER_VT_INT, -42 },
+        { "2147483647", RMAKER_TRIGGER_VT_INT, INT32_MAX },
+        { "-2147483648", RMAKER_TRIGGER_VT_INT, INT32_MIN },
+        { "2147483648", RMAKER_TRIGGER_VT_INT64, (int64_t)INT32_MAX + 1 },
+        { "-2147483649", RMAKER_TRIGGER_VT_INT64, (int64_t)INT32_MIN - 1 },
+        { "9223372036854775807", RMAKER_TRIGGER_VT_INT64, INT64_MAX },
+        { "-9223372036854775808", RMAKER_TRIGGER_VT_INT64, INT64_MIN },
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        char json[128];
+        snprintf(json, sizeof(json), "[{\"id\":\"a1\",\"path\":\"T.Ts\",\"operator\":\"ge\",\"value\":%s}]",
+                 cases[i].json_val);
+        uint8_t *blob = NULL;
+        esp_rmaker_trigger_entry_t e;
+        encode_one(json, &blob, &e);
+        TEST_ASSERT_EQUAL_UINT8_MESSAGE(cases[i].vt, e.value_type, cases[i].json_val);
+        TEST_ASSERT_TRUE_MESSAGE(cases[i].val == e.value_int, cases[i].json_val);
+        free(blob);
+    }
+}
+
+void test_trigger_codec_int_blob_unchanged(void)
+{
+    /* An int value inside the int32 range keeps the 4-byte layout that older firmware reads */
+    static const uint8_t expect[] = {
+        RMAKER_TRIGGER_CODEC_VERSION, 1,
+        0x03, RMAKER_TRIGGER_OP_GT,
+        2, 0, 'a', '1',
+        3, 0, 'L', '.', 'B',
+        0xCE, 0xFF, 0xFF, 0xFF,
+    };
+    uint8_t *blob = NULL;
+    size_t blen = 0;
+    encode_ok("[{\"id\":\"a1\",\"path\":\"L.B\",\"operator\":\"gt\",\"value\":-50}]", &blob, &blen);
+    TEST_ASSERT_EQUAL(sizeof(expect), blen);
+    TEST_ASSERT_EQUAL_MEMORY(expect, blob, sizeof(expect));
     free(blob);
 }
 
@@ -246,6 +293,18 @@ void test_trigger_codec_iter_rejects_wrong_version(void)
     size_t count = 0;
     TEST_ASSERT_EQUAL(ESP_RMAKER_FAIL,
                       esp_rmaker_trigger_details_iter_begin((const uint8_t *)old_json, strlen(old_json), &it, &count));
+}
+
+void test_trigger_codec_iter_rejects_truncated_int64(void)
+{
+    uint8_t *blob = NULL;
+    size_t blen = 0;
+    encode_ok("[{\"id\":\"a\",\"path\":\"p\",\"operator\":\"eq\",\"value\":5000000000}]", &blob, &blen);
+    esp_rmaker_trigger_iter_t it;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_trigger_details_iter_begin(blob, blen - 1, &it, NULL));
+    esp_rmaker_trigger_entry_t e;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_FAIL, esp_rmaker_trigger_details_iter_next(&it, &e));
+    free(blob);
 }
 
 void test_trigger_codec_iter_rejects_truncated(void)

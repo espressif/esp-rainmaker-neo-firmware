@@ -133,3 +133,17 @@ void test_host_ctrl_seq_take_ignores_id_without_command(void)
     esp_rmaker_host_ctrl_send_response(RMAKER_HOST_CTRL_RESPONSE_CHAR_INVALID);
     __assert_written("i\r");
 }
+
+void test_host_ctrl_param_value_int64(void)
+{
+    char wire[] = "l-5000000000";
+    esp_rmaker_param_val_t val = {0};
+    TEST_ASSERT_TRUE(esp_rmaker_host_ctrl_get_param_value(wire, wire + strlen(wire), &val));
+    TEST_ASSERT_EQUAL(RMAKER_VAL_TYPE_INT64, val.type);
+    TEST_ASSERT_TRUE(val.val.i64 == -5000000000LL);
+
+    char out[32];
+    int len = esp_rmaker_host_ctrl_format_param_value(&val, out, sizeof(out));
+    TEST_ASSERT_EQUAL(strlen(wire), len);
+    TEST_ASSERT_EQUAL_STRING(wire, out);
+}

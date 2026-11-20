@@ -49,6 +49,46 @@ static const char *TAG = "rmng_dm_param";
 
 /* Function definitions *******************************************************/
 
+/* Types that older firmware knows keep the legacy size, so it can read them after a rollback. */
+static size_t __stored_val_len(esp_rmaker_val_type_t type)
+{
+    switch (type) {
+    case RMAKER_VAL_TYPE_BOOLEAN:
+    case RMAKER_VAL_TYPE_INTEGER:
+    case RMAKER_VAL_TYPE_FLOAT:
+        return sizeof(_esp_rmaker_param_val_legacy_t);
+    default:
+        return sizeof(esp_rmaker_param_val_t);
+    }
+}
+
+/* Widens a stored value of the same or a narrower type to the param type; any other type makes it unusable. */
+static esp_rmaker_error_t __widen_stored_val(const _esp_rmaker_param_t *param, esp_rmaker_param_val_t *val)
+{
+    if (val->type == param->val.type) {
+        return ESP_RMAKER_OK;
+    }
+    bool widened = false;
+    switch (param->val.type) {
+    case RMAKER_VAL_TYPE_INT64:
+        if (val->type == RMAKER_VAL_TYPE_INTEGER) {
+            int i = val->val.i; /* i and i64 overlap, so copy before the store */
+            val->val.i64 = i;
+            widened = true;
+        }
+        break;
+    default:
+        break;
+    }
+    if (!widened) {
+        OSAL_LOGW(TAG, "Stored type %d of param %s does not match type %d. Using the default.", val->type, param->id,
+                  param->val.type);
+        return ESP_RMAKER_NOT_FOUND;
+    }
+    val->type = param->val.type;
+    return ESP_RMAKER_OK;
+}
+
 esp_rmaker_param_t *esp_rmaker_param_create(const char *param_id, const char *type,
         esp_rmaker_param_val_t val, uint8_t properties)
 {
@@ -187,8 +227,9 @@ esp_rmaker_error_t esp_rmaker_param_add_bounds(const esp_rmaker_param_t *param,
         return ESP_RMAKER_INVALID_ARG;
     }
     _esp_rmaker_param_t *_param = (_esp_rmaker_param_t *)param;
-    if ((_param->val.type != RMAKER_VAL_TYPE_INTEGER) && (_param->val.type != RMAKER_VAL_TYPE_FLOAT)) {
-        OSAL_LOGE(TAG, "Only integer and float params can have bounds.");
+    if ((_param->val.type != RMAKER_VAL_TYPE_INTEGER) && (_param->val.type != RMAKER_VAL_TYPE_INT64) &&
+            (_param->val.type != RMAKER_VAL_TYPE_FLOAT)) {
+        OSAL_LOGE(TAG, "Only integer, int64 and float params can have bounds.");
         return ESP_RMAKER_INVALID_ARG;
     }
     if ((min.type != _param->val.type) || (max.type != _param->val.type) || (step.type != _param->val.type)) {
@@ -460,6 +501,15 @@ esp_rmaker_error_t esp_rmaker_param_update(const esp_rmaker_param_t *param, esp_
                 return ESP_RMAKER_INVALID_ARG;
             }
             break;
+        case RMAKER_VAL_TYPE_INT64:
+            if (val.val.i64 < _param->bounds->min.val.i64 || val.val.i64 > _param->bounds->max.val.i64) {
+                OSAL_LOGE(TAG, "New param value out of bounds.");
+                if (lnode) {
+                    esp_rmaker_node_unlock(lnode);
+                }
+                return ESP_RMAKER_INVALID_ARG;
+            }
+            break;
         case RMAKER_VAL_TYPE_FLOAT:
             if (val.val.f < _param->bounds->min.val.f || val.val.f > _param->bounds->max.val.f) {
                 OSAL_LOGE(TAG, "New param value out of bounds.");
@@ -497,6 +547,7 @@ esp_rmaker_error_t esp_rmaker_param_update(const esp_rmaker_param_t *param, esp_
     }
     case RMAKER_VAL_TYPE_BOOLEAN:
     case RMAKER_VAL_TYPE_INTEGER:
+    case RMAKER_VAL_TYPE_INT64:
     case RMAKER_VAL_TYPE_FLOAT:
         _param->val.val = val.val;
         break;
@@ -634,7 +685,7 @@ esp_rmaker_error_t esp_rmaker_param_get_stored_value(_esp_rmaker_param_t *param,
         OSAL_LOGE(TAG, "Failed to get value for param %s", param->id);
         return ESP_RMAKER_FAIL;
     }
-    return ESP_RMAKER_OK;
+    return __widen_stored_val(param, val);
 }
 
 esp_rmaker_error_t esp_rmaker_param_store_value(_esp_rmaker_param_t *param)
@@ -657,7 +708,8 @@ esp_rmaker_error_t esp_rmaker_param_store_value(_esp_rmaker_param_t *param)
             err = OSAL_ERR_OK;
         }
     } else {
-        err = osal_storage_set(handle, param->id, &param->val, sizeof(esp_rmaker_param_val_t), OSAL_STORAGE_TYPE_BINARY);
+        err = osal_storage_set(handle, param->id, &param->val, __stored_val_len(param->val.type),
+                               OSAL_STORAGE_TYPE_BINARY);
         osal_storage_commit(handle);
     }
     osal_storage_close(handle);
