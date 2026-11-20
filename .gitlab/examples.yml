@@ -180,7 +180,7 @@ build_examples_esp_idf:
     - .build_examples_esp_idf_version
   parallel:
     matrix:
-      - IDF_VERSION: ["release-v5.5", "release-v6.0", "release-v6.1"]
+      - IDF_VERSION: ["release-v6.0", "release-v6.1"]
         IDF_TARGET_GROUP:
           - "esp32 esp32s3"              # Xtensa
           - "esp32c2 esp32c3 esp32c6"    # RISC-V (classic)
