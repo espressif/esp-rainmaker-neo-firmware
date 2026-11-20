@@ -29,7 +29,7 @@
 /* Timesync includes */
 #include "osal_timesync.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "node_internal.h"
 
 /* Constants *******************************************************/

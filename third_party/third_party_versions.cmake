@@ -22,7 +22,7 @@ set(RMNG_THIRD_PARTY_PROTOBUF_C_URL
 set(RMNG_THIRD_PARTY_PROTOBUF_C_SHA256 "e2c86271873a79c92b58fef7ebf8de1aa0df4738347a8bd5d4e65a80a16d0d24")
 set(RMNG_THIRD_PARTY_PROTOBUF_C_COMMIT "4719fdd7760624388c2c5b9d6759eb6a47490626")
 
-# esp-aws-iot (untagged master commit) and the six library submodules that rmng-sdk builds. Do not edit by hand: run
+# esp-aws-iot (untagged master commit) and the six library submodules that this SDK builds. Do not edit by hand: run
 # `esp_aws_iot_pins.py --update <ref>` to re-pin, and `esp_aws_iot_pins.py --check` to verify.
 set(RMNG_THIRD_PARTY_ESP_AWS_IOT_URL
     "https://github.com/espressif/esp-aws-iot/archive/9c879feedb699611e7c220b93aed84c84322ff84.tar.gz"

@@ -9,7 +9,7 @@ CLI for AWS IoT OTA: setup infrastructure, create/start/cancel/delete jobs, and 
 | `--setup` | One-time: certs (ACM), Code Signer profile, S3 bucket, IAM role |
 | `--create-ota-job` | Create standard FreeRTOS OTA job (`create-ota-update` API). Requires `--files`, and `--thing-name` or `--thing-group-name`. |
 | `--create-custom-job` | Create custom OTA job (`create-job` API). Optional `--job-config`. |
-| `--create-rmng-ota-job` | Create RMNG OTA job. Requires `--files` and `--job-config`. |
+| `--create-rmng-ota-job` | Create RainMaker Neo OTA job. Requires `--files` and `--job-config`. |
 | `--start-job` | Start job and monitor. Requires `--job-id`. |
 | `--track-job-execution` | Poll and print job execution status for a thing. Requires `--job-id` and `--thing-name`. |
 | `--cancel-custom-job` | Cancel custom job. Requires `--job-id`. Optional `--force`. |
@@ -63,7 +63,7 @@ Array of file entries, e.g.:
 ]
 ```
 
-For single-file (firmware) RMNG OTA jobs, the image's MD5 is computed automatically and added to the
+For single-file (firmware) RainMaker Neo OTA jobs, the image's MD5 is computed automatically and added to the
 job document. This enables device-side [auto-resume](../../docs/en/specs/ota/job_document.md#auto-resume)
 of interrupted downloads plus an end-to-end integrity check — no extra configuration needed.
 

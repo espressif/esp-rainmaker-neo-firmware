@@ -32,7 +32,7 @@ function (protocomm_posix_civetweb_make_available)
         return()
     endif ()
     rmng_fetchcontent_guard_checkout("${_cv_src}" "${_RMNG_PROTOCOMM_CIVETWEB_COMMIT}" CMakeLists.txt)
-    message(STATUS "rmng-sdk: Fetching civetweb")
+    message(STATUS "RainMaker Neo SDK: Fetching civetweb")
     rmng_fetchcontent_reset(rmng_civetweb_fc)
     FetchContent_Declare(
         rmng_civetweb_fc

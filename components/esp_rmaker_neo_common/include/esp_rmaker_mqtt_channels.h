@@ -18,7 +18,7 @@
  * Put here so that all components that depend on this component can avoid redefining the same values.
  */
 typedef enum {
-    /* RMNG core components */
+    /* RainMaker Neo core components */
     MQTT_CHANNEL_MAIN_STATE_CHANGES = 0, /* State changes */
     MQTT_CHANNEL_MAIN_CLOUD_MANAGER = 1, /* Cloud manager */
     MQTT_CHANNEL_MAIN_SHADOWS = 2, /* Indexed and named shadows */

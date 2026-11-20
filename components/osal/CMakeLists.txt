@@ -1,4 +1,4 @@
-# osal — the OS abstraction layer for the RMNG SDK.
+# osal — the OS abstraction layer for the RainMaker Neo SDK.
 #
 # One component covering: platform primitives (tasks, queues, semaphores, event groups, event loop, scheduler, time,
 # ticks, random, crc, log, mem, sysinfo, sysctrl), error codes, storage (key-value persistence), JSON, time sync,

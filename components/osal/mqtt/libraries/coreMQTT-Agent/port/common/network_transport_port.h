@@ -10,7 +10,7 @@
  *        target-specific NetworkContext.
  *
  * The ESP and POSIX builds use different NetworkContext definitions (esp-aws-iot's esp-tls port
- * on ESP, rmng's mbedtls + BSD-socket port on POSIX). This header declares the port API the impl
+ * on ESP, RainMaker Neo's mbedtls + BSD-socket port on POSIX). This header declares the port API the impl
  * uses; the implementations - the ONLY code that touches NetworkContext fields - live in the
  * per-target sources (port/esp/network_transport_port.c, port/posix/network_transport_port.c).
  * If the two NetworkContext structs ever drift, the break is confined to the affected target's
@@ -51,7 +51,7 @@ bool xTlsContextIsConnected( NetworkContext_t *pxNetworkContext );
 void vTlsContextClear( NetworkContext_t *pxNetworkContext );
 
 /* Transport interface used by the agent (implemented per target). On POSIX these are provided by
- * rmng's port/posix/network_transport.c; on ESP the port wraps esp-aws-iot's espTlsTransport*. */
+ * RainMaker Neo's port/posix/network_transport.c; on ESP the port wraps esp-aws-iot's espTlsTransport*. */
 int32_t iTlsTransportSend( NetworkContext_t *pxNetworkContext, const void *pvData, size_t uxDataLen );
 int32_t iTlsTransportRecv( NetworkContext_t *pxNetworkContext, void *pvData, size_t uxDataLen );
 int iTlsGetSocketFd( NetworkContext_t *pxNetworkContext );

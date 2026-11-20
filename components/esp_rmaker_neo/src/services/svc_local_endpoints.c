@@ -73,7 +73,7 @@
 #include "sdkconfig.h"
 #include "local_config.h"
 
-/* RMNG includes. */
+/* RainMaker Neo includes. */
 #include "node_internal.h"
 #include "event_loop.h"
 #include "esp_rmaker_work_queue.h"

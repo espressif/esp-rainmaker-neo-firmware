@@ -65,7 +65,7 @@ Examples:
     --job-config templates/job_config_template.json \\
     --thing-name thing_name
 
-  # Create RMNG OTA job
+  # Create RainMaker Neo OTA job
   python ota_helper.py --create-rmng-ota-job \\
     --files templates/ota_file_template.json \\
     --job-config templates/job_config_template.json \\
@@ -113,7 +113,7 @@ Examples:
     parser.add_argument(
         "--create-rmng-ota-job",
         action="store_true",
-        help="Create RMNG OTA job with RMNG-specific OTA info",
+        help="Create RainMaker Neo OTA job with RainMaker Neo-specific OTA info",
     )
     parser.add_argument(
         "--start-job", action="store_true", help="Start OTA job and monitor status"
@@ -201,7 +201,7 @@ def files_to_ota_files_config(files_path: str) -> OTAFilesConfig:
 
 
 def parse_rmng_ota_info(job_config_path: str) -> RmngOtaInfo:
-    """Parse RMNG OTA info from job config JSON"""
+    """Parse RainMaker Neo OTA info from job config JSON"""
     if not os.path.exists(job_config_path):
         ota_error(f"Job config file not found: {job_config_path}")
         sys.exit(1)
@@ -209,7 +209,7 @@ def parse_rmng_ota_info(job_config_path: str) -> RmngOtaInfo:
     with open(job_config_path, "r") as f:
         config = json.load(f)
 
-    # Extract RMNG-specific fields
+    # Extract RainMaker Neo-specific fields
     filetype = config.get("filetype")
     fw_version = config.get("fw_version")
     min_fw_version = config.get("min_fw_version")
@@ -367,7 +367,7 @@ def main():
                 thing_group_name=args.thing_group_name,
             )
             if job_id:
-                ota_log(f"RMNG OTA job created successfully! Job ID: {job_id}")
+                ota_log(f"RainMaker Neo OTA job created successfully! Job ID: {job_id}")
                 ota_info(
                     f"To start the job, run: python ota_helper.py --start-job --job-id {job_id}"
                 )
@@ -376,7 +376,7 @@ def main():
                     f"To track execution, run: python ota_helper.py --track-job-execution --job-id {job_id} --thing-name {thing_hint}"
                 )
             else:
-                ota_error("Failed to create RMNG OTA job")
+                ota_error("Failed to create RainMaker Neo OTA job")
                 sys.exit(1)
 
         elif args.start_job:

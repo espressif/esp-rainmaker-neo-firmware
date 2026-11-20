@@ -6,8 +6,8 @@ set(APP_NETWORK_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/include")
 if (ESP_PLATFORM AND NOT IDF_TARGET STREQUAL "linux")
     set(srcs "src/app_network_neo.c" "src/app_network_provision.c")
     set(pub_req rmaker_app_network esp_event osal)
-    # app_network_provision.c drives the RMNG pre-provisioning flow (esp_rmaker_flow.h) and the provisioning manager;
-    # neither appears in the public header, so both are private.
+    # app_network_provision.c drives the RainMaker Neo pre-provisioning flow (esp_rmaker_flow.h) and the provisioning
+    # manager; neither appears in the public header, so both are private.
     set(priv_req esp_rmaker_neo network_provisioning)
     # esp_wifi must be in the build for its Kconfig (ESP_WIFI_ENABLED) to exist, even on a Thread-only target.
     list(APPEND priv_req esp_wifi)

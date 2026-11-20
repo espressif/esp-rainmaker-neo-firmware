@@ -24,7 +24,7 @@
 #include "osal_mem_alloc.h"
 #include "osal_log.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_work_queue.h"
 #include "esp_rmaker_mqtt_impl.h"
 

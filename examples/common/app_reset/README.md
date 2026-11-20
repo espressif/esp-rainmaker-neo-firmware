@@ -11,7 +11,7 @@ with both resets active:
 | Hold duration | Action |
 |---|---|
 | `APP_RESET_NETWORK_TIME_MS` (default **5 s**) | **Network reset** — wipes network credentials, reboots after `APP_RESET_REBOOT_S` (default 2 s) |
-| `APP_RESET_FACTORY_TIME_MS` (default **10 s**) | **Factory reset** — wipes RMNG data and network credentials, then reboots |
+| `APP_RESET_FACTORY_TIME_MS` (default **10 s**) | **Factory reset** — wipes RainMaker Neo data and network credentials, then reboots |
 
 A factory reset does **not** erase the factory NVS partition, so device credentials survive.
 Set `APP_RESET_ENABLE=n` to disable both.
@@ -28,7 +28,7 @@ app_reset_button_register(my_button_handle);   /* ESP-IDF only */
 ```
 
 `app_reset_button_register()` attaches the thresholds to a button you already created, and
-registers the network-reset routine with RMNG so the SDK and the `reset-network` console
+registers the network-reset routine with RainMaker Neo so the SDK and the `reset-network` console
 command can trigger it too. It is a no-op returning `OSAL_ERR_OK` when the feature is
 disabled, so the call needs no `#if`.
 
@@ -44,9 +44,9 @@ code can call it unguarded.
 
 ## Relationship to esp-rainmaker
 
-This is the RMNG counterpart of `espressif/rmaker_app_reset`, and deliberately not a
+This is the RainMaker Neo counterpart of `espressif/rmaker_app_reset`, and deliberately not a
 consumer of it. Upstream calls esp-rainmaker's `esp_rmaker_wifi_reset()` /
 `esp_rmaker_factory_reset()`, which do not exist in this SDK; the resets here go through
-RMNG's own `esp_rmaker_system_ctrl_*` API. Upstream also configures its timeouts as
+RainMaker Neo's own `esp_rmaker_system_ctrl_*` API. Upstream also configures its timeouts as
 call arguments in seconds and has no threshold-crossing feedback, where this component is
 Kconfig-driven in milliseconds and logs each threshold as it is crossed.

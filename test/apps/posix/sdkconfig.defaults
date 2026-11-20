@@ -1,4 +1,4 @@
-# Same style as ESP-IDF defaults; used by rmng's menuconfig when building POSIX tests.
+# Same style as ESP-IDF defaults; used by RainMaker Neo's menuconfig when building POSIX tests.
 
 # Force testing.
 CONFIG_ESP_RMAKER_NEO_TESTING=y

@@ -18,7 +18,7 @@
 #include "esp_rmaker_standard_types.h"
 #include "constants/services.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_node.h"
 #include "esp_rmaker_data_model.h"
 

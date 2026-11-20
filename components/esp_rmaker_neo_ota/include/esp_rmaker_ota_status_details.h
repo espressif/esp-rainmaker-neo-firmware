@@ -121,7 +121,7 @@ typedef struct {
 #define ESP_RMAKER_OTA_REJECTED_REASON_FW_VERSION_TOO_LOW "Firmware version too low"
 
 /** Missing RainMaker Neo-specific fields in job document */
-#define ESP_RMAKER_OTA_REJECTED_REASON_JOB_DOC_MISSING_RMNG "Missing RMNG-specific fields in job document"
+#define ESP_RMAKER_OTA_REJECTED_REASON_JOB_DOC_MISSING_RMNG "Missing RainMaker Neo-specific fields in job document"
 
 /** Missing AFR-specific fields in job document */
 #define ESP_RMAKER_OTA_REJECTED_REASON_JOB_DOC_MISSING_AFR_OTA "Missing AFR-OTA-specific fields in job document"

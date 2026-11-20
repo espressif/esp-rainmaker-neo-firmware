@@ -39,9 +39,9 @@ pipeline {
             steps {
                 script {
                     currentBuild.displayName = "${BUILD_TAG}"
-                    currentBuild.description = "RMNG Setup"
+                    currentBuild.description = "RainMaker Neo Setup"
                 }
-                println('Running RMNG Setup...')
+                println('Running RainMaker Neo Setup...')
                 catchError() {
                     script {
                         def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"

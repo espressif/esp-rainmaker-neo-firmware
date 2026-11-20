@@ -43,7 +43,7 @@ idf.py build flash monitor
 ```
 
 Per-target overrides are merged from `sdkconfig.defaults.<target>` next to the
-base `sdkconfig.defaults`; `idf.py menuconfig` exposes the RMNG options.
+base `sdkconfig.defaults`; `idf.py menuconfig` exposes the RainMaker Neo options.
 
 ## Build — ESP-IDF linux target
 

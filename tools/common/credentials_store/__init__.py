@@ -57,7 +57,9 @@ def load_rmng_outputs(source) -> dict:
 
     rmng_outputs_path = Path(source)
     if not rmng_outputs_path.exists():
-        raise FileNotFoundError(f"RMNG outputs file not found at '{rmng_outputs_path}'")
+        raise FileNotFoundError(
+            f"RainMaker Neo outputs file not found at '{rmng_outputs_path}'"
+        )
     with open(rmng_outputs_path, "r") as f:
         return json.load(f)
 

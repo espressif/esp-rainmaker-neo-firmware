@@ -34,7 +34,7 @@ esp_rmaker_device_t *temp_sensor_device;
 esp_rmaker_param_t *temp_sensor_temperature_param;
 
 /* Bulk write callback for the light (power + brightness). Each device gets its
- * own bulk callback; RMNG delivers all parameters of one request together. */
+ * own bulk callback; RainMaker Neo delivers all parameters of one request together. */
 static esp_rmaker_error_t light_write_cb(const esp_rmaker_device_t *device, const esp_rmaker_param_write_req_t write_req[],
         uint8_t count, void *priv_data, esp_rmaker_write_ctx_t *ctx)
 {
@@ -183,7 +183,7 @@ static esp_rmaker_ota_diag_status_t ota_diag_fn(esp_rmaker_ota_diag_priv_t *ota_
  * For how ESP-IDF and POSIX entry points use this, see the examples/common/app_entry component. */
 osal_err_t app_run(void)
 {
-    /* Initialise the RMNG serial console. */
+    /* Initialise the RainMaker Neo serial console. */
     esp_rmaker_console_init();
 
     /* Initialize application-specific hardware drivers and set the initial state. */
@@ -193,16 +193,16 @@ osal_err_t app_run(void)
     osal_storage_init(NULL);
     app_network_init();
 
-    /* RMNG provisioning runs before node init. A multi-device node advertises no
+    /* RainMaker Neo provisioning runs before node init. A multi-device node advertises no
      * single device type, so pass the NONE sentinel.
      * See the examples/common/app_network component for more details. */
     app_network_provision(NEO_MFG_DATA_DEVICE_TYPE_NONE, NEO_MFG_DATA_DEVICE_SUBTYPE_NONE);
 
-    /* Register the default RMNG event handler (logs RMNG/OTA/network events).
+    /* Register the default RainMaker Neo event handler (logs RainMaker Neo/OTA/network events).
      * See the examples/common/app_event_loop component for more details. */
     app_event_loop_register_default_handler();
 
-    /* Initialize the RMNG agent. */
+    /* Initialize the RainMaker Neo agent. */
     esp_rmaker_config_t rainmaker_cfg = {
         .enable_time_sync = true,
     };
@@ -288,7 +288,7 @@ osal_err_t app_run(void)
     };
     esp_rmaker_ota_enable(&ota_config);
 
-    /* Start the RMNG agent. */
+    /* Start the RainMaker Neo agent. */
     esp_rmaker_start();
 
     OSAL_LOGI(TAG, "Multi-device ready. Short-press cycles focus (Light/Fan/Switch/Temp Sensor), long-press actuates.");

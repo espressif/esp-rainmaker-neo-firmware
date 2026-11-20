@@ -24,7 +24,7 @@ function (unity_make_available)
         add_subdirectory("${_unity_src}" "${_unity_bin}")
     else ()
         rmng_fetchcontent_guard_checkout("${_unity_src}" "${RMNG_THIRD_PARTY_UNITY_COMMIT}")
-        message(STATUS "rmng-sdk: Fetching Unity test framework")
+        message(STATUS "RainMaker Neo SDK: Fetching Unity test framework")
         rmng_fetchcontent_reset(rmng_unity_fc)
         FetchContent_Declare(
             rmng_unity_fc

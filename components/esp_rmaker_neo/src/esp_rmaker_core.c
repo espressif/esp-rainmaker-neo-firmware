@@ -1443,7 +1443,7 @@ esp_rmaker_error_t esp_rmaker_pre_prov_deinit(void)
 
 esp_rmaker_node_t *esp_rmaker_node_init(const esp_rmaker_config_t *config, const char *name, const char *type)
 {
-    OSAL_LOGI(TAG, "Initializing RMNG firmware SDK (version %s)...", ESP_RMAKER_VERSION_STR);
+    OSAL_LOGI(TAG, "Initializing RainMaker Neo firmware SDK (version %s)...", ESP_RMAKER_VERSION_STR);
 
     esp_rmaker_node_t *node = NULL;
 
@@ -1459,7 +1459,7 @@ esp_rmaker_node_t *esp_rmaker_node_init(const esp_rmaker_config_t *config, const
      * (cert/key/username/password) are intentionally not logged. */
     const osal_mqtt_conn_params_t *cp = priv_data.mqtt_conn_params;
     OSAL_LOGI(TAG,
-              "\n========= RMNG firmware SDK initialized =========\n\n"
+              "\n========= RainMaker Neo firmware SDK initialized =========\n\n"
               "\tVersion:       %s\n"
               "\tNode ID:       %s\n"
               "\tMQTT endpoint: %s:%" PRIu16  "\n"

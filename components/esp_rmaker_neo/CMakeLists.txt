@@ -50,7 +50,7 @@ if (DEFINED CONFIG_ESP_RMAKER_NEO_HOST_CTRL)
 endif ()
 message(STATUS "RMNG_HOST_CTRL: ${RMNG_HOST_CTRL}")
 if (RMNG_HOST_CTRL)
-    message(STATUS "Adding RMNG remote support")
+    message(STATUS "Adding RainMaker Neo remote support")
 
     # Add sources and include directories
     list(APPEND RMNG_SRCS ${RMNG_HOST_CTRL_SRCS})

@@ -13,4 +13,6 @@ set(_RMNG_MQTT_STREAMS_SRC
     "${RMNG_ESP_AWS_IOT_LIBS_DIR}/aws-iot-core-mqtt-file-streams-embedded-c/aws-iot-core-mqtt-file-streams-embedded-c"
 )
 
-message(STATUS "rmng-sdk: Using esp_rmaker_neo_ota AWS IoT dependencies from esp-aws-iot (${RMNG_ESP_AWS_IOT_DIR})")
+message(
+    STATUS "RainMaker Neo SDK: Using esp_rmaker_neo_ota AWS IoT dependencies from esp-aws-iot (${RMNG_ESP_AWS_IOT_DIR})"
+)

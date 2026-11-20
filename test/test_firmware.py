@@ -3985,7 +3985,7 @@ def _firmware_gva_validate_report_state_webhook_once(
 ):
     """
     Fetch latest GVA notification from webhook mock and assert report-state shape
-    (matches rmng itest: /v1/gva/validate, gva flag, payload.devices.states).
+    (matches the RainMaker Neo itest: /v1/gva/validate, gva flag, payload.devices.states).
     """
     response = webhook_mock_validate("gva", user.sub)
     assert response.status_code == 200, (

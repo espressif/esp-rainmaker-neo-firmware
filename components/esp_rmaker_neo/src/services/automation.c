@@ -32,7 +32,7 @@
 #include "osal_mem_alloc.h"
 #include "osal_scheduler.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "data_model_internal.h"
 #include "node_internal.h"
 #include "esp_rmaker_node.h"

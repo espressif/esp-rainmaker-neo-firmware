@@ -1,6 +1,6 @@
 ## IDF Component Manager Manifest File
 version: "0.8.0"
-description: "Button helper for the RMNG examples: short and long press callbacks, with hold-to-reset via app_reset."
+description: "Button helper for the RainMaker Neo examples: short and long press callbacks, with hold-to-reset via app_reset."
 license: "CC0-1.0"
 dependencies:
   espressif/button:

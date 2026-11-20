@@ -27,7 +27,7 @@ function (protobuf_c_make_available)
     rmng_fetchcontent_source_ready("${_pb_src}" "${RMNG_THIRD_PARTY_PROTOBUF_C_SHA256}" _pb_src_ready)
     if (NOT _pb_src_ready)
         rmng_fetchcontent_guard_checkout("${_pb_src}" "${RMNG_THIRD_PARTY_PROTOBUF_C_COMMIT}")
-        message(STATUS "rmng-sdk: Fetching protobuf-c")
+        message(STATUS "RainMaker Neo SDK: Fetching protobuf-c")
         rmng_fetchcontent_reset(rmng_protobuf_c_fc)
         FetchContent_Declare(
             rmng_protobuf_c_fc

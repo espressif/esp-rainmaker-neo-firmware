@@ -91,11 +91,11 @@ static void esp_rmaker_app_default_event_handler(void *event_handler_arg, osal_e
         /** Core events ****************************************************************/
         case RMAKER_EVENT_INIT_DONE:
             // RainMaker SDK initialized.
-            OSAL_LOGI(TAG, "RMNG SDK initialized");
+            OSAL_LOGI(TAG, "RainMaker Neo SDK initialized");
             break;
         case RMAKER_EVENT_CORE_STARTED:
             // RainMaker SDK started.
-            OSAL_LOGI(TAG, "RMNG SDK started");
+            OSAL_LOGI(TAG, "RainMaker Neo SDK started");
             break;
 
         /** Local control events ******************************************************/

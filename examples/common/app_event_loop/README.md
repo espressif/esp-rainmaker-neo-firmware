@@ -1,10 +1,10 @@
 # app_event_loop
 
-This is used to attach a default event loop handler that can be used to handle all possible RMNG events. i.e.,
+This is used to attach a default event loop handler that can be used to handle all possible RainMaker Neo events. i.e.,
 
 ```c
 /* Bare minimum includes */
-#include "esp_rmaker_core.h" // RMNG stack
+#include "esp_rmaker_core.h" // RainMaker Neo stack
 #include "app_event_loop.h" // this header
 
 /* Register the handler before initialization, so we can capture RMAKER_EVENT_INIT_DONE */

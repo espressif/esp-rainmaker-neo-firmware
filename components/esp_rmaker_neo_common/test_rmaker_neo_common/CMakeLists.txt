@@ -1,4 +1,4 @@
-# include internal RMNG common headers for testing of internal components
+# include internal RainMaker Neo common headers for testing of internal components
 include(${CMAKE_CURRENT_LIST_DIR}/../sources.cmake)
 
 set(TEST_ESP_RMAKER_NEO_COMMON_SRCS

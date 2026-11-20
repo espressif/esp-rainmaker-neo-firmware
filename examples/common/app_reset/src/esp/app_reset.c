@@ -19,7 +19,7 @@
 /* Button includes */
 #include "iot_button.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_system_ctrl.h"
 
 /* App network includes */

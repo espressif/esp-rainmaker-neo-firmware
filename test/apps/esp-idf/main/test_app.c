@@ -6,7 +6,7 @@
 
 /**
  * @file test_app.c
- * @brief Single ESP-IDF test app for all RMNG SDK components (osal, esp_rmaker_neo_common, esp_rmaker_neo, esp_rmaker_neo_ota).
+ * @brief Single ESP-IDF test app for all RainMaker Neo SDK components (osal, esp_rmaker_neo_common, esp_rmaker_neo, esp_rmaker_neo_ota).
  */
 
 /* Includes *******************************************************************/

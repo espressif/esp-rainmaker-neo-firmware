@@ -173,7 +173,7 @@ Reports rejection of the OTA update with reason.
   - The selected filetype handler tracks versions, but the job did not declare
     ``fw_version``
 
-* - ``"Missing RMNG-specific fields in job document"``
+* - ``"Missing RainMaker Neo-specific fields in job document"``
   - No ``rmng_ota`` section (see [ESP RainMaker Neo OTA Job Document Format](job_document.md))
 
 * - ``"Missing AFR-OTA-specific fields in job document"``

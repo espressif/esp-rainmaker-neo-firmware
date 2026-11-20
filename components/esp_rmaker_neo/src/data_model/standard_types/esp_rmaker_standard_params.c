@@ -14,7 +14,7 @@
 /* Standard includes */
 #include <stdint.h>
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_standard_types.h"
 #include "esp_rmaker_standard_params.h"
 #include "esp_rmaker_val.h"

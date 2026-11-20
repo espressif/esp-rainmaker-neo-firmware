@@ -1,6 +1,6 @@
 ## IDF Component Manager Manifest File
 version: "0.8.0"
-description: "Hold-to-reset for the RMNG examples: network reset and factory reset thresholds on a button."
+description: "Hold-to-reset for the RainMaker Neo examples: network reset and factory reset thresholds on a button."
 license: "CC0-1.0"
 dependencies:
   espressif/button:

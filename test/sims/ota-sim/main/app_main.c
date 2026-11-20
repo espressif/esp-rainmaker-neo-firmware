@@ -36,7 +36,7 @@
 #include "osal_sysinfo.h"
 #include "osal_event_loop.h"
 
-/* RMNG core + OTA + services */
+/* RainMaker Neo core + OTA + services */
 #include "esp_rmaker_core.h"
 #include "esp_rmaker_system_ctrl.h"
 #include "esp_rmaker_standard_services.h"
@@ -48,7 +48,7 @@
 #include "sdkconfig.h"
 
 #if defined(ESP_PLATFORM)
-/* ESP-only network bring-up + RMNG provisioning */
+/* ESP-only network bring-up + RainMaker Neo provisioning */
 #include "osal_storage.h"
 #include "app_network_neo.h"
 #endif /* ESP_PLATFORM */
@@ -474,14 +474,14 @@ osal_err_t app_run(void)
 
     OSAL_LOGI(TAG, "Starting ota-sim");
 
-    /* Initialise the RMNG serial console. */
+    /* Initialise the RainMaker Neo serial console. */
     esp_rmaker_console_init();
 
     /* Seed RNG (used by the SDK's jitter/backoff). */
     srand(time(NULL));
 
 #if defined(ESP_PLATFORM)
-    /* Bring up NVS and the network, then run RMNG provisioning. POSIX has no
+    /* Bring up NVS and the network, then run RainMaker Neo provisioning. POSIX has no
      * local network stack, so the node skips all of this. */
     osal_storage_init(NULL);
     app_network_init();

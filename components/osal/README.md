@@ -1,6 +1,6 @@
 # osal
 
-The OS abstraction layer for the RMNG SDK: **one component**, exposing the
+The OS abstraction layer for the RainMaker Neo SDK: **one component**, exposing the
 `osal_*` API, with per-area ESP-IDF and POSIX implementations behind it. Builds
 as a single ESP-IDF component or a single POSIX static library.
 

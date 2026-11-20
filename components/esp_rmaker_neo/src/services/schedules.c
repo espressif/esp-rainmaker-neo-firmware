@@ -127,7 +127,7 @@
 #include "osal_log.h"
 #include "osal_mem_alloc.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "sdkconfig.h"
 #include "data_model_internal.h"
 #include "network/state_changes.h"

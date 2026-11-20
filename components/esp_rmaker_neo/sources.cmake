@@ -71,8 +71,8 @@ endif ()
 list(APPEND RMNG_PRIV_REQUIRES esp_schedule)
 
 # Serial console support. Provides esp_rmaker_console_init() which sets up the common console (via the
-# espressif/rmaker_console component) and registers the RMNG built-in commands. Unified across ESP-IDF and POSIX: POSIX
-# is served by the osal console shim + vendored rmaker_console (see overrides/rmaker_console).
+# espressif/rmaker_console component) and registers the RainMaker Neo built-in commands. Unified across ESP-IDF and
+# POSIX: POSIX is served by the osal console shim + vendored rmaker_console (see overrides/rmaker_console).
 if (NOT DEFINED RMNG_CONSOLE_ENABLED)
     set(RMNG_CONSOLE_ENABLED ON)
 endif ()

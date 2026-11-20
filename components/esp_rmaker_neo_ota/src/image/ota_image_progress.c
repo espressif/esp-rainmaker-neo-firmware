@@ -23,7 +23,7 @@
 /* Platform common includes */
 #include "osal_log.h"
 
-/* RMNG OTA includes */
+/* RainMaker Neo OTA includes */
 #include "ota_jobs.h"
 
 /* Constants ******************************************************************/

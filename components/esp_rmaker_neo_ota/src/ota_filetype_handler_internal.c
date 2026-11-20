@@ -34,7 +34,7 @@
 /* AWS IoT Jobs includes */
 #include "jobs.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_common_events.h"
 #include "ota_timeout_handler.h"
 #include "ota_jobs.h"

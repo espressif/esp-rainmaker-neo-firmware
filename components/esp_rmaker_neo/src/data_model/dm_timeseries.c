@@ -11,7 +11,7 @@
 
 /* Includes *******************************************************/
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "timeseries.h"
 #include "data_model_internal.h"
 

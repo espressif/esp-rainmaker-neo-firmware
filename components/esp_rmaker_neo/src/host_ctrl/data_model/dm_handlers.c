@@ -22,7 +22,7 @@
 /* Constants */
 #include "esp_rmaker_host_ctrl_constants.h"
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_standard_services.h"
 #include "host_ctrl_services.h"
 #include "node_internal.h"

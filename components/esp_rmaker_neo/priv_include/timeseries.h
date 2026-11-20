@@ -14,7 +14,7 @@
 
 /* Includes *******************************************************/
 
-/* RMNG includes */
+/* RainMaker Neo includes */
 #include "esp_rmaker_error_types.h"
 #include "esp_rmaker_val.h"
 #include "esp_rmaker_state.h"

@@ -12,8 +12,8 @@ if (ESP_PLATFORM AND NOT IDF_TARGET STREQUAL "linux")
     )
     set(APP_RESET_NAME ${COMPONENT_TARGET})
 
-    # The resets go through RMNG's system-control API and the network credential reset, neither of which appears in the
-    # public header. Only needed when the feature is compiled in.
+    # The resets go through RainMaker Neo's system-control API and the network credential reset, neither of which
+    # appears in the public header. Only needed when the feature is compiled in.
     if (CONFIG_APP_RESET_ENABLE)
         idf_component_optional_requires(PRIVATE esp_rmaker_neo app_network)
     endif ()
