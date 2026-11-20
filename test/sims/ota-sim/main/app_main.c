@@ -481,13 +481,9 @@ osal_err_t app_run(void)
     srand(time(NULL));
 
 #if defined(ESP_PLATFORM)
-    /* Bring up NVS and the network, then run RainMaker Neo provisioning. POSIX has no
-     * local network stack, so the node skips all of this. */
+    /* Bring up NVS and the network stack. POSIX has no local network stack. */
     osal_storage_init(NULL);
     app_network_init();
-    APP_RETURN_ON_ERR(esp_rmaker_pre_prov_init(), "Failed to initialise pre-provisioning components");
-    APP_RETURN_ON_ERR(app_network_start_neo(), "Failed to start the network and await provisioning");
-    APP_RETURN_ON_ERR(esp_rmaker_pre_prov_deinit(), "Failed to deinitialise pre-provisioning components");
 #else /* !ESP_PLATFORM */
     /* Register the console reset-network callback (POSIX). */
     esp_rmaker_system_ctrl_register_network_reset_fn(app_network_reset_credentials);
@@ -543,6 +539,11 @@ osal_err_t app_run(void)
     } else {
         OSAL_LOGI(TAG, "OTA enabled successfully; auto-fetching pending jobs");
     }
+
+#if defined(ESP_PLATFORM)
+    /* The node exists, so its provisioning endpoints are registered: start the network. */
+    APP_RETURN_ON_ERR(app_network_start_neo(), "Failed to start the network and await provisioning");
+#endif /* ESP_PLATFORM */
 
     /* Start the SDK. */
     if (esp_rmaker_start() != ESP_RMAKER_OK) {

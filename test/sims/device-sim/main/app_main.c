@@ -48,23 +48,23 @@ osal_err_t app_run(void)
     OSAL_LOGI(TAG, "Starting device-sim");
 
 #if defined(ESP_PLATFORM)
-    /* Bring up NVS and the network, then run the RainMaker Neo provisioning sequence:
-     * 1. esp_rmaker_pre_prov_init()  - init SDK components required before provisioning
-     * 2. app_network_start_neo()    - start the network and await provisioning completion
-     * 3. esp_rmaker_pre_prov_deinit()- deinit those pre-provisioning components
-     * POSIX has no local network stack, so the remote node skips all of this. */
+    /* Bring up NVS and the network stack. POSIX has no local network stack. */
     osal_storage_init(NULL);
     app_network_init();
-    APP_RETURN_ON_ERR(esp_rmaker_pre_prov_init(), "Failed to initialise pre-provisioning components");
-    APP_RETURN_ON_ERR(app_network_start_neo(), "Failed to start the network and await provisioning");
-    APP_RETURN_ON_ERR(esp_rmaker_pre_prov_deinit(), "Failed to deinitialise pre-provisioning components");
 #endif /* ESP_PLATFORM */
 
-    /* Initialise and start the remote control. */
+    /* Initialise the remote control, which creates the node. */
     esp_rmaker_config_t config = {
         .enable_time_sync = true,
     };
     APP_RETURN_ON_ERR(esp_rmaker_host_ctrl_init(&config), "Failed to initialise remote control");
+
+#if defined(ESP_PLATFORM)
+    /* The node exists, so its provisioning endpoints are registered: start the network. */
+    APP_RETURN_ON_ERR(app_network_start_neo(), "Failed to start the network and await provisioning");
+#endif /* ESP_PLATFORM */
+
+    /* Start the remote control. */
     APP_RETURN_ON_ERR(esp_rmaker_host_ctrl_start(), "Failed to start remote control");
 
     OSAL_LOGI(TAG, "device-sim ready.");

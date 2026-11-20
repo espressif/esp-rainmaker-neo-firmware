@@ -13,6 +13,7 @@
 
 /* Declaration includes. */
 #include "esp_rmaker_standard_services.h"
+#include "services/local_endpoints.h"
 
 /* Public function definitions *******************************************************/
 
@@ -66,4 +67,13 @@ esp_rmaker_error_t esp_rmaker_chal_resp_service_disable(void)
 bool esp_rmaker_chal_resp_service_is_enabled(void)
 {
     return false;
+}
+
+esp_rmaker_error_t esp_rmaker_local_endpoints_on_start(void)
+{
+    return ESP_RMAKER_OK;
+}
+
+void esp_rmaker_local_endpoints_on_deinit(void)
+{
 }

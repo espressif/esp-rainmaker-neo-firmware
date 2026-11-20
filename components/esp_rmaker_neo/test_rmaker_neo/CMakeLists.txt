@@ -14,7 +14,7 @@ set(TEST_ESP_RMAKER_NEO_SRCS
     "tests_src/prov/test_prov_helpers.c"
     "tests_src/util/test_checksum_impl.c"
     "tests_src/util/test_trigger_codec.c"
-    "tests_src/core/test_core_pre_prov.c"
+    "tests_src/core/test_core_node_init.c"
     "tests_src/core/test_core_node_lifecycle.c"
     "tests_src/core/test_core_start_stop.c"
     "tests_src/core/test_core_online_status.c"
@@ -64,7 +64,7 @@ endif ()
 # These tests need protocomm, which the ESP-IDF linux target does not have.
 if (NOT IDF_TARGET STREQUAL "linux")
     list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/local_ctrl/test_local_ctrl_sec2_cache.c"
-         "tests_src/local_ctrl/test_local_ctrl_custom_endpoints.c"
+         "tests_src/local_ctrl/test_local_ctrl_custom_endpoints.c" "tests_src/services/test_local_endpoints_defer.c"
     )
 endif ()
 

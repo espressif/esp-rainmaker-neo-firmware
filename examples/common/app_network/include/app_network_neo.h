@@ -10,13 +10,13 @@
  *
  * One surface the example body can call unconditionally:
  *  - ESP-IDF: Wi-Fi/Thread provisioning, via the espressif/rmaker_app_network
- *    component, wrapped around the RainMaker Neo pre-provisioning flow.
+ *    component. Call it after esp_rmaker_node_init(), which registers the
+ *    provisioning endpoints, and before esp_rmaker_start().
  *  - POSIX and the ESP-IDF linux target: there is no provisioning and no
  *    credentials, so the calls are successful no-ops.
  *
- * ::app_network_provision collapses the ESP four-step sequence
- * (pre_prov_init -> set_custom_mfg_data -> start_neo -> pre_prov_deinit) into a
- * single call.
+ * ::app_network_provision collapses the ESP two-step sequence
+ * (set_custom_mfg_data -> start_neo) into a single call.
  */
 
 #pragma once
@@ -96,7 +96,7 @@ osal_err_t app_network_set_custom_mfg_data_neo(uint16_t device_type, uint8_t dev
  * @brief Start Wi-Fi/Thread provisioning for RainMaker Neo, using the configured PoP setting.
  *
  * ESP-IDF only. Prefer ::app_network_provision, which wraps this together with the
- * RainMaker Neo pre-provisioning lifecycle.
+ * manufacturer data and the provisioning hooks.
  *
  * @return OSAL_ERR_OK on success, otherwise an error code.
  */
@@ -115,16 +115,19 @@ osal_err_t app_network_reset_credentials(void);
 /**
  * @brief Run the full network provisioning bring-up.
  *
- * ESP-IDF: esp_rmaker_pre_prov_init() -> app_network_set_custom_mfg_data_neo() ->
- * app_network_start_neo() -> esp_rmaker_pre_prov_deinit(). Passing
+ * ESP-IDF: app_network_set_custom_mfg_data_neo() -> app_network_start_neo(). Passing
  * ::NEO_MFG_DATA_DEVICE_TYPE_NONE skips the manufacturer-data step.
  * POSIX: no-op returning OSAL_ERR_OK.
+ *
+ * Call it after esp_rmaker_node_init() and before esp_rmaker_start().
  *
  * @param[in] device_type    RainMaker Neo manufacturer-data device type, or
  *                           ::NEO_MFG_DATA_DEVICE_TYPE_NONE to not set any.
  * @param[in] device_subtype RainMaker Neo manufacturer-data device subtype.
  *
- * @return OSAL_ERR_OK on success, otherwise an error code.
+ * @return OSAL_ERR_OK on success.
+ * @return OSAL_ERR_INVALID_STATE on ESP-IDF if esp_rmaker_node_init() was not called.
+ * @return Another error code on other failures.
  */
 osal_err_t app_network_provision(uint16_t device_type, uint8_t device_subtype);
 

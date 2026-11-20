@@ -344,7 +344,7 @@ Needs Matter factory data on the device (`CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVI
 providers fail with `ESP_RMAKER_NOT_FOUND` otherwise, and there is no fallback to the RainMaker
 credentials once installed.
 
-Install it before *any* init that reads credentials, `esp_rmaker_pre_prov_init()` included.
+Install it before *any* init that reads credentials, `esp_rmaker_node_init()` included.
 Assisted claiming checks for an existing certificate at that point, so an override installed
 later leaves it claiming a node that already has an identity.
 

@@ -6,10 +6,26 @@ Network provisioning is the process by which a node obtains network credentials 
 
 From the ESP RainMaker Neo firmware perspective, the provisioning sequence follows these steps:
 
-1.  **Pre-Provisioning Initialization**: SDK components required for provisioning are initialized (`esp_rmaker_pre_prov_init()`)
+1.  **Node Initialization**: `esp_rmaker_node_init()` creates the node and registers the provisioning endpoints: `ch_resp` and, on an unclaimed node, `rmaker_claim` (see [Initialization](initialization.md))
 2.  **Network Start**: The provisioning service is started and awaits provisioning completion
-3.  **Post-Provisioning Cleanup**: SDK components used only for provisioning are deinitialized (`esp_rmaker_pre_prov_deinit()`)
-4.  **Node Initialization**: The main node initialization proceeds after provisioning is complete
+3.  **Start**: `esp_rmaker_start()` queues the start task, which waits for claiming to finish, reads the credentials and connects
+
+The node exists before the provisioning service starts, so the application creates its devices and enables its services between steps 1 and 2.
+
+### Migration from the Pre-Provisioning Order
+
+Earlier versions of this SDK provisioned the network first and called `esp_rmaker_node_init()` after it, with `esp_rmaker_pre_prov_init()` and `esp_rmaker_pre_prov_deinit()` around the provisioning. These two functions are removed, and a call to either one fails the build.
+
+Do not provision before `esp_rmaker_node_init()`. The provisioning endpoints are created when provisioning starts, from the endpoints registered at that time. In the old order, `ch_resp` is not registered yet, so the phone app cannot associate the node, and provisioning does not end. This failure occurs only when the node has no network credentials, for example on the first boot or after a network reset.
+
+To migrate an application:
+
+1.  Remove the calls to `esp_rmaker_pre_prov_init()` and `esp_rmaker_pre_prov_deinit()`.
+2.  Call `esp_rmaker_node_init()`, create the devices and enable the services.
+3.  Start the network and provisioning, for example with `app_network_provision()`.
+4.  Call `esp_rmaker_start()`.
+
+An application that calls `app_network_provision()` before `esp_rmaker_node_init()` does not call the removed functions, so the build does not detect the old order. Examine the order of these calls in each application.
 
 ## Challenge-Response Endpoint
 
@@ -65,7 +81,7 @@ sequenceDiagram
     participant node as FW Node
     participant svc as Claiming service
 
-    Note over node: Key generated at esp_rmaker_pre_prov_init(), before the session
+    Note over node: Key generated at esp_rmaker_node_init(), before the session
 
     app ->> node: TypeCmdClaimStart
     node -->> app: {"mac_addr","platform"}
@@ -100,7 +116,7 @@ sequenceDiagram
 
 The app completes claiming **before** it sends network credentials. That ordering is what gives
 the exchange the whole provisioning session to finish: the node stops waiting when the session
-ends, and the credentials are in place before `esp_rmaker_node_init()` reads them.
+ends, and the credentials are in place before the start task reads them.
 
 | Step | Request → Response | Payload |
 |---|---|---|

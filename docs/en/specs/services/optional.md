@@ -224,8 +224,10 @@ Security 0 is not supported.
 
 ### Behavior
 
-- The service is added to the node when local control is enabled, and removed when it is
-  disabled.
+- The service is added to the node when local control starts, and removed when it is
+  disabled. Enabled before the start task starts the local endpoints, it starts from the start
+  task once the node ID and the network are available (see [Initialization](../initialization.md));
+  enabled after that step, it starts at once.
 - Challenge-response for on-network user-node association shares the same protocomm
   instance and session; it is an independently enable-able endpoint set, not a separate
   service. See the endpoint protocol spec for the four enabled/disabled combinations.

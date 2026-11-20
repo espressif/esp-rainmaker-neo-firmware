@@ -100,9 +100,9 @@ static osal_semaphore_handle_t claim_ctx_lock;
 
 /** Guards against a second esp_rmaker_assisted_claim_init() while a claim context is live: the
  * event group and the prov handler registrations are shared, so a second init would leak them.
- * Cleared by esp_rmaker_assisted_claim_perform(), which releases everything it guards --
- * esp_rmaker_pre_prov_init()/deinit() are re-entrant, so a claim that fails must not stop the
- * next provisioning attempt in the same boot from initialising claiming again. */
+ * Cleared by esp_rmaker_assisted_claim_perform(), which releases everything it guards, so a
+ * claim that fails does not stop the next node init in the same boot from initialising
+ * claiming again. */
 static bool claim_init_done;
 
 /** Signals the end of the claiming exchange, either way. Kept for the process lifetime, since
@@ -769,8 +769,8 @@ static void __claim_on_prov_end(void *priv_data)
      * a timeout: this is the exact moment claiming stops being possible.
      *
      * esp-rainmaker can wait unbounded because it waits earlier, on a background task
-     * while the session is still live. This SDK waits from esp_rmaker_pre_prov_deinit(),
-     * i.e. after the session, so it needs this signal instead. */
+     * while the session is still live. This SDK waits from the start task, which the
+     * application queues after the session, so it needs this signal instead. */
     if (claim_event_group) {
         osal_event_group_set_bits(claim_event_group, CLAIM_ABANDONED_BIT);
     }
@@ -845,7 +845,7 @@ generate_key:
 
     /* General-purpose random bytes, generated once and then kept.
      *
-     * Load-bearing position: this runs from esp_rmaker_pre_prov_init(), i.e. before
+     * Load-bearing position: this runs from esp_rmaker_node_init(), i.e. before
      * app_network_start_neo() derives the Proof of Possession and the advertised BLE device
      * name from the same blob. Deferring key generation to the first ClaimStart -- a plausible
      * optimisation, given keygen blocks boot -- would take this with it, and both would

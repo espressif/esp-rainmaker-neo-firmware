@@ -32,9 +32,7 @@ extern "C" {
 /**
  * @brief Override some/all of the credentials providers.
  * By default, the credentials are read from the factory partition.
- * @note This function should be called before ANY initialization functions are called for the overrides to take effect:
- * - esp_rmaker_pre_prov_init()
- * - esp_rmaker_node_init()
+ * @note Call this before esp_rmaker_node_init() for the overrides to take effect.
  *
  * @param[in] p_credentials_providers The credentials providers. Set a provider to NULL to use the default credentials provider for that provider.
  *

@@ -139,17 +139,18 @@ esp_rmaker_error_t esp_rmaker_factory_part_init(void)
 
 esp_rmaker_error_t esp_rmaker_factory_part_deinit(void)
 {
-    osal_err_t nvs_err;
+    /* Nothing open: already de-initialized, or never initialized */
+    if (esp_rmaker_factory_nvs_handle == NULL) {
+        return ESP_RMAKER_OK;
+    }
 
     /* Close the factory partition */
-    if (esp_rmaker_factory_nvs_handle != NULL) {
-        nvs_err = osal_storage_close(esp_rmaker_factory_nvs_handle);
-        if (nvs_err != OSAL_ERR_OK) {
-            OSAL_LOGE(TAG, "Failed to close the factory partition");
-            return ESP_RMAKER_FAIL;
-        }
-        esp_rmaker_factory_nvs_handle = NULL;
+    osal_err_t nvs_err = osal_storage_close(esp_rmaker_factory_nvs_handle);
+    if (nvs_err != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to close the factory partition");
+        return ESP_RMAKER_FAIL;
     }
+    esp_rmaker_factory_nvs_handle = NULL;
 
     /* Deinit the factory partition */
     nvs_err = osal_storage_deinit(RMAKER_NVS_FACTORY_PART_NAME);

@@ -4,10 +4,10 @@ Network provisioning and bring-up for the examples, on **both** platforms.
 
 An example calls `app_network_provision()` unconditionally and gets:
 
-- **ESP-IDF** — Wi-Fi/Thread provisioning via the `espressif/rmaker_app_network` component,
-  wrapped around the RainMaker Neo pre-provisioning lifecycle. One call covers the whole sequence:
-  `esp_rmaker_pre_prov_init()` → `app_network_set_custom_mfg_data_neo()` →
-  `app_network_start_neo()` → `esp_rmaker_pre_prov_deinit()`.
+- **ESP-IDF** — Wi-Fi/Thread provisioning via the `espressif/rmaker_app_network` component.
+  One call covers the whole sequence: `app_network_set_custom_mfg_data_neo()` →
+  `app_network_start_neo()`. Call it after `esp_rmaker_node_init()`, which registers the
+  provisioning endpoints, and before `esp_rmaker_start()`.
 - **POSIX** — there is no provisioning and no stored credentials on the host, so the calls
   are successful no-ops.
 
