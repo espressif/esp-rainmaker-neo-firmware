@@ -35,11 +35,18 @@ static const char *SNTP_SERVERS[] = {
 
 // Global state
 static bool init_done = false;
+static void (*s_user_sync_cb)(struct timeval *tv);
 
 static void osal_timesync_sync_cb(struct timeval *tv)
 {
     OSAL_LOGI(TAG, "SNTP Synchronised.");
     osal_timesync_print_current_time();
+}
+
+static void __sntp_sync_cb(struct timeval *tv)
+{
+    osal_timesync_sntp_mark_synced();
+    (s_user_sync_cb ? s_user_sync_cb : osal_timesync_sync_cb)(tv);
 }
 
 // Private API implementations
@@ -63,6 +70,7 @@ int osal_timesync_init(osal_timesync_config_t *config)
     if (sntp_enabled()) {
 #endif
         OSAL_LOGI(TAG, "SNTP already initialized.");
+        osal_timesync_sntp_mark_external();
         init_done = true;
         return 0;
     }
@@ -93,11 +101,8 @@ int osal_timesync_init(osal_timesync_config_t *config)
     sntp_init();
 #endif
 
-    if (config && config->sync_time_cb) {
-        sntp_set_time_sync_notification_cb(config->sync_time_cb);
-    } else {
-        sntp_set_time_sync_notification_cb(osal_timesync_sync_cb);
-    }
+    s_user_sync_cb = config ? config->sync_time_cb : NULL;
+    sntp_set_time_sync_notification_cb(__sntp_sync_cb);
 
     if (config && osal_timesync_event_loop_init(&config->event_loop_registration_info) != 0) {
         OSAL_LOGE(TAG, "Failed to initialize event loop posting information");
@@ -123,6 +128,7 @@ int osal_timesync_deinit(void)
 #else
     sntp_stop();
 #endif
+    osal_timesync_sntp_state_reset();
     init_done = false;
     return 0;
 }

@@ -103,6 +103,12 @@ bool osal_timesync_is_initialized(void);
 bool osal_timesync_is_synced(void);
 
 /**
+ * @brief Check whether the SNTP client got a time since osal_timesync_init()
+ * @note If the app started SNTP before init, returns osal_timesync_is_synced(); POSIX returns false.
+ */
+bool osal_timesync_sntp_has_synced(void);
+
+/**
  * @brief Check whether an epoch-ms value denotes a valid (plausible) wall clock
  *
  * Applies the same reference-time floor. Use to validate a coarse time before applying it,

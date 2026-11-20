@@ -73,6 +73,7 @@ int osal_timesync_deinit(void)
     if (!g_posix_state.initialized) {
         return 0;
     }
+    osal_timesync_sntp_state_reset();
     g_posix_state.initialized = false;
     return 0;
 }
