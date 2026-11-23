@@ -19,6 +19,10 @@
  * esp_rmaker_node_init() registers the provisioning endpoints (challenge-response and, on an
  * unclaimed node, assisted claiming), so the node must exist before provisioning starts. The
  * start task waits for claiming, reads the credentials and initializes the MQTT client.
+ *
+ * With CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY the node never reaches the cloud. Node init sets up no MQTT
+ * client and no schedule or automation service, and a separate start task only starts the
+ * local endpoints. Parameter changes are not queued or reported.
  */
 
 #ifndef __ESP_RMAKER_FLOW_H__
@@ -50,7 +54,8 @@
 typedef struct {
     /** Enable Time Sync
      * Setting this true will enable SNTP and fetch the current time before
-     * attempting to connect to the ESP RainMaker Neo service
+     * attempting to connect to the ESP RainMaker Neo service.
+     * Ignored with CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY: a local only node has no network for SNTP.
      */
     bool enable_time_sync;
 
@@ -141,6 +146,8 @@ esp_rmaker_error_t esp_rmaker_node_deinit(const esp_rmaker_node_t *node);
  *
  * @note Network connectivity is not required for this call to succeed: the start work waits for
  *       it. A working connection is required for the node to come online.
+ * @note With CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY the start work only starts the local endpoints and
+ *       posts RMAKER_EVENT_CORE_STARTED.
  * @note This function must be called after esp_rmaker_node_init().
  * @note On a node with assisted claiming enabled, call this after provisioning ends.
  *

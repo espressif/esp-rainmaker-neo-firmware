@@ -5,6 +5,7 @@ menu "ESP RainMaker Neo Configuration"
         config ESP_RMAKER_NEO_HOST_CTRL
             bool "Enable remote control"
             default n
+            depends on !ESP_RMAKER_NEO_LOCAL_ONLY
             select ESP_RMAKER_NEO_HEAP_MONITORING
             select OSAL_INCLUDE_EXT_IO
             select OSAL_USING_VIRTUAL_SCHEDULER
@@ -38,6 +39,7 @@ menu "ESP RainMaker Neo Configuration"
         config ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
             bool "Use custom MQTT client provider"
             default n
+            depends on !ESP_RMAKER_NEO_LOCAL_ONLY
             help
                 If set to true, then you must provide a custom MQTT client provider implementation via the
                 initialization configuration.
@@ -45,6 +47,7 @@ menu "ESP RainMaker Neo Configuration"
         config ESP_RMAKER_NEO_BRIDGE_ENABLE
             bool "Enable bridge support"
             default n
+            depends on !ESP_RMAKER_NEO_LOCAL_ONLY
             help
                 If set to true, the high-level bridge APIs (esp_rmaker_bridge.h) and the underlying
                 bridge sources are included in the build. Bridge nodes proxy cloud connectivity for
@@ -342,6 +345,7 @@ menu "ESP RainMaker Neo Configuration"
         config ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE
             bool "Start challenge-response-only local service (on-network association)"
             default n
+            depends on !ESP_RMAKER_NEO_LOCAL_ONLY
             help
                 Makes examples/sims start the local endpoints service with only the
                 challenge-response (ch_resp) endpoint, without the local control
@@ -468,7 +472,7 @@ menu "ESP RainMaker Neo Configuration"
 
         config ESP_RMAKER_NEO_ASSISTED_CLAIM
             bool "Enable assisted claiming"
-            depends on BT_ENABLED
+            depends on BT_ENABLED && !ESP_RMAKER_NEO_LOCAL_ONLY
             default y
             select ESP_RMAKER_NEO_CLAIM_CSR_SUPPORT
             help

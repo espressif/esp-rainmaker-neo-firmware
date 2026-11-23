@@ -37,6 +37,12 @@ The start task runs these steps in order:
 6.  **Local endpoints**: Start the local control and challenge-response endpoint sets the application enabled before this step
 7.  **Connect**: Start the MQTT host migration timeout (only with `CONFIG_ESP_RMAKER_NEO_MQTT_HOST_MIGRATION`), connect to the MQTT broker and continue with the cloud setup
 
+### Local Only Build
+
+A node that never reaches the cloud (for example a BLE session only build) is built with `CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY`. The examples select it from `CONFIG_APP_NETWORK_BLE_MODE_SESSION_ONLY` (see `examples/common/app_network/Kconfig.projbuild`). Node init then sets up no MQTT implementation, starts no time synchronization and creates no schedule or automation service, so the linker drops the MQTT client and the TLS libraries. The state report APIs return `ESP_RMAKER_OK` and queue or send nothing. Assisted claiming, bridge, host control and MQTT budgeting are not selectable. `esp_rmaker_ota_enable()` only runs the INIT rollback check, marks a passed image valid and returns `ESP_RMAKER_NOT_SUPPORTED`.
+
+A separate start task runs only step 6 (local endpoints) and posts `RMAKER_EVENT_CORE_STARTED`. A separate stop task only stops the work queue.
+
 ## Prerequisites
 
 ### Before Network Provisioning

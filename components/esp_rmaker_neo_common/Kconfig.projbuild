@@ -2,6 +2,19 @@ menu "ESP RainMaker Neo Common Component Configuration"
 
     menu "Networking"
 
+        config ESP_RMAKER_NEO_LOCAL_ONLY
+            bool "Local only node (no cloud connectivity)"
+            default n
+            help
+                Build for a node that never reaches the ESP RainMaker service, for example a
+                BLE session only node. Node init sets up no MQTT client, no time
+                synchronization and no schedule or automation service, and a separate start
+                task only starts the local endpoints. The linker drops the MQTT client and
+                the TLS libraries. esp_rmaker_ota_enable() only runs the rollback check.
+
+                The examples select this option from the network build (see
+                examples/common/app_network).
+
         choice ESP_RMAKER_NEO_MQTT_PORT
             bool "MQTT Port"
             default ESP_RMAKER_NEO_MQTT_PORT_443

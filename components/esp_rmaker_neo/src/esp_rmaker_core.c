@@ -252,10 +252,20 @@ static void esp_rmaker_on_first_mqtt_connection(void);
 static void esp_rmaker_start_task(void *unused);
 
 /**
+ * @brief Start task for a local only node (CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY): only the local endpoints start.
+ */
+static void esp_rmaker_start_task_local_only(void);
+
+/**
  * @brief Task to stop the ESP RainMaker Neo SDK.
  * @param[in] unused Unused parameter.
  */
 static void esp_rmaker_stop_task(void *unused);
+
+/**
+ * @brief Stop task for a local only node (CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY): only the work queue stops.
+ */
+static void esp_rmaker_stop_task_local_only(void);
 
 /**
  * @brief Task to perform required actions after a reconnect.
@@ -581,9 +591,10 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
         goto fail;
     }
 
-    /* Initialise time synchronization (only reflect enable in trackers after success) */
+    /* Initialise time synchronization (only reflect enable in trackers after success).
+     * A local only node has no network for SNTP. */
     priv_data.trackers.enable_time_sync = false;
-    if (config->enable_time_sync) {
+    if (config->enable_time_sync && !esp_rmaker_core_is_local_only()) {
         OSAL_LOGD(TAG, "Initializing time synchronization...");
         // use default configuration
         osal_timesync_config_t osal_timesync_config = {
@@ -673,47 +684,51 @@ static esp_rmaker_error_t esp_rmaker_init(const esp_rmaker_config_t *config)
     }
 #endif
 
-    /* Select the MQTT implementation */
-    OSAL_LOGD(TAG, "Selecting MQTT implementation...");
+    /* Select the MQTT implementation. A local only node never sets one up, so the linker drops the client. */
+    if (!esp_rmaker_core_is_local_only()) {
+        OSAL_LOGD(TAG, "Selecting MQTT implementation...");
 #if CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
-    osal_mqtt_impl_setup_t mqtt_setup_fn = config->mqtt_setup_fn;
-    if (!mqtt_setup_fn) {
-        OSAL_LOGE(TAG, "MQTT setup function is not provided, even though custom MQTT client provider is enabled");
-        ret = ESP_RMAKER_FAIL;
-        goto fail;
-    }
+        osal_mqtt_impl_setup_t mqtt_setup_fn = config->mqtt_setup_fn;
+        if (!mqtt_setup_fn) {
+            OSAL_LOGE(TAG, "MQTT setup function is not provided, even though custom MQTT client provider is enabled");
+            ret = ESP_RMAKER_FAIL;
+            goto fail;
+        }
 #else
-    osal_mqtt_impl_setup_t mqtt_setup_fn = osal_mqtt_impl_setup;
+        osal_mqtt_impl_setup_t mqtt_setup_fn = osal_mqtt_impl_setup;
 #endif /* CONFIG_ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER */
 #ifdef CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING
-    // Use the budgetted implementation
-    osal_err_t mqtt_err = mqtt_budget_impl_setup(mqtt_setup_fn, &esp_rmaker_mqtt_impl);
+        // Use the budgetted implementation
+        osal_err_t mqtt_err = mqtt_budget_impl_setup(mqtt_setup_fn, &esp_rmaker_mqtt_impl);
 #else
-    // Use the default implementation
-    osal_err_t mqtt_err = mqtt_setup_fn(&esp_rmaker_mqtt_impl);
+        // Use the default implementation
+        osal_err_t mqtt_err = mqtt_setup_fn(&esp_rmaker_mqtt_impl);
 #endif /* CONFIG_ESP_RMAKER_NEO_MQTT_ENABLE_BUDGETING */
-    if (mqtt_err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to set up MQTT implementation: %d", mqtt_err);
-        ret = ESP_RMAKER_FAIL;
-        goto fail;
-    }
-    priv_data.trackers.core_mqtt_setup_done = true;
-
-    /* Initialize services */
-    OSAL_LOGD(TAG, "Initializing services...");
-    /* Schedule service is initialized regardless of enable_time_sync:
-     * Arming is deferred until time syncs (see __arm_or_defer / arm_all). */
-    ret = esp_rmaker_schedule_service_init();
-    if (ret != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize schedule service");
-        goto fail;
+        if (mqtt_err != OSAL_ERR_OK) {
+            OSAL_LOGE(TAG, "Failed to set up MQTT implementation: %d", mqtt_err);
+            ret = ESP_RMAKER_FAIL;
+            goto fail;
+        }
+        priv_data.trackers.core_mqtt_setup_done = true;
     }
 
-    // Automation service
-    ret = esp_rmaker_automation_service_init();
-    if (ret != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to initialize automation service");
-        goto fail;
+    /* Initialize services. Nothing can reach a local only node to create schedules or automations. */
+    if (!esp_rmaker_core_is_local_only()) {
+        OSAL_LOGD(TAG, "Initializing services...");
+        /* Schedule service is initialized regardless of enable_time_sync:
+         * Arming is deferred until time syncs (see __arm_or_defer / arm_all). */
+        ret = esp_rmaker_schedule_service_init();
+        if (ret != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Failed to initialize schedule service");
+            goto fail;
+        }
+
+        // Automation service
+        ret = esp_rmaker_automation_service_init();
+        if (ret != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Failed to initialize automation service");
+            goto fail;
+        }
     }
 
     /* Add work function to start the ESP RainMaker SDK as first task in queue */
@@ -766,15 +781,17 @@ static esp_rmaker_error_t esp_rmaker_deinit(void)
 #endif
 
     /* De-initialize services (best-effort; continue on failure) */
-    step_err = esp_rmaker_schedule_service_deinit();
-    if (step_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to de-initialize schedule service");
-        err_out = ESP_RMAKER_FAIL;
-    }
-    step_err = esp_rmaker_automation_service_deinit();
-    if (step_err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to de-initialize automation service");
-        err_out = ESP_RMAKER_FAIL;
+    if (!esp_rmaker_core_is_local_only()) {
+        step_err = esp_rmaker_schedule_service_deinit();
+        if (step_err != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Failed to de-initialize schedule service");
+            err_out = ESP_RMAKER_FAIL;
+        }
+        step_err = esp_rmaker_automation_service_deinit();
+        if (step_err != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Failed to de-initialize automation service");
+            err_out = ESP_RMAKER_FAIL;
+        }
     }
     esp_rmaker_local_endpoints_on_deinit();
 
@@ -930,9 +947,29 @@ static void esp_rmaker_on_first_mqtt_connection(void)
 #endif /* CONFIG_ESP_RMAKER_NEO_HOST_CTRL */
 }
 
+static void esp_rmaker_start_task_local_only(void)
+{
+    OSAL_LOGI(TAG, "Local only node. Started without a connection to ESP RainMaker.");
+
+    OSAL_LOGD(TAG, "Starting the local endpoints...");
+    if (esp_rmaker_local_endpoints_on_start() != ESP_RMAKER_OK) {
+        OSAL_LOGW(TAG, "Failed to start the local endpoints");
+    }
+
+    esp_rmaker_runtime_gate_set_active(true);
+    osal_event_post(RMAKER_EVENT, RMAKER_EVENT_CORE_STARTED, NULL, 0, OSAL_MAX_DELAY);
+    priv_data.trackers.state = ESP_RMAKER_STATE_STARTED;
+    esp_rmaker_event_flags_set_started();
+}
+
 static void esp_rmaker_start_task(void *unused)
 {
     priv_data.trackers.start_task_in_queue = false;
+
+    if (esp_rmaker_core_is_local_only()) {
+        esp_rmaker_start_task_local_only();
+        return;
+    }
 
     osal_err_t mqtt_err;
     esp_rmaker_error_t rmaker_err;
@@ -1083,9 +1120,28 @@ start_task_fail:
     priv_data.trackers.state = ESP_RMAKER_STATE_ERROR;
 }
 
+static void esp_rmaker_stop_task_local_only(void)
+{
+    OSAL_LOGD(TAG, "Stopping Work Queue...");
+    if (esp_rmaker_work_queue_stop() != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to stop Work Queue");
+        priv_data.trackers.state = ESP_RMAKER_STATE_ERROR;
+        return;
+    }
+
+    priv_data.trackers.state = ESP_RMAKER_STATE_STOPPED;
+    OSAL_LOGI(TAG, "ESP RainMaker stopped");
+    esp_rmaker_event_flags_set_stopped();
+}
+
 static void esp_rmaker_stop_task(void *unused)
 {
     OSAL_LOGI(TAG, "Stopping ESP RainMaker...");
+    if (esp_rmaker_core_is_local_only()) {
+        esp_rmaker_stop_task_local_only();
+        return;
+    }
+
     osal_err_t mqtt_err;
     esp_rmaker_error_t rmaker_err;
 

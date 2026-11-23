@@ -50,6 +50,12 @@
 /* Logging tag */
 static const char *TAG = "rmng_ota_core";
 
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY
+#define OTA_LOCAL_ONLY true
+#else
+#define OTA_LOCAL_ONLY false
+#endif
+
 /* Event base definition */
 OSAL_EVENT_DEFINE_BASE(RMAKER_OTA_EVENT);
 
@@ -89,6 +95,13 @@ static void esp_rmaker_ota_enable_work_queue_task(void *ota_config_arg);
  * @param[in] ota_config The OTA configuration
  */
 static void esp_rmaker_ota_handle_reboot(const esp_rmaker_ota_config_t *ota_config);
+
+/**
+ * @brief Run the rollback check on a local only node, which has no MQTT connect to wait for
+ *
+ * @param[in] ota_config The OTA configuration
+ */
+static void esp_rmaker_ota_local_only_reboot_check(const esp_rmaker_ota_config_t *ota_config);
 
 /**
  * @brief Callback function for the rollback timeout handler
@@ -275,6 +288,28 @@ static void esp_rmaker_ota_handle_reboot(const esp_rmaker_ota_config_t *ota_conf
     esp_rmaker_ota_mark_invalid();
 }
 
+static void esp_rmaker_ota_local_only_reboot_check(const esp_rmaker_ota_config_t *ota_config)
+{
+    if (!esp_rmaker_ota_partition_running_is_pending_verify()) {
+        return;
+    }
+
+    if (ota_config->ota_diag != NULL) {
+        esp_rmaker_ota_diag_priv_t ota_diag_priv = {
+            .state = OTA_DIAG_STATE_INIT,
+            .rmaker_ota = true,
+        };
+        if (ota_config->ota_diag(&ota_diag_priv, ota_config->priv) == OTA_DIAG_STATUS_FAIL) {
+            OSAL_LOGE(TAG, "Diagnostics failed! Start rollback to the previous version...");
+            esp_rmaker_ota_mark_invalid();
+            return;
+        }
+    }
+
+    OSAL_LOGI(TAG, "Local only node: marking OTA as valid without post MQTT diagnostics");
+    esp_rmaker_ota_mark_valid();
+}
+
 static void esp_rmaker_ota_rollback_timeout_callback(void *unused)
 {
     OSAL_LOGE(TAG, "OTA not marked valid within timeout period! Start rollback to the previous version...");
@@ -345,6 +380,13 @@ esp_rmaker_error_t esp_rmaker_ota_enable(const esp_rmaker_ota_config_t *ota_conf
     if (g_ota_enabled || g_ota_enable_job_added) {
         OSAL_LOGW(TAG, "OTA already enabled or pending");
         return ESP_RMAKER_OK;
+    }
+
+    /* A local only node has no OTA Jobs; constant condition so the linker drops them */
+    if (OTA_LOCAL_ONLY) {
+        esp_rmaker_ota_local_only_reboot_check(ota_config);
+        OSAL_LOGW(TAG, "OTA is not supported on a local only node");
+        return ESP_RMAKER_NOT_SUPPORTED;
     }
 
     /* Initialize critical components for OTA Jobs state machine */
@@ -613,6 +655,11 @@ esp_rmaker_error_t esp_rmaker_ota_mark_valid(void)
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to set success status: %d", err);
         return err;
+    }
+
+    /* A local only node has no OTA Jobs state machine */
+    if (OTA_LOCAL_ONLY) {
+        return passed ? ESP_RMAKER_OK : ESP_RMAKER_FAIL;
     }
 
     /* Post reboot check requested event to state machine */
