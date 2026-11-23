@@ -40,6 +40,14 @@ Local Configuration Targets
 ---------------------------
 .. include-build-file:: inc/esp_rmaker_local_config_targets.inc
 
+Group Controller
+----------------
+
+Built only when ``CONFIG_ESP_RMAKER_NEO_CONTROLLER`` is set. See
+:doc:`the controller spec <../specs/controller/index>` for the wire contract.
+
+.. include-build-file:: inc/esp_rmaker_controller.inc
+
 Version
 -------
 

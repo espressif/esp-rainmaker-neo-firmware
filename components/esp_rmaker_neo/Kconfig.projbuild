@@ -12,6 +12,20 @@ menu "ESP RainMaker Neo Configuration"
             help
                 If set to true, then the serial remote control sources are included.
 
+        config ESP_RMAKER_NEO_CONTROLLER
+            bool "Enable group controller"
+            default n
+            select ESP_RMAKER_NEO_AWS_SIGN_PORT
+            select ESP_RMAKER_NEO_SERVER_CONFIG_CONTROLLER_SUPPORT
+            help
+                If set to true, then the group controller sources are included.
+
+                A controller is a normal RainMaker Neo node that the cloud additionally registers
+                with the controller capability. It lists its group's nodes, reads their config over the
+                REST data APIs, and reads or drives their params over MQTT. It signs every REST
+                call, and reads the REST API base URL and the IoT Credential Provider endpoint
+                from the cloud's server config.
+
         config ESP_RMAKER_NEO_TESTING
             bool "Enable testing"
             default n
@@ -579,6 +593,21 @@ menu "ESP RainMaker Neo Configuration"
                     The deployment must include the optional bridge stack: without it the
                     bridge policy does not exist and claim-verify fails.
 
+            config ESP_RMAKER_NEO_CLAIM_CONTROLLER_SUPPORT
+                bool "Group controller"
+                depends on ESP_RMAKER_NEO_CONTROLLER
+                default y
+                help
+                    For group controller nodes (ESP_RMAKER_NEO_CONTROLLER) onboarded by assisted
+                    claiming.
+
+                    The claim-verify request asks for the "controller" capability, so the cloud
+                    attaches the controller policy to the issued certificate. Without it, the
+                    node cannot assume the controller role and every REST call fails.
+
+                    The deployment must include the optional controller stack: without it
+                    claim-verify fails.
+
         endmenu
 
     endmenu
@@ -614,6 +643,18 @@ menu "ESP RainMaker Neo Configuration"
                 ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT selects this option. Enable it directly
                 for a node that gets its credentials another way, for example from the
                 factory partition.
+
+        config ESP_RMAKER_NEO_SERVER_CONFIG_CONTROLLER_SUPPORT
+            bool "Group controller server config"
+            default y if ESP_RMAKER_NEO_TESTING
+            select ESP_RMAKER_NEO_SERVER_CONFIG_KEY_API_GATEWAY_URL
+            select ESP_RMAKER_NEO_SERVER_CONFIG_KEY_CRED_ENDPOINT
+            help
+                Fetch the values that a group controller needs to sign its REST calls: the
+                REST API base URL and the AWS IoT Credential Provider endpoint.
+
+                ESP_RMAKER_NEO_CONTROLLER selects this option, however the node gets its
+                credentials.
 
         config ESP_RMAKER_NEO_SERVER_CONFIG
             bool
@@ -689,6 +730,72 @@ menu "ESP RainMaker Neo Configuration"
             default 1
             help
                 Priority of the remote control task.
+
+    endmenu
+
+    menu "Group Controller"
+        depends on ESP_RMAKER_NEO_CONTROLLER
+
+        config ESP_RMAKER_NEO_CONTROLLER_ROLE_ALIAS
+            string "IoT Credential Provider role alias"
+            default "rmng-controller-role-v1"
+            help
+                Role alias used when fetching temporary AWS credentials from the IoT Credential
+                Provider. Must match IOT_RESOURCES['CONTROLLER_ROLE_ALIAS'] in the RainMaker Neo CDK.
+
+        config ESP_RMAKER_NEO_CONTROLLER_SERVER_CONFIG_TIMEOUT_MS
+            int "Server config wait (ms)"
+            default 10000
+            range 1000 60000
+            help
+                How long the first REST call waits for the cloud's server config, which carries the
+                REST API base URL and the credential-provider endpoint. The node requests it after
+                each connection until it arrives, so this only matters right after boot.
+
+        config ESP_RMAKER_NEO_CONTROLLER_SHADOW_RESPONSE_MAX
+            int "Shadow get response buffer (bytes)"
+            default 4096
+            range 512 65536
+            help
+                Ceiling on the named-shadow get/accepted payload the controller reads.
+
+                The document holds far more than the params: state.desired, state.reported and a
+                metadata mirror carrying a timestamp per param. Budget for the largest node in the
+                group.
+
+        config ESP_RMAKER_NEO_CONTROLLER_SHADOW_GET_TIMEOUT_MS
+            int "Shadow get timeout (ms)"
+            default 5000
+            range 1000 60000
+            help
+                How long esp_rmaker_controller_node_refresh_params() waits for the shadow
+                get/accepted reply.
+
+        config ESP_RMAKER_NEO_CONTROLLER_TASK_STACK_DEPTH
+            int "Task stack depth"
+            default 16384
+            range 8192 65536
+            help
+                Stack depth of the controller task. Every blocking controller call runs its work
+                on this task, so this must hold the deepest one: the signed REST path, which does
+                an mTLS handshake, SigV4 signing and a second HTTPS call whose whole response is
+                buffered (see CONFIG_ESP_RMAKER_AWS_SIGN_REQUEST_RESPONSE_MAX).
+
+        config ESP_RMAKER_NEO_CONTROLLER_TASK_PRIORITY
+            int "Task priority"
+            default 1
+            range 1 24
+            help
+                Priority of the controller task.
+
+        config ESP_RMAKER_NEO_CONTROLLER_JOB_QUEUE_DEPTH
+            int "Job queue depth"
+            default 8
+            range 1 64
+            help
+                How many controller jobs may be pending at once. Internal submitters (the config
+                re-fetch and the param-change notification) drop a job rather than block when the
+                queue is full.
 
     endmenu
 

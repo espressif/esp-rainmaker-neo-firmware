@@ -94,4 +94,14 @@ typedef enum {
     MQTT_CHANNEL_SUB_BRIDGE_CHILD_INDEXED_SHADOW_UPDATE = 6,
 } mqtt_channel_sub_bridge_t;
 
+/**
+ * @brief Sub channels for the group controller.
+ */
+typedef enum {
+    MQTT_CHANNEL_SUB_CONTROLLER_SHADOW_SUBSCRIBE = 0,
+    MQTT_CHANNEL_SUB_CONTROLLER_SHADOW_GET = 1,
+    MQTT_CHANNEL_SUB_CONTROLLER_PARAMS = 2,
+    MQTT_CHANNEL_SUB_CONTROLLER_SHADOW_UNSUBSCRIBE = 3,
+} mqtt_channel_sub_controller_t;
+
 #endif /* __MQTT_CHANNELS_H__ */

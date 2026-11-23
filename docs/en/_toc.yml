@@ -30,6 +30,11 @@ subtrees:
                     entries:
                       - file: specs/services/builtin
                       - file: specs/services/optional
+              - file: specs/controller/index
+                subtrees:
+                  - maxdepth: 2
+                    entries:
+                      - file: specs/controller/data_plane
               - file: specs/ota/index
                 subtrees:
                   - maxdepth: 2

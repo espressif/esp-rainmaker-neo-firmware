@@ -153,7 +153,7 @@ void test_claim_verify_request(void)
 {
     /* The exact body the phone app forwards to claim/verify: the capabilities array is
      * present only when a feature asks, and lists them in a fixed order. */
-    const char *caps[3];
+    const char *caps[4];
     size_t n = 0;
 #if CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT
     caps[n++] = "kvs";
@@ -163,6 +163,9 @@ void test_claim_verify_request(void)
 #endif
 #if CONFIG_ESP_RMAKER_NEO_CLAIM_BRIDGE_SUPPORT
     caps[n++] = "bridge";
+#endif
+#if CONFIG_ESP_RMAKER_NEO_CLAIM_CONTROLLER_SUPPORT
+    caps[n++] = "controller";
 #endif
     /* snprintf() returns the length it wanted: assert after each call, so a larger fixture fails here instead of
      * writing past expected[]. */

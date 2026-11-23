@@ -38,7 +38,7 @@ set(RMNG_AWS_SIGN_PORT_PRIV_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/overrides/rm
 # The registry component keeps its namespace prefix in the target name; on POSIX the static lib built by
 # overrides/rmaker_aws_sign/CMakeLists.txt is plain rmaker_aws_sign.
 if (ESP_PLATFORM)
-    set(RMNG_AWS_SIGN_PORT_PRIV_REQUIRES espressif__rmaker_aws_sign)
+    set(RMNG_AWS_SIGN_PORT_REQUIRES espressif__rmaker_aws_sign)
 else ()
-    set(RMNG_AWS_SIGN_PORT_PRIV_REQUIRES rmaker_aws_sign)
+    set(RMNG_AWS_SIGN_PORT_REQUIRES rmaker_aws_sign)
 endif ()

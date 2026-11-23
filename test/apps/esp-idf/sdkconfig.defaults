@@ -10,8 +10,9 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # Enable esp_rmaker_neo testing (builds test_rmaker_neo and enables test hooks)
 CONFIG_ESP_RMAKER_NEO_TESTING=y
 CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE=y
+CONFIG_ESP_RMAKER_NEO_CONTROLLER=y
 # Request every claim-time cloud service, so the claim-verify test covers the
-# full list ("bridge" is on by default with the bridge).
+# full list ("bridge" and "controller" are on by default with those features).
 CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT=y
 CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT=y
 CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL=y

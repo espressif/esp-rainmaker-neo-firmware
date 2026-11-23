@@ -210,6 +210,7 @@ TEST_CASE("All esp_rmaker_neo tests", "[esp_rmaker_neo]")
     run_suite(NULL, NULL, test_rmaker_neo_all_tests_unity);
 }
 
+
 #if !CONFIG_IDF_TARGET_LINUX /* no OTA on the linux target */
 TEST_CASE("All esp_rmaker_neo_ota tests", "[esp_rmaker_neo_ota]")
 {

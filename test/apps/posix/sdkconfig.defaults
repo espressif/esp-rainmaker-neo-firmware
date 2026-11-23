@@ -13,8 +13,8 @@ CONFIG_OSAL_INCLUDE_HTTP=y
 # Enable bridge testing
 CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE=y
 
-# Request every claim-time cloud service, so the claim-verify test covers the capabilities array ("bridge" is on by
-# default with the bridge).
+# Request every claim-time cloud service, so the claim-verify test covers the capabilities array ("bridge" and
+# "controller" are on by default with those features).
 CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT=y
 CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT=y
 
@@ -29,3 +29,6 @@ CONFIG_ESP_RMAKER_NEO_OTA_CUSTOM_JOB_SUPPORT=y
 
 # Build the Time service Timestamp param, so its tests run
 CONFIG_ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM=y
+
+# Enable group controller testing
+CONFIG_ESP_RMAKER_NEO_CONTROLLER=y

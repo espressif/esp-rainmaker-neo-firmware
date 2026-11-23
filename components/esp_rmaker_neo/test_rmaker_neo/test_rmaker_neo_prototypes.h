@@ -902,6 +902,154 @@ void test_node_config_pending_remove_unknown_noop(void);
 void test_node_config_pending_clear_inflight_unknown_noop(void);
 void test_node_config_pending_clear_all_inflight_safe(void);
 
+#ifdef CONFIG_ESP_RMAKER_NEO_CONTROLLER
+
+/* Group controller ***********************************************************/
+
+/** Base-URL split: the stage path is what every data-API path is built on. */
+void test_controller_url_splits_host_and_stage_path(void);
+void test_controller_url_without_path_yields_empty_base_path(void);
+void test_controller_url_strips_one_trailing_slash(void);
+void test_controller_url_without_scheme_is_tolerated(void);
+void test_controller_url_truncates_an_oversized_host(void);
+void test_controller_url_null_yields_empty_outputs(void);
+
+/** Shadow names and topics: a wrong one is accepted by the broker and simply never arrives. */
+void test_controller_shadow_name_plain_group(void);
+void test_controller_shadow_name_joins_subgroups_with_a_dash(void);
+void test_controller_shadow_name_sorts_the_subgroup_path(void);
+void test_controller_shadow_name_ignores_a_duplicate_subgroup(void);
+void test_controller_topic_shadow_get(void);
+void test_controller_topic_node_params(void);
+void test_controller_topic_filters_use_a_single_level_wildcard(void);
+void test_controller_topic_group_control_without_subgroup(void);
+void test_controller_topic_group_control_with_subgroup(void);
+void test_controller_topic_rejects_an_undersized_buffer(void);
+void test_controller_thing_name_extracted_from_shadow_topic(void);
+void test_controller_thing_name_honours_topic_len_without_nul(void);
+void test_controller_thing_name_rejects_a_foreign_prefix(void);
+void test_controller_thing_name_rejects_a_missing_separator(void);
+void test_controller_thing_name_rejects_an_empty_name(void);
+
+/** Shadow bookkeeping: which filters a sync must drop after the group moved. */
+void test_controller_shadow_collect_reports_each_name_once(void);
+void test_controller_shadow_collect_honours_the_buffer_bound(void);
+void test_controller_shadow_collect_reports_none_for_an_empty_list(void);
+void test_controller_shadow_in_use_finds_a_name_the_list_holds(void);
+void test_controller_shadow_in_use_rejects_a_name_the_migration_dropped(void);
+
+/** Expired credentials: a 403 that asks for fresh credentials, not a replay. */
+void test_controller_expired_credentials_detected_in_a_403_body(void);
+void test_controller_expired_credentials_not_reported_for_a_denial(void);
+void test_controller_expired_credentials_honours_body_len(void);
+
+/** GroupInfo: the node list and every node's subgroup path. */
+void test_controller_group_info_reports_every_node(void);
+void test_controller_group_info_reports_the_group_name(void);
+void test_controller_group_info_tolerates_a_missing_group_name(void);
+void test_controller_group_info_reports_subgroups_and_their_members(void);
+void test_controller_group_info_tolerates_a_missing_subgroup_name(void);
+void test_controller_group_info_stops_when_a_callback_stops(void);
+void test_controller_group_info_reports_an_empty_group(void);
+void test_controller_group_info_rejects_a_body_without_node_ids(void);
+
+/** Node config: the device and param tree, and the in-place update. */
+void test_controller_config_parses_devices_and_params(void);
+void test_controller_config_parses_bounds_on_a_numeric_param(void);
+void test_controller_config_parses_int64_bounds(void);
+void test_controller_config_parses_services_into_the_same_list(void);
+void test_controller_config_accepts_name_as_a_legacy_alias_for_id(void);
+void test_controller_config_parses_the_ui_type_and_the_primary_param(void);
+void test_controller_config_primary_param_reports_none_once_it_is_dropped(void);
+void test_controller_config_reports_the_parents_of_a_param(void);
+void test_controller_config_maps_every_ui_type(void);
+void test_controller_config_maps_every_data_type(void);
+void test_controller_config_reads_the_data_model(void);
+void test_controller_config_update_keeps_surviving_handles_valid(void);
+void test_controller_config_update_makes_a_dropped_device_stale(void);
+
+/** Reported shadow state: the full seed and the delta merge. */
+void test_controller_state_applies_reported_params(void);
+void test_controller_state_reports_not_found_before_any_value(void);
+void test_controller_state_delta_keeps_params_it_does_not_mention(void);
+void test_controller_state_reports_no_change_when_the_value_is_the_same(void);
+void test_controller_state_ignores_the_desired_plane(void);
+void test_controller_state_rejects_a_body_without_reported(void);
+void test_controller_state_ncfg_ver_change_marks_the_config_stale(void);
+void test_controller_state_config_is_current_until_ncfg_ver_moves(void);
+void test_controller_state_reports_an_online_transition(void);
+void test_controller_state_ncfg_ver_accepts_an_integer_token(void);
+void test_controller_state_tracks_the_online_flag(void);
+void test_controller_state_reports_every_changed_param(void);
+
+/** Write payloads: node writes key by name, group writes by type. */
+void test_controller_write_node_payload_is_keyed_by_id(void);
+void test_controller_write_refuses_a_read_only_param(void);
+void test_controller_write_batch_groups_params_by_device(void);
+void test_controller_write_node_batch_refuses_to_truncate(void);
+void test_controller_write_batch_rejects_a_read_only_param(void);
+void test_controller_write_batch_needs_a_begin(void);
+void test_controller_write_group_payload_is_keyed_by_type(void);
+void test_controller_write_group_payload_reaches_a_service_type(void);
+void test_controller_write_group_payload_rejects_an_empty_type(void);
+void test_controller_write_group_batch_holds_every_device_type(void);
+void test_controller_write_group_batch_shares_one_envelope_per_type(void);
+void test_controller_write_group_batch_needs_a_begin(void);
+void test_controller_write_group_batch_refuses_to_truncate(void);
+void test_controller_write_group_payload_refuses_invalid_utf8(void);
+void test_controller_write_group_payload_refuses_to_truncate(void);
+
+/** Handle lifetime: a survivor keeps its handle, and a dropped object goes stale. */
+void test_controller_handle_resolves_only_its_own_kind_and_generation(void);
+void test_controller_handle_of_a_reused_slot_does_not_match_the_old_handle(void);
+void test_controller_handle_node_survives_a_resync_that_keeps_it(void);
+void test_controller_handle_node_goes_stale_when_a_resync_drops_it(void);
+void test_controller_handle_subgroup_survives_a_resync_and_takes_its_new_name(void);
+void test_controller_handle_dropped_param_is_stale_and_a_restore_gets_a_new_one(void);
+void test_controller_handle_param_is_stale_after_release_config(void);
+void test_controller_handle_of_another_kind_is_an_invalid_arg(void);
+void test_controller_handle_getter_returns_a_copy_the_caller_frees(void);
+void test_controller_handle_device_param_by_id(void);
+void test_controller_handle_notify_skips_a_released_param(void);
+void test_controller_handle_batch_with_a_dropped_param_renders_nothing(void);
+void test_controller_handle_parser_skips_fields_that_do_not_fit(void);
+void test_controller_handle_parser_skips_a_name_that_does_not_fit(void);
+void test_controller_handle_parser_skips_a_second_object_with_the_same_id(void);
+
+/** Change lists: what each rebuild reports, in which order, and to whom. */
+void test_controller_changes_register_replays_the_snapshot(void);
+void test_controller_changes_register_before_a_sync_replays_nothing(void);
+void test_controller_changes_resync_reports_a_dropped_and_an_added_node(void);
+void test_controller_changes_resync_reports_a_node_whose_subgroups_changed(void);
+void test_controller_changes_refetch_reports_a_dropped_and_an_added_param(void);
+void test_controller_changes_refetch_reports_changed_bounds(void);
+void test_controller_changes_refetch_with_no_change_reports_nothing(void);
+void test_controller_changes_release_config_reports_each_device(void);
+void test_controller_changes_deinit_reports_each_node_and_subgroup(void);
+void test_controller_changes_lists_arrive_in_order_and_old_ones_are_dropped(void);
+void test_controller_changes_none_are_collected_without_a_callback(void);
+
+void test_controller_lifecycle_sync_builds_the_group_with_values(void);
+void test_controller_lifecycle_resync_of_an_unchanged_group_fetches_no_config(void);
+void test_controller_lifecycle_delta_updates_one_value_and_notifies_it(void);
+void test_controller_lifecycle_online_change_notifies_the_node(void);
+void test_controller_lifecycle_config_change_refetches_and_seeds_the_new_params(void);
+void test_controller_lifecycle_failed_refetch_keeps_the_config_stale(void);
+void test_controller_lifecycle_write_publishes_by_id_and_refuses_what_it_must(void);
+void test_controller_lifecycle_group_write_publishes_by_type(void);
+void test_controller_lifecycle_migration_rebuilds_the_group_and_its_filters(void);
+void test_controller_lifecycle_leaving_the_group_drops_the_inventory(void);
+void test_controller_lifecycle_mqtt_down_fails_cleanly(void);
+void test_controller_lifecycle_missing_config_reports_not_found(void);
+void test_controller_lifecycle_api_get_returns_the_body(void);
+void test_controller_lifecycle_disable_drops_the_shadow_filters(void);
+void test_controller_lifecycle_disable_from_a_callback_is_refused(void);
+void test_controller_lifecycle_disable_drops_an_open_group_batch(void);
+void test_controller_lifecycle_blocking_call_after_disable_is_not_initialized(void);
+void test_controller_lifecycle_disable_makes_every_handle_stale(void);
+
+#endif /* CONFIG_ESP_RMAKER_NEO_CONTROLLER */
+
 /* All tests ******************************************************************/
 
 int test_rmaker_neo_all_tests_unity(void);

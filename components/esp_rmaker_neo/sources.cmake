@@ -120,6 +120,25 @@ set(RMNG_HOST_CTRL_SRCS
 )
 set(RMNG_HOST_CTRL_PRIV_INCLUDE_DIRS "${RMNG_SRC_DIR}/host_ctrl/priv_include")
 
+# Group controller sources. Defining them is unconditional; only consumption is gated on RMNG_CONTROLLER, which is
+# resolved in CMakeLists.txt.
+set(RMNG_CONTROLLER_SRCS
+    "${RMNG_SRC_DIR}/controller/controller_main.c"
+    "${RMNG_SRC_DIR}/controller/controller_rest.c"
+    "${RMNG_SRC_DIR}/controller/controller_task.c"
+    "${RMNG_SRC_DIR}/controller/controller_group.c"
+    "${RMNG_SRC_DIR}/controller/controller_config.c"
+    "${RMNG_SRC_DIR}/controller/controller_state.c"
+    "${RMNG_SRC_DIR}/controller/controller_watch.c"
+    "${RMNG_SRC_DIR}/controller/controller_write.c"
+    "${RMNG_SRC_DIR}/controller/controller_model.c"
+    "${RMNG_SRC_DIR}/controller/controller_handle.c"
+    "${RMNG_SRC_DIR}/controller/controller_changes.c"
+    # Pure helpers, kept in their own unit so the tests link them without the agent behind them.
+    "${RMNG_SRC_DIR}/controller/controller_parse.c"
+)
+set(RMNG_CONTROLLER_PRIV_INCLUDE_DIRS "${RMNG_SRC_DIR}/controller/priv_include")
+
 set(RMNG_DATA_MODEL_SRC_BASE_DIR "${RMNG_SRC_DIR}/data_model")
 
 # Data model headers live in the component's include/ and priv_include/ roots.
