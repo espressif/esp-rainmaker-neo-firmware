@@ -55,6 +55,11 @@ git clone https://github.com/espressif/esp-rainmaker-neo-firmware.git
 
 > [!NOTE]
 > The minimum supported ESP-IDF version is **v6.0.2**.
+>
+> On the **ESP32-C6**, use ESP-IDF v6.1.1 or later, or the latest `release/v6.0`
+> branch. Earlier releases (v6.0.2, v6.0.3 and v6.1) read the TLS certificate
+> bundle with misaligned loads, which can fault on the C6. The node then reboots
+> at its first connection to the cloud.
 
 **Quickstart:** Build an [example](examples/README.md), then follow the
 [firmware guides](https://docs.neo.rainmaker.espressif.com/docs/firmware/)
