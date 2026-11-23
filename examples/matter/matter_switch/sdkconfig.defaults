@@ -75,6 +75,10 @@ CONFIG_MBEDTLS_ECP_DP_BP384R1_ENABLED=n
 CONFIG_MBEDTLS_ECP_DP_BP512R1_ENABLED=n
 # Wi-Fi is station-only here (provisioning is over BLE); drop SoftAP support.
 CONFIG_ESP_WIFI_SOFTAP_SUPPORT=n
+# Without SoftAP, nothing needs the DHCP server.
+CONFIG_LWIP_DHCPS=n
+# IM message dumps print only with CHIP detail logging, which is off.
+CONFIG_CHIP_CONFIG_IM_PRETTY_PRINT=n
 # No debugger-over-UART use in this example.
 CONFIG_ESP_GDBSTUB_ENABLED=n
 # RISC-V: emit shared save/restore libcalls instead of inline prologues
