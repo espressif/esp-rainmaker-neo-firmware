@@ -102,6 +102,11 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_local_ctrl_set_params_invalid_json_keeps_session);
     RUN_TEST(test_local_ctrl_set_params_valid_json_succeeds);
     RUN_TEST(test_local_ctrl_get_params_without_node_fails);
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER
+    RUN_TEST(test_local_ctrl_get_params_filter_selects_params);
+    RUN_TEST(test_local_ctrl_get_params_filter_skips_unknown_and_duplicates);
+    RUN_TEST(test_local_ctrl_get_params_filter_malformed_rejected);
+#endif
 #if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
     RUN_TEST(test_local_ctrl_set_frag_applies_json);
     RUN_TEST(test_local_ctrl_set_frag_bad_fragment_discards_transfer);

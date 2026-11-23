@@ -341,6 +341,11 @@ void test_local_ctrl_custom_endpoint_removed_while_chal_resp_runs(void);
  */
 void test_local_ctrl_get_params_without_node_fails(void);
 
+/* Filtered get_params (CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER) */
+void test_local_ctrl_get_params_filter_selects_params(void);
+void test_local_ctrl_get_params_filter_skips_unknown_and_duplicates(void);
+void test_local_ctrl_get_params_filter_malformed_rejected(void);
+
 /* Fragmented set_params (CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG) */
 void test_local_ctrl_set_frag_applies_json(void);
 void test_local_ctrl_set_frag_bad_fragment_discards_transfer(void);

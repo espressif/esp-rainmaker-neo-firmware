@@ -485,6 +485,17 @@ menu "ESP RainMaker Neo Configuration"
                 the transfer completes or fails, when a new transfer starts, when the session
                 of the transfer closes, or when the service stops or provisioning ends.
 
+        config ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER
+            bool "Filtered get_params"
+            default y
+            help
+                When enabled, get_params accepts the optional CmdGetData.ParamsFilter at
+                offset 0, up to 384 bytes, on HTTP and on BLE. Use
+                {"params":{"Light":["Power"],"Schedule":true}} to select named parameters
+                of a device or service. Use true to select all its parameters. Unknown and
+                duplicate names are skipped with a warning. A malformed filter gets
+                InvalidParam. When disabled, the node ignores the filter.
+
     endmenu
 
     menu "Claiming"

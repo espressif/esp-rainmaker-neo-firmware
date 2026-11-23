@@ -436,6 +436,158 @@ void test_local_ctrl_get_params_without_node_fails(void)
     esp_rmaker_local_ctrl_endpoints_free_data();
 }
 
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER
+
+#define LC_FILTER_INVALID RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__InvalidParam
+
+/** Add a second device "lc_aux" with the int params "a" = 1 and "b" = 2. */
+static void __lc_add_aux_device(void)
+{
+    esp_rmaker_device_t *dev = esp_rmaker_device_create("lc_aux", "test_type", NULL);
+    TEST_ASSERT_NOT_NULL(dev);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(dev,
+                      esp_rmaker_param_create("a", "test_a", esp_rmaker_int(1), PROP_FLAG_READ)));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_param(dev,
+                      esp_rmaker_param_create("b", "test_b", esp_rmaker_int(2), PROP_FLAG_READ)));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_node_add_device(s_lc_node, dev));
+}
+
+/** Send an offset-0 request with a ParamsFilter. Return the status, and the payload text on success. */
+static RmakerLocalCtrl__RMakerLocalCtrlStatus __lc_get_filtered(bool config, const char *filter, size_t filter_len,
+        char *out, size_t out_size)
+{
+    RmakerLocalCtrl__CmdGetData cmd = RMAKER_LOCAL_CTRL__CMD_GET_DATA__INIT;
+    cmd.datatype = config ? LC_TYPE_CONFIG : LC_TYPE_PARAMS;
+    cmd.paramsfilter.data = (uint8_t *) filter;
+    cmd.paramsfilter.len = filter_len;
+    RmakerLocalCtrl__RMakerLocalCtrlPayload payload = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_PAYLOAD__INIT;
+    payload.msg = LC_MSG_CMD_GET;
+    payload.payload_case = LC_CASE_CMD_GET;
+    payload.cmdgetdata = &cmd;
+
+    size_t req_len = rmaker_local_ctrl__rmaker_local_ctrl_payload__get_packed_size(&payload);
+    uint8_t *req = malloc(req_len);
+    TEST_ASSERT_NOT_NULL(req);
+    rmaker_local_ctrl__rmaker_local_ctrl_payload__pack(&payload, req);
+
+    uint8_t *resp = NULL;
+    ssize_t resp_len = 0;
+    esp_rmaker_error_t err = config
+                             ? esp_rmaker_local_ctrl_get_config_ep_handler(1, req, (ssize_t) req_len, &resp, &resp_len, NULL)
+                             : esp_rmaker_local_ctrl_get_params_ep_handler(1, req, (ssize_t) req_len, &resp, &resp_len, NULL);
+    free(req);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, err);
+    TEST_ASSERT_NOT_NULL(resp);
+    RmakerLocalCtrl__RMakerLocalCtrlPayload *unpacked =
+        rmaker_local_ctrl__rmaker_local_ctrl_payload__unpack(NULL, (size_t) resp_len, resp);
+    free(resp);
+    TEST_ASSERT_NOT_NULL(unpacked);
+    TEST_ASSERT_NOT_NULL(unpacked->respgetdata);
+
+    RmakerLocalCtrl__RMakerLocalCtrlStatus status = unpacked->respgetdata->status;
+    out[0] = '\0';
+    if (status == LC_STATUS_SUCCESS) {
+        const RmakerLocalCtrl__PayloadBuf *buf = unpacked->respgetdata->buf;
+        TEST_ASSERT_NOT_NULL(buf);
+        TEST_ASSERT_LESS_THAN(out_size, buf->payload.len);
+        memcpy(out, buf->payload.data, buf->payload.len);
+        out[buf->payload.len] = '\0';
+    }
+    rmaker_local_ctrl__rmaker_local_ctrl_payload__free_unpacked(unpacked, NULL);
+    esp_rmaker_local_ctrl_endpoints_free_data();
+    return status;
+}
+
+static void __lc_expect_filtered(const char *filter, const char *expected)
+{
+    char out[TEST_LC_FRAGMENT_SIZE + 1];
+    TEST_ASSERT_EQUAL_MESSAGE(LC_STATUS_SUCCESS, __lc_get_filtered(false, filter, strlen(filter), out, sizeof(out)),
+                              filter);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(expected, out, filter);
+}
+
+/** A list selects the named params, true selects all of them, and the order follows the filter. */
+void test_local_ctrl_get_params_filter_selects_params(void)
+{
+    __lc_node_setup();
+    __lc_add_aux_device();
+
+    __lc_expect_filtered("{\"params\":{\"lc_aux\":[\"b\"]}}", "{\"lc_aux\":{\"b\":2}}");
+    __lc_expect_filtered("{\"params\":{\"lc_aux\":true,\"lc_dev\":[\"power\"]}}",
+                         "{\"lc_aux\":{\"a\":1,\"b\":2},\"lc_dev\":{\"power\":false}}");
+
+    /* get_config ignores the filter. */
+    char full[TEST_LC_FRAGMENT_SIZE + 1];
+    char filtered[TEST_LC_FRAGMENT_SIZE + 1];
+    const char *filter = "{\"params\":{\"lc_aux\":[\"b\"]}}";
+    TEST_ASSERT_EQUAL(LC_STATUS_SUCCESS, __lc_get_filtered(true, "", 0, full, sizeof(full)));
+    TEST_ASSERT_EQUAL(LC_STATUS_SUCCESS, __lc_get_filtered(true, filter, strlen(filter), filtered, sizeof(filtered)));
+    TEST_ASSERT_EQUAL_STRING(full, filtered);
+
+    __lc_node_teardown();
+}
+
+/** Unknown and duplicate IDs are skipped; when none is left, the response is {}. */
+void test_local_ctrl_get_params_filter_skips_unknown_and_duplicates(void)
+{
+    __lc_node_setup();
+    __lc_add_aux_device();
+
+    __lc_expect_filtered("{\"params\":{\"nope\":true,\"lc_aux\":[\"x\",\"b\",\"b\"],\"lc_aux\":[\"a\"]}}",
+                         "{\"lc_aux\":{\"b\":2}}");
+    __lc_expect_filtered("{\"params\":{\"nope\":true,\"lc_dev\":[\"x\"]}}", "{}");
+
+    __lc_node_teardown();
+}
+
+/** A malformed or too long filter gets InvalidParam, and the next request still works. */
+void test_local_ctrl_get_params_filter_malformed_rejected(void)
+{
+    static const char *const malformed[] = {
+        "not json",
+        "{\"other\":{}}",
+        "{\"params\":{}}",
+        "{\"params\":[]}",
+        "{\"params\":{\"lc_aux\":false}}",
+        "{\"params\":{\"lc_aux\":[]}}",
+        "{\"params\":{\"lc_aux\":[1]}}",
+        "{\"params\":{\"lc_aux\":[\"a\",[\"b\"]]}}",
+        "{\"params\":{\"lc_aux\":{\"a\":true}}}",
+        "{\"params\":{\"lc_aux\":[\"\"]}}",
+        "{\"params\":{\"abcdefghijklmnopqrstuvwxyz0123456\":true}}",
+        "{\"params\":{\"a\":true,\"b\":true,\"c\":true,\"d\":true,\"e\":true,\"f\":true,\"g\":true,\"h\":true,"
+        "\"i\":true}}",
+        "{\"params\":{\"lc_aux\":[\"1\",\"2\",\"3\",\"4\",\"5\",\"6\",\"7\",\"8\",\"9\",\"10\",\"11\",\"12\",\"13\","
+        "\"14\",\"15\",\"16\",\"17\"]}}",
+    };
+
+    __lc_node_setup();
+    __lc_add_aux_device();
+
+    char out[TEST_LC_FRAGMENT_SIZE + 1];
+    for (size_t i = 0; i < sizeof(malformed) / sizeof(malformed[0]); i++) {
+        TEST_ASSERT_EQUAL_MESSAGE(LC_FILTER_INVALID,
+                                  __lc_get_filtered(false, malformed[i], strlen(malformed[i]), out, sizeof(out)),
+                                  malformed[i]);
+    }
+
+    /* 384 bytes is accepted, 385 bytes is not. */
+    static char padded[386];
+    const char *body = "{\"params\":{\"lc_aux\":[\"b\"]}}";
+    memset(padded, ' ', sizeof(padded) - 1);
+    padded[sizeof(padded) - 1] = '\0';
+    memcpy(padded, body, strlen(body));
+    TEST_ASSERT_EQUAL(LC_STATUS_SUCCESS, __lc_get_filtered(false, padded, 384, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("{\"lc_aux\":{\"b\":2}}", out);
+    TEST_ASSERT_EQUAL(LC_FILTER_INVALID, __lc_get_filtered(false, padded, 385, out, sizeof(out)));
+
+    __lc_expect_filtered("{\"params\":{\"lc_dev\":true}}", "{\"lc_dev\":{\"power\":false}}");
+
+    __lc_node_teardown();
+}
+
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER */
+
 #if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
 
 #define LC_STATUS_INVALID   RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__InvalidParam

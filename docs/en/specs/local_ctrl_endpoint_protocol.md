@@ -150,6 +150,48 @@ without a prior offset-0 request fail with `Fail`. There is no per-session
 cache — concurrent readers would clobber each other; clients must serialize
 their own transfers.
 
+## Filtered get_params
+
+With `CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER` (default `y`), the offset-0
+`CmdGetData` of `get_params` can carry `ParamsFilter`. The filter is a UTF-8 JSON
+object of 1 to 384 bytes. It selects which parameters the response holds:
+
+```json
+{"params":{"light":["power","brightness"],"time":true}}
+```
+
+The filter is valid only when all of these rules are true:
+
+- The root object has the key `params`, and its value is an object with 1 to 8
+  keys.
+- Each key is a device or service ID of 1 to 32 bytes.
+- Each value is `true`, or an array of 1 to 16 strings. Each string is a
+  parameter ID of 1 to 32 bytes.
+
+A filter that is not valid, or is longer than 384 bytes, gets `InvalidParam` and
+no data. The device then reads the filter in order:
+
+- `true` selects all parameters of that device or service.
+- An array selects the listed parameters, in the order of the array.
+- The device skips an ID that the node does not have, and logs a warning.
+- The device skips a device, service or parameter ID that the filter already
+  selected, and logs a warning.
+- The device skips a device or service when the node has none of its listed
+  parameters.
+
+The response has the same format as an unfiltered `get_params`, with only the
+selected devices, services and parameters, in filter order. When nothing is
+selected, the response is `{}`. The response uses the same fragmentation as an
+unfiltered response. For the example above, a node with a `light` device and a
+`time` service with one parameter `tz` responds:
+
+```json
+{"light":{"power":true,"brightness":50},"time":{"tz":"Asia/Shanghai"}}
+```
+
+The device ignores `ParamsFilter` at a non-zero offset, on `get_config`, and
+when `CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER` is disabled.
+
 ## Fragmentation (set_params)
 
 Client-push, up to 200 bytes for each fragment. Use it for a set-params JSON
@@ -196,8 +238,6 @@ when the service stops, or when provisioning ends.
 signed-response extension and are currently ignored by the device — responses
 always carry the raw params/config JSON.
 
-`CmdGetData.ParamsFilter` is in the schema for compatibility with ESP RainMaker.
-The device ignores it and always returns all params.
 
 ## Reference implementations
 

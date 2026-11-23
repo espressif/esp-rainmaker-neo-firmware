@@ -51,6 +51,13 @@ static const char *TAG = "rmng_local_ctrl_ep";
  */
 #define LOCAL_CTRL_DATA_FRAGMENT_SIZE 200
 
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER
+/** Largest CmdGetData.ParamsFilter, sized to fit one BLE characteristic write. */
+#define LOCAL_CTRL_PARAMS_FILTER_MAX_JSON_LEN 384
+/** Largest device, service or param name in a ParamsFilter. */
+#define LOCAL_CTRL_PARAMS_FILTER_MAX_NAME_LEN 32
+#endif
+
 /* Types *******************************************************/
 
 /** Data type served by the shared get-data handler. */
@@ -122,10 +129,127 @@ static esp_rmaker_error_t __send_error_response(const char *reason, uint8_t **ou
 
 static void __ep_data_free_locked(void);
 
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER
+/** Copy the decoded string of a token into a new buffer. */
+static esp_rmaker_error_t __filter_copy_string(const jparse_ctx_t *jctx, json_tok_t *tok, char **out)
+{
+    jparse_ctx_t str_ctx = { .js = jctx->js, .tokens = tok };
+    int len = 0;
+    if (json_root_get_strlen(&str_ctx, &len) != 0 || len <= 0 || len > LOCAL_CTRL_PARAMS_FILTER_MAX_NAME_LEN) {
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    char *str = OSAL_CALLOC_EXTRAM(1, (size_t) len + 1);
+    if (str == NULL) {
+        return ESP_RMAKER_NO_MEM;
+    }
+    if (json_root_get_string(&str_ctx, str, len + 1) != 0) {
+        free(str);
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    *out = str;
+    return ESP_RMAKER_OK;
+}
+
+static void __filter_free(data_model_params_filter_t *filters, size_t filter_count)
+{
+    for (size_t i = 0; i < filter_count; i++) {
+        free(filters[i].id);
+        for (size_t p = 0; p < filters[i].param_count; p++) {
+            free(filters[i].param_ids[p]);
+        }
+        free(filters[i].param_ids);
+    }
+    free(filters);
+}
+
+/** Parse {"params":{"<id>":["<param id>",...] or true,...}} into filter entries. */
+static esp_rmaker_error_t __filter_parse(const uint8_t *json, size_t json_len,
+        data_model_params_filter_t **filters, size_t *filter_count)
+{
+    jparse_ctx_t jctx;
+    if (json_parse_start(&jctx, (const char *) json, (int) json_len) != 0) {
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    json_tok_t *params = json_obj_get_val_tok(&jctx, "params", JSMN_OBJECT);
+    if (params == NULL || params->size <= 0 || params->size > DATA_MODEL_PARAMS_FILTER_MAX_DEVICES) {
+        json_parse_end(&jctx);
+        return ESP_RMAKER_INVALID_ARG;
+    }
+    size_t count = (size_t) params->size;
+    data_model_params_filter_t *parsed = OSAL_CALLOC_EXTRAM(count, sizeof(*parsed));
+    if (parsed == NULL) {
+        json_parse_end(&jctx);
+        return ESP_RMAKER_NO_MEM;
+    }
+
+    esp_rmaker_error_t err = ESP_RMAKER_OK;
+    json_tok_t *key = params + 1;
+    for (size_t i = 0; i < count && err == ESP_RMAKER_OK; i++) {
+        err = __filter_copy_string(&jctx, key, &parsed[i].id);
+        if (err != ESP_RMAKER_OK) {
+            break;
+        }
+        json_tok_t *value = key + 1;
+        if (value->type == JSMN_PRIMITIVE) {
+            jparse_ctx_t value_ctx = { .js = jctx.js, .tokens = value };
+            bool all_params = false;
+            if (json_root_get_bool(&value_ctx, &all_params) != 0 || !all_params) {
+                err = ESP_RMAKER_INVALID_ARG;
+            }
+            key = value + 1;
+            continue;
+        }
+        if (value->type != JSMN_ARRAY || value->size <= 0 || value->size > DATA_MODEL_PARAMS_FILTER_MAX_PARAMS) {
+            err = ESP_RMAKER_INVALID_ARG;
+            break;
+        }
+        parsed[i].param_ids = OSAL_CALLOC_EXTRAM((size_t) value->size, sizeof(char *));
+        if (parsed[i].param_ids == NULL) {
+            err = ESP_RMAKER_NO_MEM;
+            break;
+        }
+        parsed[i].param_count = (size_t) value->size;
+        for (int p = 0; p < value->size && err == ESP_RMAKER_OK; p++) {
+            json_tok_t *elem = value + 1 + p;
+            err = (elem->type == JSMN_STRING) ? __filter_copy_string(&jctx, elem, &parsed[i].param_ids[p]) :
+                  ESP_RMAKER_INVALID_ARG;
+        }
+        /* Each accepted array element is one string token. */
+        key = value + 1 + value->size;
+    }
+    json_parse_end(&jctx);
+
+    if (err != ESP_RMAKER_OK) {
+        __filter_free(parsed, count);
+        return err;
+    }
+    *filters = parsed;
+    *filter_count = count;
+    return ESP_RMAKER_OK;
+}
+
+/** Get the node params selected by a ParamsFilter. */
+static esp_rmaker_error_t __filtered_params(const uint8_t *filter, size_t filter_len, char **out)
+{
+    data_model_params_filter_t *filters = NULL;
+    size_t filter_count = 0;
+    esp_rmaker_error_t err = __filter_parse(filter, filter_len, &filters, &filter_count);
+    if (err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Invalid get_params filter: %d", (int) err);
+        return err;
+    }
+    *out = data_model_node_get_filtered_node_params(filters, filter_count);
+    __filter_free(filters, filter_count);
+    return (*out != NULL) ? ESP_RMAKER_OK : ESP_RMAKER_NO_MEM;
+}
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER */
+
 /**
  * @brief (Re)generate the get-data cache for the given data type. The caller holds ::__ep_lock.
+ * @note A non-empty filter selects the params; a malformed filter returns ESP_RMAKER_INVALID_ARG.
  */
-static esp_rmaker_error_t __ep_data_init(__local_ctrl_ep_data_type_t data_type)
+static esp_rmaker_error_t __ep_data_init(__local_ctrl_ep_data_type_t data_type, const uint8_t *filter,
+        size_t filter_len)
 {
     __ep_data_free_locked();
 
@@ -142,8 +266,23 @@ static esp_rmaker_error_t __ep_data_init(__local_ctrl_ep_data_type_t data_type)
     __ep_data->data_type = data_type;
 
     const char *data_name = (data_type == LOCAL_CTRL_EP_DATA_TYPE_PARAMS) ? "params" : "config";
-    char *raw_data = (data_type == LOCAL_CTRL_EP_DATA_TYPE_PARAMS) ?
-                     data_model_node_get_node_params() : esp_rmaker_get_node_config();
+    char *raw_data = NULL;
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER
+    if (filter_len > 0) {
+        esp_rmaker_error_t err = __filtered_params(filter, filter_len, &raw_data);
+        if (err != ESP_RMAKER_OK) {
+            __ep_data_free_locked();
+            return err;
+        }
+    } else
+#else
+    (void) filter;
+    (void) filter_len;
+#endif
+    {
+        raw_data = (data_type == LOCAL_CTRL_EP_DATA_TYPE_PARAMS) ?
+                   data_model_node_get_node_params() : esp_rmaker_get_node_config();
+    }
     if (raw_data == NULL) {
         OSAL_LOGE(TAG, "Failed to get node %s", data_name);
         __ep_data_free_locked();
@@ -204,6 +343,8 @@ static esp_rmaker_error_t __get_data_handler(const uint8_t *inbuf, ssize_t inlen
     resp_get_data.buf = &payload_buf;
 
     uint32_t requested_offset = 0;
+    const uint8_t *filter = NULL;
+    size_t filter_len = 0;
     bool is_last_fragment = false;
     bool is_first_fragment = false;
 
@@ -221,16 +362,32 @@ static esp_rmaker_error_t __get_data_handler(const uint8_t *inbuf, ssize_t inlen
         }
         requested_offset = msg->cmdgetdata->offset;
         /* Timestamp / HasTimestamp are reserved schema fields and ignored. */
+        if (data_type == LOCAL_CTRL_EP_DATA_TYPE_PARAMS && requested_offset == 0 &&
+                msg->cmdgetdata->paramsfilter.len > 0) {
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER
+            filter = msg->cmdgetdata->paramsfilter.data;
+            filter_len = msg->cmdgetdata->paramsfilter.len;
+            if (filter_len > LOCAL_CTRL_PARAMS_FILTER_MAX_JSON_LEN) {
+                OSAL_LOGE(TAG, "ParamsFilter too long (%u)", (unsigned) filter_len);
+                resp_get_data.status = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__InvalidParam;
+                goto send_response;
+            }
+#else
+            OSAL_LOGW(TAG, "ParamsFilter ignored; CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER is disabled");
+#endif
+        }
     }
 
     is_first_fragment = (requested_offset == 0);
 
     if (is_first_fragment) {
         OSAL_LOGI(TAG, "Get %s handler: offset=%u", data_name, (unsigned) requested_offset);
-        esp_rmaker_error_t err = __ep_data_init(data_type);
+        esp_rmaker_error_t err = __ep_data_init(data_type, filter, filter_len);
         if (err != ESP_RMAKER_OK) {
             resp_get_data.status = (err == ESP_RMAKER_INVALID_STATE) ?
                                    RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__Fail :
+                                   (err == ESP_RMAKER_INVALID_ARG) ?
+                                   RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__InvalidParam :
                                    RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__NoMemory;
             goto send_response;
         }
