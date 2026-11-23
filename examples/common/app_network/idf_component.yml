@@ -5,7 +5,7 @@ license: "CC0-1.0"
 dependencies:
   # Reuse external dependencies from rmaker_app_network
   espressif/rmaker_app_network:
-    version: "^1.4.5"
+    version: "^1.5.0"
     require: public
     rules:
       - if: "target not in [linux]"

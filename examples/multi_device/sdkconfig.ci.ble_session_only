@@ -1,0 +1,7 @@
+# CI-only: BLE session only node with local control, built as a local only node.
+# ESP-IDF selects CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY from the BLE mode; POSIX has no BLE, so it is set directly.
+CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY=y
+
+CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL=y
+CONFIG_ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM=y
+CONFIG_APP_NETWORK_BLE_MODE_SESSION_ONLY=y

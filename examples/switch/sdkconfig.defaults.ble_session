@@ -1,0 +1,8 @@
+# Opt-in settings for BLE local control.
+# Build with: idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.ble_session" set-target <chip>
+
+# Local control endpoints on the BLE session
+CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL=y
+
+# Timestamp param on the Time service, so a local client can set the clock
+CONFIG_ESP_RMAKER_NEO_TIME_CURRENT_TIME_PARAM=y

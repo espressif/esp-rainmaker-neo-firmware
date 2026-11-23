@@ -170,7 +170,7 @@ osal_err_t app_run(void)
 #if CONFIG_ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE
     /* On-Network Challenge Response: node-group association via an HTTP server on the node. */
     esp_rmaker_chal_resp_service_enable();
-#else
+#elif !CONFIG_APP_NETWORK_BLE_MODE_SESSION_ONLY
     /* Local Control: control the device without internet via an HTTP server on the node. */
     esp_rmaker_local_ctrl_service_enable();
 #endif
