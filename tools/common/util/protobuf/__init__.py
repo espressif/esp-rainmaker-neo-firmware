@@ -134,8 +134,9 @@ class LocalCtrlCommandManager(CommandManager):
     Manager for the local control endpoint protocol.
 
     Creates and parses the protobuf messages served on the get_params /
-    get_config endpoints (see docs/spec/local_ctrl_endpoint_protocol.md);
-    set_params carries raw JSON.
+    get_config endpoints (see docs/en/specs/local_ctrl_endpoint_protocol.md).
+    set_params carries raw JSON, or CmdSetData fragments when the node
+    advertises set_frag.
     """
 
     _DATA_TYPES = {
@@ -152,7 +153,9 @@ class LocalCtrlCommandManager(CommandManager):
         local_ctrl_pb2.NoMemory: Status.InternalError,
     }
 
-    def cmd_get_data(self, data_type: str, offset: int, security_ctx=None):
+    def cmd_get_data(
+        self, data_type: str, offset: int, security_ctx=None, params_filter=None
+    ):
         """
         Create a CmdGetData message for the get_params / get_config endpoints.
 
@@ -160,6 +163,7 @@ class LocalCtrlCommandManager(CommandManager):
             data_type: "params" or "config"
             offset: Byte offset of the requested fragment (0 (re)generates)
             security_ctx: Optional security context for encryption
+            params_filter: Optional ParamsFilter JSON bytes, sent at offset 0 only
 
         Returns:
             Serialized message as latin-1 string (encrypted if security_ctx provided)
@@ -168,6 +172,8 @@ class LocalCtrlCommandManager(CommandManager):
         msg.msg = local_ctrl_pb2.TypeCmdGetData
         msg.cmdGetData.DataType = self._DATA_TYPES[data_type]
         msg.cmdGetData.Offset = offset
+        if params_filter and offset == 0:
+            msg.cmdGetData.ParamsFilter = params_filter
         serialized = msg.SerializeToString()
         return self._serialize_for_transport(serialized, security_ctx)
 
@@ -191,6 +197,43 @@ class LocalCtrlCommandManager(CommandManager):
             resp = msg.respGetData
             status = self._STATUS_MAP.get(resp.Status, Status.InternalError)
             return (status, resp.Buf.Offset, bytes(resp.Buf.Payload), resp.Buf.TotalLen)
+        except Exception:
+            return None
+
+    def cmd_set_data(
+        self, offset: int, total_len: int, payload: bytes, security_ctx=None
+    ):
+        """
+        Create a CmdSetData fragment for the set_params endpoint.
+
+        Returns:
+            Serialized message as latin-1 string (encrypted if security_ctx provided)
+        """
+        msg = local_ctrl_pb2.RMakerLocalCtrlPayload()
+        msg.msg = local_ctrl_pb2.TypeCmdSetData
+        msg.cmdSetData.Buf.Offset = offset
+        msg.cmdSetData.Buf.TotalLen = total_len
+        msg.cmdSetData.Buf.Payload = payload
+        return self._serialize_for_transport(msg.SerializeToString(), security_ctx)
+
+    def parse_set_data_response(self, data, security_ctx=None):
+        """
+        Parse a RespSetData response.
+
+        Returns:
+            (status, received, max_len) or None if parsing failed
+        """
+        try:
+            data = self._deserialize_from_transport(data, security_ctx)
+            msg = local_ctrl_pb2.RMakerLocalCtrlPayload()
+            msg.ParseFromString(data)
+            if msg.msg != local_ctrl_pb2.TypeRespSetData or not msg.HasField(
+                "respSetData"
+            ):
+                return None
+            resp = msg.respSetData
+            status = self._STATUS_MAP.get(resp.Status, Status.InternalError)
+            return (status, resp.Received, resp.MaxLen)
         except Exception:
             return None
 

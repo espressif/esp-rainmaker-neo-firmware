@@ -274,7 +274,10 @@ esp_rmaker_error_t esp_rmaker_ota_mqtt_validate_image_ref(const char *image_ref,
  * @param[in] ota_config Pointer to an OTA configuration structure. The structure is copied, so it
  *                       need not outlive the call; the pointed-to `priv` data must.
  *
+ * @note With CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY only the INIT rollback check runs; a pass marks the image valid.
+ *
  * @return ESP_RMAKER_OK on success, or if OTA is already enabled or pending.
+ * @return ESP_RMAKER_NOT_SUPPORTED with CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY, after the rollback check.
  * @return error on failure
  */
 esp_rmaker_error_t esp_rmaker_ota_enable(const esp_rmaker_ota_config_t *ota_config);

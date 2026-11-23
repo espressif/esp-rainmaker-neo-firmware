@@ -336,6 +336,38 @@ void test_local_ctrl_custom_endpoint_table_full(void);
 void test_local_ctrl_custom_endpoint_removed_on_disable(void);
 void test_local_ctrl_custom_endpoint_removed_while_chal_resp_runs(void);
 
+/**
+ * @brief Test that a get request without a node answers Fail rather than NoMemory.
+ */
+void test_local_ctrl_get_params_without_node_fails(void);
+
+/* Filtered get_params (CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER) */
+void test_local_ctrl_get_params_filter_selects_params(void);
+void test_local_ctrl_get_params_filter_skips_unknown_and_duplicates(void);
+void test_local_ctrl_get_params_filter_malformed_rejected(void);
+
+/* Fragmented set_params (CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG) */
+void test_local_ctrl_set_frag_applies_json(void);
+void test_local_ctrl_set_frag_bad_fragment_discards_transfer(void);
+void test_local_ctrl_set_frag_session_close_frees_transfer(void);
+void test_local_ctrl_set_frag_bad_json_fails(void);
+void test_local_ctrl_set_frag_malformed_request(void);
+
+/**
+ * @brief Test that the local control endpoints advertise `local_ctrl` and, if enabled, `set_frag`.
+ */
+void test_prov_local_ctrl_advertises_capabilities(void);
+
+/**
+ * @brief Test that the end of a provisioning session frees a half-served get-data cache.
+ */
+void test_prov_local_ctrl_prov_end_frees_cache(void);
+
+/**
+ * @brief Test that deinit removes the three endpoints and their capability.
+ */
+void test_prov_local_ctrl_deinit_removes_endpoints(void);
+
 /* Local control SEC2 salt/verifier caching (security 2 builds only) */
 #if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
 void test_local_ctrl_sec2_custom_pop_does_not_poison_cache(void);

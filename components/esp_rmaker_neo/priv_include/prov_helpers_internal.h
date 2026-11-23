@@ -22,12 +22,12 @@
 
 /* Preprocessor definitions *******************************************************/
 
-/** Every module that can add an endpoint is compiled into this component: claim and
- * chal_resp. Raise this when more land. */
-#define PROV_MAX_ENDPOINTS 2
+/** Every module that can add an endpoint is compiled into this component: claim, chal_resp
+ * and the three local control endpoints. Raise this when more land. */
+#define PROV_MAX_ENDPOINTS 5
 
-/** One capability per feature: claim and ch_resp. Raise this when more land. */
-#define PROV_MAX_CAPABILITIES 2
+/** One capability per feature: claim, ch_resp, local_ctrl and set_frag. Raise this when more land. */
+#define PROV_MAX_CAPABILITIES 4
 
 /* Types *******************************************************/
 

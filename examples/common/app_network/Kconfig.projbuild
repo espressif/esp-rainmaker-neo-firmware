@@ -67,4 +67,10 @@ menu "ESP RainMaker Neo App Network Configuration"
 
     endchoice
 
+    # A BLE session only node never joins a network, so the SDK is built without the cloud path.
+    config APP_NETWORK_NEO_LOCAL_ONLY
+        bool
+        default y if APP_NETWORK_BLE_MODE_SESSION_ONLY
+        select ESP_RMAKER_NEO_LOCAL_ONLY
+
 endmenu

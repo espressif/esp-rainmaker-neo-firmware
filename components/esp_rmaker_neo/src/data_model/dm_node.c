@@ -13,6 +13,7 @@
 
 /* Declarations */
 #include "node_internal.h"
+#include "data_model_internal.h"
 
 /* Platform common headers */
 #include "osal_log.h"
@@ -263,6 +264,122 @@ char *data_model_node_get_node_params(void)
     }
     OSAL_LOGD(TAG, "Generated node state:\n%s", node_state);
     esp_rmaker_node_unlock(node);
+    return node_state;
+}
+
+/** The filter entries and params that are known and not duplicates. */
+typedef struct {
+    bool keep[DATA_MODEL_PARAMS_FILTER_MAX_DEVICES];
+    uint32_t param_mask[DATA_MODEL_PARAMS_FILTER_MAX_DEVICES];
+} __params_filter_plan_t;
+
+static void __params_filter_plan_locked(const esp_rmaker_node_t *node, const data_model_params_filter_t *filters,
+                                        size_t filter_count, __params_filter_plan_t *plan)
+{
+    memset(plan, 0, sizeof(*plan));
+    for (size_t i = 0; i < filter_count; i++) {
+        const data_model_params_filter_t *filter = &filters[i];
+        bool dup = false;
+        for (size_t j = 0; j < i && !dup; j++) {
+            dup = plan->keep[j] && strcmp(filters[j].id, filter->id) == 0;
+        }
+        if (dup) {
+            OSAL_LOGW(TAG, "Duplicate device or service in get_params filter: %s", filter->id);
+            continue;
+        }
+        const esp_rmaker_device_t *device = esp_rmaker_node_get_device_by_id(node, filter->id);
+        if (device == NULL) {
+            OSAL_LOGW(TAG, "Unknown device or service in get_params filter: %s", filter->id);
+            continue;
+        }
+        if (filter->param_ids == NULL) {
+            plan->keep[i] = true;
+            continue;
+        }
+        for (size_t p = 0; p < filter->param_count; p++) {
+            bool param_dup = false;
+            for (size_t q = 0; q < p && !param_dup; q++) {
+                param_dup = (plan->param_mask[i] & (1u << q)) && strcmp(filter->param_ids[q], filter->param_ids[p]) == 0;
+            }
+            if (param_dup || esp_rmaker_device_get_param_by_id(device, filter->param_ids[p]) == NULL) {
+                OSAL_LOGW(TAG, "%s param %s on %s", param_dup ? "Duplicate" : "Unknown", filter->param_ids[p],
+                          filter->id);
+                continue;
+            }
+            plan->param_mask[i] |= 1u << p;
+        }
+        if (plan->param_mask[i] == 0) {
+            OSAL_LOGW(TAG, "No known params for %s after filter", filter->id);
+            continue;
+        }
+        plan->keep[i] = true;
+    }
+}
+
+static esp_rmaker_error_t __populate_filtered_params_locked(const esp_rmaker_node_t *node,
+        const data_model_params_filter_t *filters, size_t filter_count,
+        const __params_filter_plan_t *plan, char *buf, size_t *buf_len)
+{
+    json_gen_str_t jstr;
+    json_gen_str_start(&jstr, buf, *buf_len, NULL, NULL);
+    json_gen_start_object(&jstr);
+    for (size_t i = 0; i < filter_count; i++) {
+        if (!plan->keep[i]) {
+            continue;
+        }
+        _esp_rmaker_device_t *device = (_esp_rmaker_device_t *) esp_rmaker_node_get_device_by_id(node, filters[i].id);
+        json_gen_push_object(&jstr, device->id);
+        if (filters[i].param_ids == NULL) {
+            for (_esp_rmaker_param_t *param = device->params; param != NULL; param = param->next) {
+                esp_rmaker_report_value(&param->val, param->id, &jstr);
+            }
+        } else {
+            for (size_t p = 0; p < filters[i].param_count; p++) {
+                if (plan->param_mask[i] & (1u << p)) {
+                    _esp_rmaker_param_t *param = (_esp_rmaker_param_t *) esp_rmaker_device_get_param_by_id(
+                                                     (esp_rmaker_device_t *) device, filters[i].param_ids[p]);
+                    esp_rmaker_report_value(&param->val, param->id, &jstr);
+                }
+            }
+        }
+        json_gen_pop_object(&jstr);
+    }
+    json_gen_end_object(&jstr);
+
+    int len = json_gen_str_end(&jstr);
+    if (len < 0) {
+        OSAL_LOGE(TAG, "Failed to generate filtered node state JSON: %d", len);
+        return ESP_RMAKER_FAIL;
+    }
+    *buf_len = (size_t) len;
+    return ESP_RMAKER_OK;
+}
+
+char *data_model_node_get_filtered_node_params(const data_model_params_filter_t *filters, size_t filter_count)
+{
+    const esp_rmaker_node_t *node = esp_rmaker_get_node();
+    if (node == NULL || (filters == NULL && filter_count > 0) || filter_count > DATA_MODEL_PARAMS_FILTER_MAX_DEVICES) {
+        OSAL_LOGE(TAG, "Invalid get_params filter or no node");
+        return NULL;
+    }
+    esp_rmaker_node_lock(node);
+    __params_filter_plan_t plan;
+    __params_filter_plan_locked(node, filters, filter_count, &plan);
+
+    char *node_state = NULL;
+    size_t len = 0;
+    if (__populate_filtered_params_locked(node, filters, filter_count, &plan, NULL, &len) == ESP_RMAKER_OK) {
+        node_state = OSAL_CALLOC_EXTRAM(1, len);
+        if (node_state != NULL &&
+                __populate_filtered_params_locked(node, filters, filter_count, &plan, node_state, &len) != ESP_RMAKER_OK) {
+            free(node_state);
+            node_state = NULL;
+        }
+    }
+    esp_rmaker_node_unlock(node);
+    if (node_state == NULL) {
+        OSAL_LOGE(TAG, "Failed to generate filtered node state JSON");
+    }
     return node_state;
 }
 

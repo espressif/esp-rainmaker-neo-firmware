@@ -49,6 +49,10 @@ set(TEST_ESP_RMAKER_NEO_PRIV_INCLUDE_DIRS
 )
 set(TEST_ESP_RMAKER_NEO_PRIV_REQUIRES ${RMNG_NAME} ${RMNG_PRIV_REQUIRES})
 
+if (CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL)
+    list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/local_ctrl/test_prov_local_ctrl.c")
+endif ()
+
 if (CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE)
     list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/test_bridge.c" "tests_src/test_bridge_child_nvs.c"
          "tests_src/test_bridge_accessors.c" "tests_src/test_node_config_pending.c"

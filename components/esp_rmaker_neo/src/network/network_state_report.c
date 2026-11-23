@@ -1613,6 +1613,10 @@ esp_rmaker_error_t esp_rmaker_state_schedule_report_for_node(const esp_rmaker_no
     if (!node) {
         return ESP_RMAKER_INVALID_ARG;
     }
+    /* A local only node has no cloud to report to */
+    if (esp_rmaker_core_is_local_only()) {
+        return ESP_RMAKER_OK;
+    }
 
     /* Populate the full state for the given node if reporting all parameters */
     if (report_all) {
@@ -1645,6 +1649,11 @@ esp_rmaker_error_t esp_rmaker_state_schedule_report(bool report_all)
 
 esp_rmaker_error_t esp_rmaker_state_report(bool report_all)
 {
+    /* A local only node has no cloud to report to */
+    if (esp_rmaker_core_is_local_only()) {
+        return ESP_RMAKER_OK;
+    }
+
     /* Populate the full state if reporting all parameters */
     if (report_all) {
         esp_rmaker_error_t err = __populate_full_state_for_node(esp_rmaker_get_node());
@@ -1664,6 +1673,11 @@ esp_rmaker_error_t esp_rmaker_state_report(bool report_all)
 
 esp_rmaker_error_t esp_rmaker_state_mark_for_update_online_for_node(const esp_rmaker_node_t *node, bool online)
 {
+    /* A local only node has no cloud to report to */
+    if (esp_rmaker_core_is_local_only()) {
+        return ESP_RMAKER_OK;
+    }
+
     if (!node) {
         node = esp_rmaker_get_node();
     }
@@ -1688,6 +1702,11 @@ esp_rmaker_error_t esp_rmaker_state_mark_for_update_online_for_node(const esp_rm
 
 esp_rmaker_error_t esp_rmaker_state_mark_for_update_ncfg_ver_for_node(const esp_rmaker_node_t *node, const uint8_t hash[RMAKER_CHECKSUM_LEN])
 {
+    /* A local only node has no cloud to report to */
+    if (esp_rmaker_core_is_local_only()) {
+        return ESP_RMAKER_OK;
+    }
+
     if (!node) {
         node = esp_rmaker_get_node();
     }
@@ -1816,6 +1835,12 @@ esp_rmaker_error_t esp_rmaker_state_mark_for_update(esp_rmaker_state_update_id_t
     if (!update_id) {
         OSAL_LOGE(TAG, "Update ID cannot be NULL.");
         return ESP_RMAKER_INVALID_ARG;
+    }
+
+    /* A local only node has no cloud to report to; the SDK owns update_id */
+    if (esp_rmaker_core_is_local_only()) {
+        data_model_state_update_id_release(update_id);
+        return ESP_RMAKER_OK;
     }
 
     /* Read the value and fire automation triggers BEFORE handing the

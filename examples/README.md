@@ -45,6 +45,26 @@ idf.py build flash monitor
 Per-target overrides are merged from `sdkconfig.defaults.<target>` next to the
 base `sdkconfig.defaults`; `idf.py menuconfig` exposes the RainMaker Neo options.
 
+### BLE Local Control
+
+By default, BLE runs only during provisioning. For BLE local control, build `light`, `switch`,
+`fan`, `temp_sensor` or `multi_device` with the opt-in `sdkconfig.defaults.ble_session` fragment:
+
+```sh
+idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.ble_session" set-target <chip>
+idf.py menuconfig
+idf.py build
+```
+
+The fragment adds the local control endpoints to the BLE session
+(`CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL`). It does not select the BLE mode. In menuconfig, open
+`ESP RainMaker App Wi-Fi Provisioning` > `BLE mode`:
+
+- `Provisioning only`: the endpoints are available only during provisioning.
+- `Provisioning and always-on BLE session`: the BLE session stays up on every boot.
+- `BLE session only, no provisioning`: the node never joins a network. This mode also selects
+  `CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY`, so the node has no cloud connection.
+
 ## Build — ESP-IDF linux target
 
 Every example also builds for ESP-IDF's `linux` target (ESP-IDF v6.0 and v6.1) and runs on a host:

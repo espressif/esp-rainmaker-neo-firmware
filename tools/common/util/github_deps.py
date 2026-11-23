@@ -8,7 +8,8 @@ ESP_IDF_REPO_URL = "https://github.com/espressif/esp-idf"
 ESP_IDF_REF = "v6.0.2"
 
 IDF_EXTRA_COMPONENTS_REPO_URL = "https://github.com/espressif/idf-extra-components"
-IDF_EXTRA_COMPONENTS_REF = "master"
+# local_ctrl_cli --ble uses esp_prov internals (ble_cli.fallback, get_nu_lookup), so pin a tested commit.
+IDF_EXTRA_COMPONENTS_REF = "093d9b8f9c0bc9f7119f2e3748f944c097200ae7"
 
 # Paths inside the repository archives (see esp-idf and idf-extra-components layouts).
 PROTOCOMM_PYTHON_REL = "components/protocomm/python"

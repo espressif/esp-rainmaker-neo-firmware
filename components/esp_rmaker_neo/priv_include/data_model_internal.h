@@ -236,6 +236,24 @@ esp_rmaker_error_t data_model_node_write_data_model_config(const esp_rmaker_node
 /** Get the current state of the node parameters as a JSON string. */
 char *data_model_node_get_node_params(void);
 
+/** Largest number of devices or services in a get_params filter. */
+#define DATA_MODEL_PARAMS_FILTER_MAX_DEVICES 8
+/** Largest number of params for one device or service in a get_params filter. */
+#define DATA_MODEL_PARAMS_FILTER_MAX_PARAMS  16
+
+/** One device or service in a get_params filter. A NULL param_ids selects all its params. */
+typedef struct {
+    char *id;
+    char **param_ids;
+    size_t param_count;
+} data_model_params_filter_t;
+
+/**
+ * @brief Get the state of the filtered node parameters as a JSON string. The caller frees it.
+ * @note Unknown and duplicate IDs are skipped with a warning; when none is left, the result is "{}".
+ */
+char *data_model_node_get_filtered_node_params(const data_model_params_filter_t *filters, size_t filter_count);
+
 #ifdef __cplusplus
 }
 #endif

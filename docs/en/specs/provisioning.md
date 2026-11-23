@@ -49,6 +49,20 @@ During network provisioning, the node exposes a `ch_resp` protocomm endpoint for
 
 - **Disabling**: The endpoint can be disabled at runtime (for example once association has succeeded), and the disable **persists across reboots** — it is stored in NVS and cleared only by a factory reset. A disabled endpoint answers with status `Disabled`.
 
+## Local Control Endpoints
+
+With `CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL` set, the node also serves the local control
+endpoints on the provisioning service:
+
+- **Endpoints**: `get_params`, `set_params`, `get_config`
+- **Protocol**: The [local control endpoint protocol](local_ctrl_endpoint_protocol.md), unchanged.
+  Only the transport differs; see its [BLE transport](local_ctrl_endpoint_protocol.md#ble-transport) section.
+- **Advertised as**: app-info label `rmaker_extra`, version `1.0`, capability `local_ctrl`,
+  and `set_frag` when `set_params` accepts [fragments](local_ctrl_endpoint_protocol.md#fragmentation-set_params).
+- **Prerequisite**: The endpoints serve the node that `esp_rmaker_node_init()` registered. In the
+  [provisioning sequence](#provisioning-sequence) above the node does not exist yet, so the
+  endpoints answer `Fail` (or a JSON failure for `set_params`) until it does.
+
 ## Claim Endpoint
 
 When assisted claiming is enabled (`CONFIG_ESP_RMAKER_NEO_ASSISTED_CLAIM`) and the node has no

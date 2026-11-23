@@ -20,6 +20,9 @@
 /* Error types */
 #include "esp_rmaker_error_types.h"
 
+/* Configuration includes */
+#include "sdkconfig.h"
+
 /* Structure definitions *******************************************************/
 
 /**
@@ -89,6 +92,16 @@ void esp_rmaker_core_unsubscribed_from_cloud(void);
  * @brief Check if the device is subscribed to cloud, i.e,. if the signal is set.
  */
 bool esp_rmaker_core_is_subscribed_to_cloud(void);
+
+/**
+ * @brief Whether the SDK is built for a local only node.
+ */
+#ifdef CONFIG_ESP_RMAKER_NEO_LOCAL_ONLY
+#define esp_rmaker_core_is_local_only() (true)
+#else
+#define esp_rmaker_core_is_local_only() (false)
+#endif
+
 /**
  * @brief Kick the shared node-config retry context to drain its pending
  *        list immediately (rather than waiting for the next retry tick).

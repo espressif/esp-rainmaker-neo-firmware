@@ -5,6 +5,7 @@ menu "ESP RainMaker Neo Configuration"
         config ESP_RMAKER_NEO_HOST_CTRL
             bool "Enable remote control"
             default n
+            depends on !ESP_RMAKER_NEO_LOCAL_ONLY
             select ESP_RMAKER_NEO_HEAP_MONITORING
             select OSAL_INCLUDE_EXT_IO
             select OSAL_USING_VIRTUAL_SCHEDULER
@@ -38,6 +39,7 @@ menu "ESP RainMaker Neo Configuration"
         config ESP_RMAKER_NEO_CUSTOM_MQTT_CLIENT_PROVIDER
             bool "Use custom MQTT client provider"
             default n
+            depends on !ESP_RMAKER_NEO_LOCAL_ONLY
             help
                 If set to true, then you must provide a custom MQTT client provider implementation via the
                 initialization configuration.
@@ -45,6 +47,7 @@ menu "ESP RainMaker Neo Configuration"
         config ESP_RMAKER_NEO_BRIDGE_ENABLE
             bool "Enable bridge support"
             default n
+            depends on !ESP_RMAKER_NEO_LOCAL_ONLY
             help
                 If set to true, the high-level bridge APIs (esp_rmaker_bridge.h) and the underlying
                 bridge sources are included in the build. Bridge nodes proxy cloud connectivity for
@@ -342,6 +345,7 @@ menu "ESP RainMaker Neo Configuration"
         config ESP_RMAKER_NEO_ON_NETWORK_CHAL_RESP_ENABLE
             bool "Start challenge-response-only local service (on-network association)"
             default n
+            depends on !ESP_RMAKER_NEO_LOCAL_ONLY
             help
                 Makes examples/sims start the local endpoints service with only the
                 challenge-response (ch_resp) endpoint, without the local control
@@ -371,6 +375,18 @@ menu "ESP RainMaker Neo Configuration"
                 Defaults on for non-IDF (POSIX) builds: those have no provisioning session, so
                 the provisioning-time challenge-response endpoint is never registered and this
                 is the only route to user-node association.
+
+        config ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL
+            bool "Serve the local control endpoints on the provisioning service"
+            default n
+            help
+                Adds the get_params, set_params and get_config endpoints to the provisioning
+                service, next to ch_resp, and advertises the "local_ctrl" capability under
+                rmaker_extra. The endpoints speak the local control endpoint protocol.
+
+                The endpoints serve the node that esp_rmaker_node_init() registered. Until a
+                node exists they answer with status Fail, so initialise the node before the
+                provisioning service starts.
 
         choice ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY
             bool "Security version"
@@ -450,13 +466,43 @@ menu "ESP RainMaker Neo Configuration"
             help
                 The task stack size to be used for the HTTP server for local control.
 
+        config ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+            bool "Fragmented set_params"
+            default y
+            help
+                When enabled, set_params accepts CmdSetData protobuf fragments (a body that
+                does not start with '{'), on HTTP and on BLE. The node advertises the
+                "set_frag" capability. A single raw JSON body still works.
+
+        config ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG_MAX_LEN
+            int "Maximum fragmented set_params JSON length"
+            depends on ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+            default 8192
+            range 256 65536
+            help
+                Maximum TotalLen, in bytes, of one fragmented set_params transfer.
+                At offset 0 the node allocates TotalLen + 1 bytes of heap. It frees them when
+                the transfer completes or fails, when a new transfer starts, when the session
+                of the transfer closes, or when the service stops or provisioning ends.
+
+        config ESP_RMAKER_NEO_LOCAL_CTRL_GET_FILTER
+            bool "Filtered get_params"
+            default y
+            help
+                When enabled, get_params accepts the optional CmdGetData.ParamsFilter at
+                offset 0, up to 384 bytes, on HTTP and on BLE. Use
+                {"params":{"Light":["Power"],"Schedule":true}} to select named parameters
+                of a device or service. Use true to select all its parameters. Unknown and
+                duplicate names are skipped with a warning. A malformed filter gets
+                InvalidParam. When disabled, the node ignores the filter.
+
     endmenu
 
     menu "Claiming"
 
         config ESP_RMAKER_NEO_ASSISTED_CLAIM
             bool "Enable assisted claiming"
-            depends on BT_ENABLED
+            depends on BT_ENABLED && !ESP_RMAKER_NEO_LOCAL_ONLY
             default y
             select ESP_RMAKER_NEO_CLAIM_CSR_SUPPORT
             help
