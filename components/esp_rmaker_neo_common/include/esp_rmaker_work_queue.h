@@ -102,6 +102,11 @@ bool esp_rmaker_work_queue_is_current_task(void);
 typedef struct esp_rmaker_work_queue *esp_rmaker_work_queue_handle_t;
 
 /**
+ * @brief Release one entry that a Work Queue discards without running it.
+ */
+typedef void (*esp_rmaker_work_discard_fn_t)(esp_rmaker_work_fn_t work_fn, void *priv_data);
+
+/**
  * @brief Configuration for a Work Queue instance.
  */
 typedef struct {
@@ -110,6 +115,7 @@ typedef struct {
     size_t queue_size;       /**< Number of entries the queue holds. */
     size_t task_stack;       /**< Stack depth of the worker task. */
     unsigned task_priority;  /**< Priority of the worker task. */
+    esp_rmaker_work_discard_fn_t discard_fn; /**< Optional. Called for each entry that init or deinit discards. */
 } esp_rmaker_work_queue_config_t;
 
 /**

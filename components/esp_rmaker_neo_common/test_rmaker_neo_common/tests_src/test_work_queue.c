@@ -347,3 +347,36 @@ void test_work_queue_instance_arg_validation(void)
     esp_rmaker_work_queue_handle_t wq = __make_queue("test_wq_args");
     TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_work_queue_add_task_inst(wq, NULL, NULL, 0));
 }
+
+static int wq_discarded;
+
+static void __count_discard(esp_rmaker_work_fn_t work_fn, void *priv_data)
+{
+    if (work_fn == __dummy && priv_data == &wq_discarded) {
+        wq_discarded++;
+    }
+}
+
+void test_work_queue_instance_discard_fn_gets_flushed_entries(void)
+{
+    const esp_rmaker_work_queue_config_t cfg = {
+        .name = "test_wq_discard",
+        .queue_size = TEST_WQ_INSTANCE_QUEUE_SIZE,
+        .task_stack = 8192,
+        .task_priority = 1,
+        .discard_fn = __count_discard,
+    };
+    esp_rmaker_work_queue_handle_t wq = esp_rmaker_work_queue_create_inst(&cfg);
+    TEST_ASSERT_NOT_NULL(wq);
+    wq_discarded = 0;
+
+    /* Not started, so deinit flushes both entries. */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_init_inst(wq));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_add_task_inst(wq, __dummy, &wq_discarded, 0));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_add_task_inst(wq, __dummy, &wq_discarded, 0));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_work_queue_deinit_inst(wq));
+    TEST_ASSERT_EQUAL_INT(2, wq_discarded);
+
+    /* Parked: a new entry is refused, so nothing waits for the next init. */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_FAIL, esp_rmaker_work_queue_add_task_inst(wq, __dummy, &wq_discarded, 0));
+}

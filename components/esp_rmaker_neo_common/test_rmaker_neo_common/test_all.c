@@ -25,6 +25,7 @@ int test_rmaker_neo_common_all_tests_unity(void)
     RUN_TEST(test_work_queue_instance_capacity_is_per_instance);
     RUN_TEST(test_work_queue_instance_reports_its_own_task);
     RUN_TEST(test_work_queue_instance_arg_validation);
+    RUN_TEST(test_work_queue_instance_discard_fn_gets_flushed_entries);
 
     /* Utilities - convert ***********************************************************/
     RUN_TEST(test_rmaker_convert_bytes_to_hex);

@@ -48,9 +48,11 @@ struct esp_rmaker_work_queue {
     osal_queue_handle_t queue;
     _Atomic esp_rmaker_work_queue_state_t state;
     _Atomic(osal_task_handle_t) task;  /**< The running worker task, NULL when stopped. */
+    atomic_uint senders;               /**< Producers between their state check and their send. */
     size_t queue_size;
     size_t task_stack;
     unsigned task_priority;
+    esp_rmaker_work_discard_fn_t discard_fn;
 };
 
 /* The singleton every existing caller reaches through the un-suffixed API. */
@@ -93,12 +95,14 @@ static esp_rmaker_error_t __add_task(struct esp_rmaker_work_queue *wq, esp_rmake
         OSAL_LOGE(TAG, "%s: Cannot enqueue function as Work Queue hasn't been created.", wq->name);
         return ESP_RMAKER_FAIL;
     }
-    /* Reject work while parked (de-initialised). The handle is immortal so this
-     * is a semantic gate, not a safety one - sending to the parked queue would
-     * be harmless (drained on next init), but rejecting preserves the "no work
-     * after deinit" contract. A stale/torn read of the state here can only
-     * mis-accept onto a live handle, never crash. */
+    /* Reject work while parked (de-initialised), so no work runs after deinit. The sender is
+     * counted from before the state check until after the send: __deinit() parks, then flushes
+     * until no sender is in flight, so an entry that passed the check just before the park is
+     * still flushed (and handed to discard_fn) rather than left in the parked queue. */
+    atomic_fetch_add(&wq->senders, 1);
     if (atomic_load(&wq->state) == WORK_QUEUE_STATE_PARKED) {
+        /* Uncount before logging, so a rejected sender holds the count only for the check. */
+        atomic_fetch_sub(&wq->senders, 1);
         OSAL_LOGE(TAG, "%s: Cannot enqueue function as Work Queue is parked (de-initialised).", wq->name);
         return ESP_RMAKER_FAIL;
     }
@@ -106,20 +110,19 @@ static esp_rmaker_error_t __add_task(struct esp_rmaker_work_queue *wq, esp_rmake
         .work_fn = work_fn,
         .priv_data = priv_data,
     };
-    if (osal_queue_send(wq->queue, &work_queue_entry, timeout_ticks) == OSAL_ERR_OK) {
-        return ESP_RMAKER_OK;
-    }
-    return ESP_RMAKER_FAIL;
+    bool sent = osal_queue_send(wq->queue, &work_queue_entry, timeout_ticks) == OSAL_ERR_OK;
+    atomic_fetch_sub(&wq->senders, 1);
+    return sent ? ESP_RMAKER_OK : ESP_RMAKER_FAIL;
 }
 
 /* Drain and discard every pending entry. Callers MUST ensure the worker task
- * is not running (state INIT_DONE), otherwise this races the consumer.
+ * is not running (state INIT_DONE or PARKED), otherwise this races the consumer.
  *
- * Entries carry an opaque void* priv_data with no generic free hook, so a
- * discarded entry's priv_data leaks - exactly as the previous queue_delete
- * teardown leaked in-flight entries. The point of flushing is correctness, not
- * accounting: it drops stale tasks (e.g. a state-report retry enqueued before a
- * reset) so they can never execute against freshly re-initialised state. */
+ * Without a discard_fn, a discarded entry's priv_data leaks - exactly as the
+ * previous queue_delete teardown leaked in-flight entries. The point of flushing
+ * is correctness, not accounting: it drops stale tasks (e.g. a state-report retry
+ * enqueued before a reset) so they can never execute against freshly
+ * re-initialised state. */
 static void __flush_work_queue(struct esp_rmaker_work_queue *wq)
 {
     if (!wq->queue) {
@@ -127,7 +130,9 @@ static void __flush_work_queue(struct esp_rmaker_work_queue *wq)
     }
     esp_rmaker_work_queue_entry_t work_queue_entry;
     while (osal_queue_receive(wq->queue, &work_queue_entry, 0) == OSAL_ERR_OK) {
-        /* discard */
+        if (wq->discard_fn) {
+            wq->discard_fn(work_queue_entry.work_fn, work_queue_entry.priv_data);
+        }
     }
 }
 
@@ -200,9 +205,21 @@ static esp_rmaker_error_t __deinit(struct esp_rmaker_work_queue *wq)
      * schedule, etc.) firing add_task concurrently with queue_delete during a
      * reset would send to freed memory and crash. The handle lives for the
      * process lifetime; here it is drained and parked (closed to new work),
-     * ready to be reopened by the next init. */
-    __flush_work_queue(wq);
+     * ready to be reopened by the next init.
+     *
+     * Park first, then flush until no sender is in flight. The count is read before each flush:
+     * when it reads zero, every earlier sender has finished its send (so this flush takes it),
+     * and every later one sees PARKED. Flushing in the loop also frees room for a sender that
+     * blocks on a full queue. */
     atomic_store(&wq->state, WORK_QUEUE_STATE_PARKED);
+    unsigned in_flight;
+    do {
+        in_flight = atomic_load(&wq->senders);
+        __flush_work_queue(wq);
+        if (in_flight) {
+            osal_task_delay(osal_ticks_from_ms(1));
+        }
+    } while (in_flight);
     OSAL_LOGI(TAG, "%s: Work Queue drained and parked (handle retained)", wq->name);
     return ESP_RMAKER_OK;
 }
@@ -283,6 +300,7 @@ esp_rmaker_work_queue_handle_t esp_rmaker_work_queue_create_inst(const esp_rmake
     wq->queue_size = config->queue_size;
     wq->task_stack = config->task_stack;
     wq->task_priority = config->task_priority;
+    wq->discard_fn = config->discard_fn;
     atomic_store(&wq->state, WORK_QUEUE_STATE_DEINIT);
     return wq;
 }
