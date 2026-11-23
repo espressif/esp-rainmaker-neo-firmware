@@ -102,6 +102,13 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_local_ctrl_set_params_invalid_json_keeps_session);
     RUN_TEST(test_local_ctrl_set_params_valid_json_succeeds);
     RUN_TEST(test_local_ctrl_get_params_without_node_fails);
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+    RUN_TEST(test_local_ctrl_set_frag_applies_json);
+    RUN_TEST(test_local_ctrl_set_frag_bad_fragment_discards_transfer);
+    RUN_TEST(test_local_ctrl_set_frag_session_close_frees_transfer);
+    RUN_TEST(test_local_ctrl_set_frag_bad_json_fails);
+    RUN_TEST(test_local_ctrl_set_frag_malformed_request);
+#endif
 #if !CONFIG_IDF_TARGET_LINUX
     RUN_TEST(test_local_ctrl_custom_endpoint_requires_running_service);
     RUN_TEST(test_local_ctrl_custom_endpoint_add_remove);
@@ -110,7 +117,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_local_ctrl_custom_endpoint_removed_while_chal_resp_runs);
 #endif
 #if CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL
-    RUN_TEST(test_prov_local_ctrl_advertises_one_capability);
+    RUN_TEST(test_prov_local_ctrl_advertises_capabilities);
     RUN_TEST(test_prov_local_ctrl_prov_end_frees_cache);
     RUN_TEST(test_prov_local_ctrl_deinit_removes_endpoints);
 #endif

@@ -48,8 +48,24 @@
 
 static esp_rmaker_node_t *s_lc_node = NULL;
 static esp_rmaker_param_t *s_lc_param = NULL;
+static int s_lc_writes = 0;
+static bool s_lc_power = false;
 
 /* Helpers *******************************************************/
+
+/** Record each power write, so a test can check what set_params applied. */
+static esp_rmaker_error_t __lc_write_cb(const esp_rmaker_device_t *device, const esp_rmaker_param_t *param,
+                                        const esp_rmaker_param_val_t val, void *priv_data,
+                                        esp_rmaker_write_ctx_t *ctx)
+{
+    (void) device;
+    (void) param;
+    (void) priv_data;
+    (void) ctx;
+    s_lc_writes++;
+    s_lc_power = val.val.b;
+    return ESP_RMAKER_OK;
+}
 
 /** Bring up a node with one writable param, so params/config JSON is non-trivial. */
 static void __lc_node_setup(void)
@@ -67,6 +83,9 @@ static void __lc_node_setup(void)
 
     esp_rmaker_device_t *dev = esp_rmaker_device_create("lc_dev", "test_type", NULL);
     TEST_ASSERT_NOT_NULL(dev);
+    s_lc_writes = 0;
+    s_lc_power = false;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_device_add_cb(dev, __lc_write_cb, NULL));
     s_lc_param = esp_rmaker_param_create("power", "test_power", esp_rmaker_bool(false),
                                          PROP_FLAG_READ | PROP_FLAG_WRITE);
     TEST_ASSERT_NOT_NULL(s_lc_param);
@@ -416,3 +435,218 @@ void test_local_ctrl_get_params_without_node_fails(void)
 
     esp_rmaker_local_ctrl_endpoints_free_data();
 }
+
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+
+#define LC_STATUS_INVALID   RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__InvalidParam
+#define LC_SET_FRAG_MAX_LEN CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG_MAX_LEN
+
+/** Send one CmdSetData fragment to set_params and unpack the RespSetData, or NULL if none. */
+static RmakerLocalCtrl__RMakerLocalCtrlPayload *__lc_set_frag(uint32_t session_id, uint32_t offset, uint32_t total,
+        const char *data, size_t len, esp_rmaker_error_t *handler_err)
+{
+    RmakerLocalCtrl__PayloadBuf buf = RMAKER_LOCAL_CTRL__PAYLOAD_BUF__INIT;
+    buf.offset = offset;
+    buf.totallen = total;
+    buf.payload.data = (uint8_t *) data;
+    buf.payload.len = len;
+    RmakerLocalCtrl__CmdSetData cmd = RMAKER_LOCAL_CTRL__CMD_SET_DATA__INIT;
+    cmd.buf = &buf;
+    RmakerLocalCtrl__RMakerLocalCtrlPayload payload = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_PAYLOAD__INIT;
+    payload.msg = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_MSG_TYPE__TypeCmdSetData;
+    payload.payload_case = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_PAYLOAD__PAYLOAD_CMD_SET_DATA;
+    payload.cmdsetdata = &cmd;
+
+    size_t req_len = rmaker_local_ctrl__rmaker_local_ctrl_payload__get_packed_size(&payload);
+    uint8_t *req = malloc(req_len);
+    TEST_ASSERT_NOT_NULL(req);
+    rmaker_local_ctrl__rmaker_local_ctrl_payload__pack(&payload, req);
+
+    uint8_t *resp = NULL;
+    ssize_t resp_len = 0;
+    esp_rmaker_error_t err = esp_rmaker_local_ctrl_set_params_ep_handler(session_id, req, (ssize_t) req_len,
+                             &resp, &resp_len, NULL);
+    free(req);
+    if (handler_err) {
+        *handler_err = err;
+    }
+    if (resp == NULL || resp_len <= 0) {
+        free(resp);
+        return NULL;
+    }
+    RmakerLocalCtrl__RMakerLocalCtrlPayload *unpacked =
+        rmaker_local_ctrl__rmaker_local_ctrl_payload__unpack(NULL, (size_t) resp_len, resp);
+    free(resp);
+    TEST_ASSERT_NOT_NULL(unpacked);
+    TEST_ASSERT_EQUAL(RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_PAYLOAD__PAYLOAD_RESP_SET_DATA, unpacked->payload_case);
+    TEST_ASSERT_NOT_NULL(unpacked->respsetdata);
+    return unpacked;
+}
+
+/** Send one fragment and check the RespSetData status and Received count. */
+static void __lc_set_frag_expect(uint32_t session_id, uint32_t offset, uint32_t total, const char *data,
+                                 size_t len, RmakerLocalCtrl__RMakerLocalCtrlStatus status, uint32_t received)
+{
+    esp_rmaker_error_t err = ESP_RMAKER_FAIL;
+    RmakerLocalCtrl__RMakerLocalCtrlPayload *resp = __lc_set_frag(session_id, offset, total, data, len, &err);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, err);
+    TEST_ASSERT_NOT_NULL(resp);
+    TEST_ASSERT_EQUAL(status, resp->respsetdata->status);
+    TEST_ASSERT_EQUAL_UINT32(received, resp->respsetdata->received);
+    TEST_ASSERT_EQUAL_UINT32(LC_SET_FRAG_MAX_LEN, resp->respsetdata->maxlen);
+    rmaker_local_ctrl__rmaker_local_ctrl_payload__free_unpacked(resp, NULL);
+}
+
+/** Build a set-params JSON body of exactly `len` bytes; padding goes before the first key. */
+static char *__lc_padded_json(const char *tail, size_t len)
+{
+    size_t tail_len = strlen(tail);
+    TEST_ASSERT_GREATER_THAN(tail_len + 1, len);
+    char *json = malloc(len + 1);
+    TEST_ASSERT_NOT_NULL(json);
+    json[0] = '{';
+    memset(json + 1, ' ', len - 1 - tail_len);
+    memcpy(json + len - tail_len, tail, tail_len + 1);
+    return json;
+}
+
+/** A body over several fragments is stored in order and applied only by the last fragment. */
+void test_local_ctrl_set_frag_applies_json(void)
+{
+    __lc_node_setup();
+
+    const size_t total = 2 * TEST_LC_FRAGMENT_SIZE + 50;
+    char *json = __lc_padded_json("\"lc_dev\":{\"power\":true}}", total);
+
+    __lc_set_frag_expect(1, 0, total, json, TEST_LC_FRAGMENT_SIZE, LC_STATUS_SUCCESS, TEST_LC_FRAGMENT_SIZE);
+    __lc_set_frag_expect(1, TEST_LC_FRAGMENT_SIZE, total, json + TEST_LC_FRAGMENT_SIZE, TEST_LC_FRAGMENT_SIZE,
+                         LC_STATUS_SUCCESS, 2 * TEST_LC_FRAGMENT_SIZE);
+    TEST_ASSERT_EQUAL(0, s_lc_writes);
+    __lc_set_frag_expect(1, 2 * TEST_LC_FRAGMENT_SIZE, total, json + 2 * TEST_LC_FRAGMENT_SIZE, 50,
+                         LC_STATUS_SUCCESS, total);
+    TEST_ASSERT_EQUAL(1, s_lc_writes);
+    TEST_ASSERT_TRUE(s_lc_power);
+
+    /* The transfer is complete, so a continuation has nothing to continue. */
+    __lc_set_frag_expect(1, TEST_LC_FRAGMENT_SIZE, total, json + TEST_LC_FRAGMENT_SIZE, TEST_LC_FRAGMENT_SIZE,
+                         LC_STATUS_INVALID, 0);
+    free(json);
+
+    __lc_node_teardown();
+}
+
+/** Each bad fragment fails with Received 0 and discards the transfer, so the valid next fragment fails too. */
+void test_local_ctrl_set_frag_bad_fragment_discards_transfer(void)
+{
+    enum { BAD_OFFSET, BAD_TOTAL, BAD_SESSION, BAD_LEN, BAD_MAX_LEN, BAD_FREED, BAD_CASES };
+
+    __lc_node_setup();
+    const size_t total = 3 * TEST_LC_FRAGMENT_SIZE;
+    char *json = __lc_padded_json("\"lc_dev\":{\"power\":true}}", total);
+    static char big[TEST_LC_FRAGMENT_SIZE + 1];
+    memset(big, ' ', sizeof(big));
+
+    for (int c = 0; c < BAD_CASES; c++) {
+        __lc_set_frag_expect(1, 0, total, json, TEST_LC_FRAGMENT_SIZE, LC_STATUS_SUCCESS, TEST_LC_FRAGMENT_SIZE);
+
+        const char *rest = json + TEST_LC_FRAGMENT_SIZE;
+        switch (c) {
+        case BAD_OFFSET:
+            __lc_set_frag_expect(1, TEST_LC_FRAGMENT_SIZE + 1, total, rest, 10, LC_STATUS_INVALID, 0);
+            break;
+        case BAD_TOTAL:
+            __lc_set_frag_expect(1, TEST_LC_FRAGMENT_SIZE, total + 1, rest, 10, LC_STATUS_INVALID, 0);
+            break;
+        case BAD_SESSION:
+            __lc_set_frag_expect(2, TEST_LC_FRAGMENT_SIZE, total, rest, 10, LC_STATUS_INVALID, 0);
+            break;
+        case BAD_LEN:
+            __lc_set_frag_expect(1, TEST_LC_FRAGMENT_SIZE, total, big, sizeof(big), LC_STATUS_INVALID, 0);
+            break;
+        case BAD_MAX_LEN:
+            __lc_set_frag_expect(1, TEST_LC_FRAGMENT_SIZE, LC_SET_FRAG_MAX_LEN + 1, rest, 10, LC_STATUS_INVALID, 0);
+            break;
+        case BAD_FREED:
+            esp_rmaker_local_ctrl_endpoints_free_data();
+            break;
+        default:
+            TEST_FAIL();
+        }
+        __lc_set_frag_expect(1, TEST_LC_FRAGMENT_SIZE, total, rest, TEST_LC_FRAGMENT_SIZE, LC_STATUS_INVALID, 0);
+    }
+    TEST_ASSERT_EQUAL(0, s_lc_writes);
+    free(json);
+
+    __lc_node_teardown();
+}
+
+/** Closing another session keeps the transfer; closing the session that owns it frees it. */
+void test_local_ctrl_set_frag_session_close_frees_transfer(void)
+{
+    __lc_node_setup();
+
+    const size_t total = 3 * TEST_LC_FRAGMENT_SIZE;
+    char *json = __lc_padded_json("\"lc_dev\":{\"power\":true}}", total);
+    const char *rest = json + TEST_LC_FRAGMENT_SIZE;
+
+    __lc_set_frag_expect(1, 0, total, json, TEST_LC_FRAGMENT_SIZE, LC_STATUS_SUCCESS, TEST_LC_FRAGMENT_SIZE);
+    esp_rmaker_local_ctrl_endpoints_session_closed(2);
+    __lc_set_frag_expect(1, TEST_LC_FRAGMENT_SIZE, total, rest, TEST_LC_FRAGMENT_SIZE, LC_STATUS_SUCCESS,
+                         2 * TEST_LC_FRAGMENT_SIZE);
+
+    esp_rmaker_local_ctrl_endpoints_session_closed(1);
+    __lc_set_frag_expect(1, 2 * TEST_LC_FRAGMENT_SIZE, total, json + 2 * TEST_LC_FRAGMENT_SIZE,
+                         TEST_LC_FRAGMENT_SIZE, LC_STATUS_INVALID, 0);
+    TEST_ASSERT_EQUAL(0, s_lc_writes);
+    free(json);
+
+    __lc_node_teardown();
+}
+
+/** A complete body that the data model refuses answers Fail with Received 0. */
+void test_local_ctrl_set_frag_bad_json_fails(void)
+{
+    __lc_node_setup();
+
+    const char *bad = "{ this is not json";
+    __lc_set_frag_expect(1, 0, strlen(bad), bad, strlen(bad), RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__Fail, 0);
+
+    __lc_node_teardown();
+}
+
+/** A body that does not unpack gets a JSON failure; a message that is not CmdSetData gets InvalidParam. */
+void test_local_ctrl_set_frag_malformed_request(void)
+{
+    __lc_node_setup();
+
+    const char *invalid = "{\"status\":\"fail\",\"description\":\"invalid request\"}";
+    const uint8_t garbage[] = { 0xff, 0xff, 0xff, 0xff, 0x7f, 0x41, 0x42 };
+    uint8_t *resp = NULL;
+    ssize_t resp_len = 0;
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_local_ctrl_set_params_ep_handler(
+                          1, garbage, (ssize_t) sizeof(garbage), &resp, &resp_len, NULL));
+    TEST_ASSERT_NOT_NULL(resp);
+    TEST_ASSERT_EQUAL((ssize_t) strlen(invalid), resp_len);
+    TEST_ASSERT_EQUAL_MEMORY(invalid, resp, strlen(invalid));
+    free(resp);
+    resp = NULL;
+
+    uint8_t *req = NULL;
+    size_t req_len = 0;
+    __lc_pack_cmd(LC_TYPE_PARAMS, 0, &req, &req_len);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_local_ctrl_set_params_ep_handler(
+                          1, req, (ssize_t) req_len, &resp, &resp_len, NULL));
+    free(req);
+    TEST_ASSERT_NOT_NULL(resp);
+    RmakerLocalCtrl__RMakerLocalCtrlPayload *unpacked =
+        rmaker_local_ctrl__rmaker_local_ctrl_payload__unpack(NULL, (size_t) resp_len, resp);
+    free(resp);
+    TEST_ASSERT_NOT_NULL(unpacked);
+    TEST_ASSERT_NOT_NULL(unpacked->respsetdata);
+    TEST_ASSERT_EQUAL(LC_STATUS_INVALID, unpacked->respsetdata->status);
+    rmaker_local_ctrl__rmaker_local_ctrl_payload__free_unpacked(unpacked, NULL);
+
+    __lc_node_teardown();
+}
+
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG */

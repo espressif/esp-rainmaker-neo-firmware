@@ -52,14 +52,17 @@ Established on:
 
 ```json
 {"rmaker_local_ctrl": {"ver": "v1.0", "sec_ver": 2, "sec_patch_ver": 1,
-                       "cap": ["get_params", "set_params", "get_config"]}}
+                       "cap": ["get_params", "set_params", "get_config", "set_frag"]}}
 ```
 
 `sec_ver` / `sec_patch_ver` are reported by protocomm for the registered
 security scheme. `cap` lists the active endpoint sets (as in the TXT record,
 with local control expanded to its endpoint names) and additionally contains
 `"no_pop"` for security 1 without PoP, following the network-provisioning
-capability convention.
+capability convention. With `CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG` (the
+default), local control also adds `"set_frag"`: `set_params` accepts
+[fragments](#fragmentation-set_params). The TXT record does not carry
+`set_frag`.
 
 This endpoint is the **authority** on capabilities and is rewritten whenever an
 endpoint set toggles; the TXT record is only a browse-time filter that may be
@@ -77,6 +80,10 @@ All endpoints inherit the session security:
 | `get_params`  | protobuf `RMakerLocalCtrlPayload` (CmdGetData, DataType=TypeParams) | protobuf (RespGetData, fragmented) |
 | `get_config`  | protobuf `RMakerLocalCtrlPayload` (CmdGetData, DataType=TypeConfig) | protobuf (RespGetData, fragmented) |
 | `set_params`  | **raw JSON** (same body as the cloud set-params payload) | raw JSON: `{"status":"success"}` or `{"status":"fail","description":"…"}` |
+| `set_params`  | protobuf `RMakerLocalCtrlPayload` (CmdSetData), only with `set_frag` | protobuf (RespSetData) |
+
+The node reads the first byte of a `set_params` body that is not whitespace. A
+`{` selects raw JSON. Any other byte selects a CmdSetData fragment.
 
 Schema: [`local_ctrl.proto`](https://github.com/espressif/esp-rainmaker-neo-firmware/blob/main/components/esp_rmaker_neo/src/local_ctrl/local_ctrl.proto). The endpoint names
 and the message/field numbering are the wire contract: treat them as frozen —
@@ -116,7 +123,7 @@ the format above. Capabilities arrive under `rmaker_extra` using the same tokens
 as the `cap` TXT record, while the security version arrives under `prov`:
 
 ```json
-{"rmaker_extra": {"ver": "1.0", "cap": ["ch_resp", "local_ctrl"]},
+{"rmaker_extra": {"ver": "1.0", "cap": ["ch_resp", "local_ctrl", "set_frag"]},
  "prov": {"ver": "v1.1", "sec_ver": 2, "sec_patch_ver": 1,
           "cap": ["wifi_prov", "wifi_scan"]}}
 ```
@@ -143,11 +150,54 @@ without a prior offset-0 request fail with `Fail`. There is no per-session
 cache — concurrent readers would clobber each other; clients must serialize
 their own transfers.
 
+## Fragmentation (set_params)
+
+Client-push, up to 200 bytes for each fragment. Use it for a set-params JSON
+body that is too large for one write on the transport. Check for `set_frag` in
+`cap` first.
+
+1. Client sends `CmdSetData{Buf{Offset: 0, Payload, TotalLen}}`. `TotalLen` is
+   the full JSON length. The device discards any earlier transfer and allocates
+   `TotalLen` bytes.
+2. Client sends the next fragment with `Offset` equal to the bytes already
+   accepted, and the same `TotalLen`.
+3. The device applies the JSON when `Offset + len(Payload) == TotalLen`.
+
+Each fragment gets `RespSetData{Status, Received, MaxLen}`:
+
+| Status | Received | Meaning |
+|---|---|---|
+| `Success` | less than `TotalLen` | The fragment is stored. Send the next one. |
+| `Success` | `TotalLen` | The JSON is applied. |
+| `InvalidParam` | 0 | The fragment is not valid. The transfer is discarded. |
+| `NoMemory` | 0 | The device cannot allocate `TotalLen` bytes. |
+| `Fail` | 0 | The device cannot apply the complete JSON. |
+
+`MaxLen` is the largest `TotalLen` the device accepts
+(`CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG_MAX_LEN`, default 8192).
+
+A fragment is not valid when:
+
+- its payload is empty or longer than 200 bytes;
+- `TotalLen` is 0, larger than `MaxLen`, or different from the first fragment;
+- `Offset` is not equal to the bytes already accepted;
+- it comes from a different session than the first fragment.
+
+A body that does not unpack as `RMakerLocalCtrlPayload` gets the JSON response
+`{"status":"fail","description":"invalid request"}`, and
+the session stays open. There is one transfer at a time, as
+for get-data. A new offset-0 fragment from any session discards the current
+transfer. The device also discards it when the session of the transfer closes,
+when the service stops, or when provisioning ends.
+
 ## Reserved schema fields
 
 `CmdGetData.Timestamp` / `CmdGetData.HasTimestamp` are reserved for a future
 signed-response extension and are currently ignored by the device — responses
 always carry the raw params/config JSON.
+
+`CmdGetData.ParamsFilter` is in the schema for compatibility with ESP RainMaker.
+The device ignores it and always returns all params.
 
 ## Reference implementations
 

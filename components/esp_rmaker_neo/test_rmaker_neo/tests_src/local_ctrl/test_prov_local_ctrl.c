@@ -119,17 +119,27 @@ static RmakerLocalCtrl__RMakerLocalCtrlPayload *__get_params(const prov_endpoint
 
 /* Tests *******************************************************/
 
-/** Three endpoints, one `local_ctrl` capability under `rmaker_extra`: the same list the
- * local endpoints service advertises, so a client reads it the same way on both transports. */
-void test_prov_local_ctrl_advertises_one_capability(void)
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+#define TEST_LC_CAPABILITIES 2
+#else
+#define TEST_LC_CAPABILITIES 1
+#endif
+
+/** Three endpoints, and `local_ctrl` (plus `set_frag` when enabled) under `rmaker_extra`: the same
+ * list the local endpoints service advertises, so a client reads it the same way on both transports. */
+void test_prov_local_ctrl_advertises_capabilities(void)
 {
     osal_event_loop_create_default();
 
     TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_prov_local_ctrl_init());
 
     const char *names[TEST_MAX_CAPABILITIES];
-    TEST_ASSERT_EQUAL(1, __prov_app_info_collect(PROV_APP_LABEL_RMAKER_EXTRA, names, TEST_MAX_CAPABILITIES));
+    TEST_ASSERT_EQUAL(TEST_LC_CAPABILITIES,
+                      __prov_app_info_collect(PROV_APP_LABEL_RMAKER_EXTRA, names, TEST_MAX_CAPABILITIES));
     TEST_ASSERT_EQUAL_STRING(RMAKER_PROV_LOCAL_CTRL_CAPABILITY, names[0]);
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+    TEST_ASSERT_EQUAL_STRING(RMAKER_LOCAL_CTRL_SET_FRAG_CAPABILITY, names[1]);
+#endif
     TEST_ASSERT_EQUAL(0, __prov_app_info_collect(PROV_APP_LABEL_RMAKER, names, TEST_MAX_CAPABILITIES));
 
     /* Registration order is the wire order. */
@@ -141,7 +151,8 @@ void test_prov_local_ctrl_advertises_one_capability(void)
     /* Adding again is a no-op, not a second set. */
     TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_prov_local_ctrl_init());
     TEST_ASSERT_NULL(__prov_endpoint_get(3));
-    TEST_ASSERT_EQUAL(1, __prov_app_info_collect(PROV_APP_LABEL_RMAKER_EXTRA, names, TEST_MAX_CAPABILITIES));
+    TEST_ASSERT_EQUAL(TEST_LC_CAPABILITIES,
+                      __prov_app_info_collect(PROV_APP_LABEL_RMAKER_EXTRA, names, TEST_MAX_CAPABILITIES));
 
     TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_prov_local_ctrl_deinit());
     osal_event_loop_delete_default();

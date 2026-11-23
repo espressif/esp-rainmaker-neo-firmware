@@ -20,6 +20,7 @@
 #include "local_ctrl/pb-c.h"
 
 /* Standard includes. */
+#include <ctype.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -75,7 +76,19 @@ typedef struct {
  */
 static __local_ctrl_ep_data_t *__ep_data = NULL;
 
-/** Guards ::__ep_data: the handlers run on the transport task, the free on the caller's.
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+/** Reassembly buffer of one fragmented set_params transfer. */
+typedef struct {
+    uint8_t *data;
+    uint32_t total_len;
+    uint32_t received;
+    uint32_t session_id;
+} __local_ctrl_ep_set_frag_t;
+
+static __local_ctrl_ep_set_frag_t *__set_frag = NULL;
+#endif
+
+/** Guards ::__ep_data and ::__set_frag: the handlers run on the transport task, the free on the caller's.
  * Created once and kept, since a handler may be blocked on it while a service is torn down. */
 static osal_semaphore_handle_t __ep_lock = NULL;
 
@@ -284,6 +297,145 @@ send_response:
     return ESP_RMAKER_OK;
 }
 
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+/** Free the set_params reassembly buffer. The caller holds ::__ep_lock. */
+static void __set_frag_free_locked(void)
+{
+    if (__set_frag != NULL) {
+        free(__set_frag->data);
+        free(__set_frag);
+        __set_frag = NULL;
+    }
+}
+
+/** Pack a RespSetData response. */
+static esp_rmaker_error_t __set_frag_send(RmakerLocalCtrl__RMakerLocalCtrlStatus status, uint32_t received,
+        uint8_t **outbuf, ssize_t *outlen)
+{
+    RmakerLocalCtrl__RMakerLocalCtrlPayload response = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_PAYLOAD__INIT;
+    RmakerLocalCtrl__RespSetData resp_set_data = RMAKER_LOCAL_CTRL__RESP_SET_DATA__INIT;
+
+    resp_set_data.status = status;
+    resp_set_data.received = received;
+    resp_set_data.maxlen = CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG_MAX_LEN;
+    response.msg = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_MSG_TYPE__TypeRespSetData;
+    response.payload_case = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_PAYLOAD__PAYLOAD_RESP_SET_DATA;
+    response.respsetdata = &resp_set_data;
+
+    size_t resp_len = rmaker_local_ctrl__rmaker_local_ctrl_payload__get_packed_size(&response);
+    uint8_t *resp_buf = OSAL_MALLOC_EXTRAM(resp_len);
+    if (resp_buf == NULL) {
+        OSAL_LOGE(TAG, "Failed to allocate memory for set_params fragment response");
+        return ESP_RMAKER_NO_MEM;
+    }
+    rmaker_local_ctrl__rmaker_local_ctrl_payload__pack(&response, resp_buf);
+    *outbuf = resp_buf;
+    *outlen = (ssize_t) resp_len;
+    return ESP_RMAKER_OK;
+}
+
+/** Store one CmdSetData fragment, and apply the JSON when the transfer is complete. */
+static esp_rmaker_error_t __set_frag_handler(uint32_t session_id, const uint8_t *inbuf, ssize_t inlen,
+        uint8_t **outbuf, ssize_t *outlen)
+{
+    RmakerLocalCtrl__RMakerLocalCtrlPayload *msg =
+        rmaker_local_ctrl__rmaker_local_ctrl_payload__unpack(NULL, (size_t) inlen, inbuf);
+    if (msg == NULL) {
+        OSAL_LOGE(TAG, "Failed to unpack set_params fragment");
+        return __send_error_response("invalid request", outbuf, outlen);
+    }
+
+    if (__ep_lock == NULL || osal_semaphore_take(__ep_lock, OSAL_MAX_DELAY) != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Set-data lock unavailable; call esp_rmaker_local_ctrl_endpoints_init() first");
+        rmaker_local_ctrl__rmaker_local_ctrl_payload__free_unpacked(msg, NULL);
+        return ESP_RMAKER_INVALID_STATE;
+    }
+
+    RmakerLocalCtrl__RMakerLocalCtrlStatus status = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__InvalidParam;
+    uint32_t received = 0;
+    char *json = NULL;
+    uint32_t json_len = 0;
+    const RmakerLocalCtrl__PayloadBuf *frag = NULL;
+    uint32_t offset = 0;
+    uint32_t total = 0;
+    size_t len = 0;
+
+    if (msg->payload_case != RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_PAYLOAD__PAYLOAD_CMD_SET_DATA ||
+            msg->cmdsetdata == NULL || msg->cmdsetdata->buf == NULL) {
+        OSAL_LOGE(TAG, "set_params fragment request is not CmdSetData");
+        __set_frag_free_locked();
+        goto unlock;
+    }
+
+    frag = msg->cmdsetdata->buf;
+    offset = frag->offset;
+    total = frag->totallen;
+    len = frag->payload.len;
+    if (len == 0 || len > LOCAL_CTRL_DATA_FRAGMENT_SIZE || frag->payload.data == NULL || total == 0 ||
+            total > CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG_MAX_LEN || offset > total ||
+            len > (size_t)(total - offset)) {
+        OSAL_LOGE(TAG, "Invalid set_params fragment: offset=%u, len=%u, total=%u",
+                  (unsigned) offset, (unsigned) len, (unsigned) total);
+        __set_frag_free_locked();
+        goto unlock;
+    }
+
+    if (offset == 0) {
+        __set_frag_free_locked();
+        __set_frag = OSAL_CALLOC_EXTRAM(1, sizeof(*__set_frag));
+        uint8_t *data = (__set_frag != NULL) ? OSAL_CALLOC_EXTRAM(1, (size_t) total + 1) : NULL;
+        if (data == NULL) {
+            OSAL_LOGE(TAG, "Failed to allocate memory for a %u byte set_params transfer", (unsigned) total);
+            __set_frag_free_locked();
+            status = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__NoMemory;
+            goto unlock;
+        }
+        __set_frag->data = data;
+        __set_frag->total_len = total;
+        __set_frag->session_id = session_id;
+        OSAL_LOGI(TAG, "Set params transfer started: total=%u", (unsigned) total);
+    } else if (__set_frag == NULL || __set_frag->session_id != session_id ||
+               __set_frag->total_len != total || __set_frag->received != offset) {
+        OSAL_LOGE(TAG, "set_params fragment does not continue the transfer: offset=%u", (unsigned) offset);
+        __set_frag_free_locked();
+        goto unlock;
+    }
+
+    memcpy(__set_frag->data + offset, frag->payload.data, len);
+    __set_frag->received = offset + (uint32_t) len;
+    received = __set_frag->received;
+    status = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__Success;
+    OSAL_LOGD(TAG, "Set params fragment stored: %u/%u", (unsigned) received, (unsigned) total);
+
+    if (received == total) {
+        /* Detach the NUL-terminated buffer, so the app callbacks run without the lock. */
+        json = (char *) __set_frag->data;
+        json_len = total;
+        __set_frag->data = NULL;
+        __set_frag_free_locked();
+    }
+
+unlock:
+    osal_semaphore_give(__ep_lock);
+    rmaker_local_ctrl__rmaker_local_ctrl_payload__free_unpacked(msg, NULL);
+
+    if (json != NULL) {
+        esp_rmaker_error_t err = data_model_state_handle_update_payload_json(
+                                     esp_rmaker_get_node(), json, json_len, ESP_RMAKER_REQ_SRC_LOCAL);
+        free(json);
+        if (err != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Failed to handle fragmented set params: %d", (int) err);
+            status = RMAKER_LOCAL_CTRL__RMAKER_LOCAL_CTRL_STATUS__Fail;
+            received = 0;
+        } else {
+            OSAL_LOGI(TAG, "Fragmented set params applied: %u bytes", (unsigned) json_len);
+        }
+    }
+
+    return __set_frag_send(status, received, outbuf, outlen);
+}
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG */
+
 /* Public function definitions *******************************************************/
 
 /** Free the cache. The caller holds ::__ep_lock. */
@@ -317,7 +469,26 @@ void esp_rmaker_local_ctrl_endpoints_free_data(void)
         return;
     }
     __ep_data_free_locked();
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+    __set_frag_free_locked();
+#endif
     osal_semaphore_give(__ep_lock);
+}
+
+void esp_rmaker_local_ctrl_endpoints_session_closed(uint32_t session_id)
+{
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+    if (__ep_lock == NULL || osal_semaphore_take(__ep_lock, OSAL_MAX_DELAY) != OSAL_ERR_OK) {
+        return;
+    }
+    if (__set_frag != NULL && __set_frag->session_id == session_id) {
+        OSAL_LOGI(TAG, "Session closed, set_params transfer discarded");
+        __set_frag_free_locked();
+    }
+    osal_semaphore_give(__ep_lock);
+#else
+    (void) session_id;
+#endif
 }
 
 esp_rmaker_error_t esp_rmaker_local_ctrl_get_params_ep_handler(
@@ -345,7 +516,6 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_set_params_ep_handler(
     (void) session_id;
     (void) priv_data;
 
-    OSAL_LOGI(TAG, "Set params handler invoked");
     if (outbuf == NULL || outlen == NULL) {
         return ESP_RMAKER_INVALID_ARG;
     }
@@ -353,6 +523,19 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_set_params_ep_handler(
         OSAL_LOGE(TAG, "Invalid params");
         return __send_error_response("invalid request", outbuf, outlen);
     }
+
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+    /* A body that does not start with '{' is a CmdSetData fragment. */
+    ssize_t first = 0;
+    while (first < inlen && isspace((unsigned char) inbuf[first])) {
+        first++;
+    }
+    if (first == inlen || inbuf[first] != '{') {
+        return __set_frag_handler(session_id, inbuf, inlen, outbuf, outlen);
+    }
+#endif
+
+    OSAL_LOGI(TAG, "Set params handler invoked");
 
     /* NUL-terminate the payload for the JSON parser */
     char *payload = OSAL_CALLOC_EXTRAM((size_t) inlen + 1, sizeof(char));

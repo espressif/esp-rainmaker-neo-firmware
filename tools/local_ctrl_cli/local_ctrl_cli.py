@@ -14,6 +14,7 @@ _COMMON_ROOT = Path(__file__).resolve().parents[1] / "common"
 if str(_COMMON_ROOT) not in sys.path:
     sys.path.insert(0, str(_COMMON_ROOT))
 
+import util.local_ctrl as local_ctrl  # noqa: E402
 from util.local_ctrl import (  # noqa: E402
     LocalController,
     LOCAL_CTRL_SERVICE_NAME,
@@ -486,6 +487,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help="BLE adapter to scan with, for example hci0. Linux / BlueZ only; "
         "the default adapter is used when this is not set.",
     )
+    parser.add_argument(
+        "--set-frag-size",
+        type=int,
+        default=local_ctrl.SET_FRAG_SIZE,
+        help="Send a set body longer than this many bytes as set_frag fragments of this size "
+        f"(1 to {local_ctrl.SET_FRAG_SIZE}, default {local_ctrl.SET_FRAG_SIZE})",
+    )
     return parser
 
 
@@ -501,6 +509,9 @@ def main(argv: list[str]) -> int:
             parser.error("node_id is required without --ble")
         if args.ble_name:
             parser.error("--ble-name needs --ble")
+    if not 1 <= args.set_frag_size <= local_ctrl.SET_FRAG_SIZE:
+        parser.error(f"--set-frag-size must be 1 to {local_ctrl.SET_FRAG_SIZE}")
+    local_ctrl.SET_FRAG_SIZE = args.set_frag_size
 
     cli = LocalCtrlCli(
         node_id=args.node_id,

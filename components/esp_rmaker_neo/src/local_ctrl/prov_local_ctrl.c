@@ -66,6 +66,20 @@ static const prov_capability_t local_ctrl_capability = {
     .capability = RMAKER_PROV_LOCAL_CTRL_CAPABILITY,
 };
 
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+static const prov_capability_t set_frag_capability = {
+    .label = PROV_APP_LABEL_RMAKER_EXTRA,
+    .capability = RMAKER_LOCAL_CTRL_SET_FRAG_CAPABILITY,
+};
+#endif
+
+static const prov_capability_t *const capabilities[] = {
+    &local_ctrl_capability,
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+    &set_frag_capability,
+#endif
+};
+
 /* Private function definitions *******************************************************/
 
 /** A session that ended mid-transfer leaves the get-data cache behind. */
@@ -83,9 +97,12 @@ esp_rmaker_error_t esp_rmaker_prov_local_ctrl_init(void)
     if (err != ESP_RMAKER_OK) {
         return err;
     }
-    if (prov_add_capability(&local_ctrl_capability) != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to add the %s capability.", local_ctrl_capability.capability);
-        return ESP_RMAKER_FAIL;
+    size_t caps_added = 0;
+    for (; caps_added < sizeof(capabilities) / sizeof(capabilities[0]); caps_added++) {
+        if (prov_add_capability(capabilities[caps_added]) != OSAL_ERR_OK) {
+            OSAL_LOGE(TAG, "Failed to add the %s capability.", capabilities[caps_added]->capability);
+            goto rollback_caps;
+        }
     }
     for (size_t i = 0; i < sizeof(endpoints) / sizeof(endpoints[0]); i++) {
         if (prov_add_endpoint(endpoints[i]) != OSAL_ERR_OK) {
@@ -93,11 +110,16 @@ esp_rmaker_error_t esp_rmaker_prov_local_ctrl_init(void)
             while (i-- > 0) {
                 prov_del_endpoint(endpoints[i]);
             }
-            prov_del_capability(&local_ctrl_capability);
-            return ESP_RMAKER_FAIL;
+            goto rollback_caps;
         }
     }
     return ESP_RMAKER_OK;
+
+rollback_caps:
+    while (caps_added-- > 0) {
+        prov_del_capability(capabilities[caps_added]);
+    }
+    return ESP_RMAKER_FAIL;
 }
 
 esp_rmaker_error_t esp_rmaker_prov_local_ctrl_deinit(void)
@@ -109,9 +131,11 @@ esp_rmaker_error_t esp_rmaker_prov_local_ctrl_deinit(void)
             err = ESP_RMAKER_FAIL;
         }
     }
-    if (prov_del_capability(&local_ctrl_capability) != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to remove the %s capability.", local_ctrl_capability.capability);
-        err = ESP_RMAKER_FAIL;
+    for (size_t i = 0; i < sizeof(capabilities) / sizeof(capabilities[0]); i++) {
+        if (prov_del_capability(capabilities[i]) != OSAL_ERR_OK) {
+            OSAL_LOGE(TAG, "Failed to remove the %s capability.", capabilities[i]->capability);
+            err = ESP_RMAKER_FAIL;
+        }
     }
     esp_rmaker_local_ctrl_endpoints_free_data();
     return err;

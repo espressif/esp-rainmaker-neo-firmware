@@ -30,8 +30,8 @@ differ.
 From repo root:
 
 ```bash
-python3 tools/local_ctrl_cli/local_ctrl_cli.py [--pop <proof_of_possession>] [--auto-reconnect] [--verbose] <node_id>
-python3 tools/local_ctrl_cli/local_ctrl_cli.py --ble [--ble-name <device_name>] [--ble-adapter <adapter>] [--pop <proof_of_possession>]
+python3 tools/local_ctrl_cli/local_ctrl_cli.py [--pop <proof_of_possession>] [--auto-reconnect] [--verbose] [--set-frag-size <bytes>] <node_id>
+python3 tools/local_ctrl_cli/local_ctrl_cli.py --ble [--ble-name <device_name>] [--ble-adapter <adapter>] [--pop <proof_of_possession>] [--set-frag-size <bytes>]
 ```
 
 Arguments:
@@ -44,6 +44,9 @@ Arguments:
   Omit it to select the device from a scan list.
 - `--ble-adapter` (optional): Adapter to scan with, for example `hci0`. Linux /
   BlueZ only. Leave it unset to use the default adapter.
+- `--set-frag-size` (optional): Fragment size for `set` and `set-json`, 1 to 200 bytes
+  (default 200). When the node advertises `set_frag`, a body longer than this goes as
+  fragments. Use a small value, for example `32`, to test fragmented set_params.
 
 The transport is always explicit. Without `--ble` the tool behaves exactly as
 before and never scans for BLE devices.

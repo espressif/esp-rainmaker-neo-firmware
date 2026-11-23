@@ -39,6 +39,9 @@ CAPABILITY_CHAL_RESP = "chal_resp"
 # side). Note ch_resp, not chal_resp.
 TXT_CAP_LOCAL_CTRL = "local_ctrl"
 TXT_CAP_CHAL_RESP = CHAL_RESP_ENDPOINT
+# Version-endpoint capability: set_params accepts CmdSetData fragments of up to SET_FRAG_SIZE bytes.
+CAP_SET_FRAG = "set_frag"
+SET_FRAG_SIZE = 200
 # SRP6a username for SEC2. Fixed to "wifiprov" for parity with the device
 # (which hardcodes the same value) and ESP-IDF unified provisioning.
 SEC2_USERNAME = "wifiprov"
@@ -224,6 +227,7 @@ class LocalController:
             "ble_endpoints": sorted(transport.endpoints),
             "sec_ver": version_info["sec_ver"],
             "sec_patch_ver": version_info["sec_patch_ver"],
+            "caps": list(caps),
         }
 
         def _facet(feature_available):
@@ -568,6 +572,10 @@ class LocalController:
                 return False
             sec_ver = version_info["sec_ver"]
             sec_patch_ver = version_info["sec_patch_ver"]
+            if session_key in self._local_ctrl_sessions:
+                self._local_ctrl_sessions[session_key]["caps"] = list(
+                    version_info["cap"]
+                )
             self._log(f"Detected security version: {sec_ver}, patch: {sec_patch_ver}")
         else:
             sec_ver = sec_version
@@ -976,6 +984,50 @@ class LocalController:
         """
         return self._get_node_data(node_id, "get_params", "params", params_filter)
 
+    def _set_params_fragmented(self, node_id, session_key, body, security_ctx):
+        """
+        Send a set-params JSON body as CmdSetData fragments.
+
+        Returns:
+            SetResponse: Response for the transfer, or None if a request failed
+        """
+        offset = 0
+        while offset < len(body):
+            chunk = body[offset : offset + SET_FRAG_SIZE]
+            cmd = self._local_ctrl_manager.cmd_set_data(
+                offset, len(body), chunk, security_ctx
+            )
+            response_data = self._send_endpoint_request(
+                node_id, session_key, cmd, "set_params", CAPABILITY_LOCAL_CTRL
+            )
+            if response_data is None:
+                self._log(f"No response to set_params fragment at offset {offset}")
+                return None
+            parsed = self._local_ctrl_manager.parse_set_data_response(
+                response_data, security_ctx
+            )
+            if parsed is None:
+                self._log(f"Failed to parse set_params fragment response for {node_id}")
+                return None
+            status, received, max_len = parsed
+            if status != Status.Success and len(body) > max_len > 0:
+                self._log(f"set_params body {len(body)} B > MaxLen {max_len} B")
+                return SetResponse(status=status)
+            if status != Status.Success:
+                self._log(
+                    f"set_params fragment at offset {offset} failed: {status} "
+                    f"(length {len(body)}, MaxLen {max_len})"
+                )
+                return SetResponse(status=status)
+            offset += len(chunk)
+            if received != offset:
+                self._log(
+                    f"set_params fragment mismatch: sent {offset}, device has {received}"
+                )
+                return None
+        self._log(f"Successfully set node params for {node_id} in fragments")
+        return SetResponse(status=Status.Success)
+
     def set_node_params(self, node_id, params_data):
         """
         Set node parameters via local control.
@@ -997,9 +1049,15 @@ class LocalController:
                 return None
 
             security_ctx = session_data.get("security_ctx")
-            set_msg = self._local_ctrl_manager.cmd_set_params(
-                json.dumps(params_data).encode("utf-8"), security_ctx
-            )
+            body = json.dumps(params_data).encode("utf-8")
+            if (
+                CAP_SET_FRAG in session_data.get("caps", [])
+                and len(body) > SET_FRAG_SIZE
+            ):
+                return self._set_params_fragmented(
+                    node_id, session_key, body, security_ctx
+                )
+            set_msg = self._local_ctrl_manager.cmd_set_params(body, security_ctx)
             response_data = self._send_endpoint_request(
                 node_id, session_key, set_msg, "set_params", CAPABILITY_LOCAL_CTRL
             )

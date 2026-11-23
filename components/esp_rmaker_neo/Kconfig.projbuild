@@ -466,6 +466,25 @@ menu "ESP RainMaker Neo Configuration"
             help
                 The task stack size to be used for the HTTP server for local control.
 
+        config ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+            bool "Fragmented set_params"
+            default y
+            help
+                When enabled, set_params accepts CmdSetData protobuf fragments (a body that
+                does not start with '{'), on HTTP and on BLE. The node advertises the
+                "set_frag" capability. A single raw JSON body still works.
+
+        config ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG_MAX_LEN
+            int "Maximum fragmented set_params JSON length"
+            depends on ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+            default 8192
+            range 256 65536
+            help
+                Maximum TotalLen, in bytes, of one fragmented set_params transfer.
+                At offset 0 the node allocates TotalLen + 1 bytes of heap. It frees them when
+                the transfer completes or fails, when a new transfer starts, when the session
+                of the transfer closes, or when the service stops or provisioning ends.
+
     endmenu
 
     menu "Claiming"

@@ -57,7 +57,8 @@ endpoints on the provisioning service:
 - **Endpoints**: `get_params`, `set_params`, `get_config`
 - **Protocol**: The [local control endpoint protocol](local_ctrl_endpoint_protocol.md), unchanged.
   Only the transport differs; see its [BLE transport](local_ctrl_endpoint_protocol.md#ble-transport) section.
-- **Advertised as**: app-info label `rmaker_extra`, version `1.0`, capability `local_ctrl`.
+- **Advertised as**: app-info label `rmaker_extra`, version `1.0`, capability `local_ctrl`,
+  and `set_frag` when `set_params` accepts [fragments](local_ctrl_endpoint_protocol.md#fragmentation-set_params).
 - **Prerequisite**: The endpoints serve the node that `esp_rmaker_node_init()` registered. In the
   [provisioning sequence](#provisioning-sequence) above the node does not exist yet, so the
   endpoints answer `Fail` (or a JSON failure for `set_params`) until it does.

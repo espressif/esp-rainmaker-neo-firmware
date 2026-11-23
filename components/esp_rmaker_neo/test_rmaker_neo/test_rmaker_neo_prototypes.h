@@ -341,10 +341,17 @@ void test_local_ctrl_custom_endpoint_removed_while_chal_resp_runs(void);
  */
 void test_local_ctrl_get_params_without_node_fails(void);
 
+/* Fragmented set_params (CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG) */
+void test_local_ctrl_set_frag_applies_json(void);
+void test_local_ctrl_set_frag_bad_fragment_discards_transfer(void);
+void test_local_ctrl_set_frag_session_close_frees_transfer(void);
+void test_local_ctrl_set_frag_bad_json_fails(void);
+void test_local_ctrl_set_frag_malformed_request(void);
+
 /**
- * @brief Test that the three local control endpoints advertise `local_ctrl` once.
+ * @brief Test that the local control endpoints advertise `local_ctrl` and, if enabled, `set_frag`.
  */
-void test_prov_local_ctrl_advertises_one_capability(void);
+void test_prov_local_ctrl_advertises_capabilities(void);
 
 /**
  * @brief Test that the end of a provisioning session frees a half-served get-data cache.

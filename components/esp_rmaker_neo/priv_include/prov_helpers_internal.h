@@ -26,8 +26,8 @@
  * and the three local control endpoints. Raise this when more land. */
 #define PROV_MAX_ENDPOINTS 5
 
-/** One capability per feature: claim, ch_resp and local_ctrl. Raise this when more land. */
-#define PROV_MAX_CAPABILITIES 3
+/** One capability per feature: claim, ch_resp, local_ctrl and set_frag. Raise this when more land. */
+#define PROV_MAX_CAPABILITIES 4
 
 /* Types *******************************************************/
 

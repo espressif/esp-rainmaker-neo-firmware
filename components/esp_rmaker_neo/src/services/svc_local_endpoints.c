@@ -145,7 +145,11 @@ static const char *TAG = "rmng_svc_local_ctrl";
 /**
  * @brief Feature tokens used in both the version cap list and the `cap` TXT record.
  */
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+#define LOCAL_CTRL_CAPS_LOCAL_CTRL "\"get_params\",\"set_params\",\"get_config\",\"" RMAKER_LOCAL_CTRL_SET_FRAG_CAPABILITY "\""
+#else
 #define LOCAL_CTRL_CAPS_LOCAL_CTRL "\"get_params\",\"set_params\",\"get_config\""
+#endif
 #define LOCAL_CTRL_TXT_CAP_LOCAL_CTRL "local_ctrl"
 #define LOCAL_CTRL_TXT_CAP_CHAL_RESP  RMAKER_CHAL_RESP_ENDPOINT_NAME
 
@@ -422,6 +426,28 @@ esp_rmaker_error_t esp_rmaker_local_ctrl_sec2_resolve_salt_verifier(
 }
 #endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2 */
 
+#if CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG
+/** The configured security, with a session close that also frees the set_params transfer of the session. */
+static protocomm_security_t __sec_with_close_hook;
+static esp_err_t (*__sec_close_base)(protocomm_security_handle_t handle, uint32_t session_id);
+
+static esp_err_t __sec_close_transport_session(protocomm_security_handle_t handle, uint32_t session_id)
+{
+    esp_rmaker_local_ctrl_endpoints_session_closed(session_id);
+    return (__sec_close_base != NULL) ? __sec_close_base(handle, session_id) : ESP_OK;
+}
+
+static const protocomm_security_t *__core_security(const protocomm_security_t *base)
+{
+    __sec_with_close_hook = *base;
+    __sec_close_base = base->close_transport_session;
+    __sec_with_close_hook.close_transport_session = __sec_close_transport_session;
+    return &__sec_with_close_hook;
+}
+#else
+#define __core_security(base) (base)
+#endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SET_FRAG */
+
 /**
  * @brief Set up session security on the protocomm instance per the configured version.
  */
@@ -438,11 +464,11 @@ static esp_rmaker_error_t __core_setup_security(void)
     }
     __priv_data->sec1_params.data = (const uint8_t *) __priv_data->pop;
     __priv_data->sec1_params.len = strlen(__priv_data->pop);
-    err = protocomm_set_security(__priv_data->pc, LOCAL_CTRL_SECURITY_ENDPOINT, &protocomm_security1,
+    err = protocomm_set_security(__priv_data->pc, LOCAL_CTRL_SECURITY_ENDPOINT, __core_security(&protocomm_security1),
                                  &__priv_data->sec1_params);
 #else /* !CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP */
     OSAL_LOGI(TAG, "Security 1 configured without PoP");
-    err = protocomm_set_security(__priv_data->pc, LOCAL_CTRL_SECURITY_ENDPOINT, &protocomm_security1, NULL);
+    err = protocomm_set_security(__priv_data->pc, LOCAL_CTRL_SECURITY_ENDPOINT, __core_security(&protocomm_security1), NULL);
 #endif /* CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SEC1_POP */
 #elif CONFIG_ESP_RMAKER_NEO_LOCAL_CTRL_SECURITY_2
     esp_rmaker_error_t rerr = __local_ctrl_get_pop();
@@ -471,7 +497,7 @@ static esp_rmaker_error_t __core_setup_security(void)
     __priv_data->sec2_params.salt_len = (uint16_t) LOCAL_CTRL_SEC2_SALT_LEN;
     __priv_data->sec2_params.verifier = sec2_verifier;
     __priv_data->sec2_params.verifier_len = (uint16_t) sec2_verifier_len;
-    err = protocomm_set_security(__priv_data->pc, LOCAL_CTRL_SECURITY_ENDPOINT, &protocomm_security2,
+    err = protocomm_set_security(__priv_data->pc, LOCAL_CTRL_SECURITY_ENDPOINT, __core_security(&protocomm_security2),
                                  &__priv_data->sec2_params);
 #else
 #error "Local control requires security version 1 or 2"
