@@ -1,0 +1,205 @@
+node('build') {
+    stage('Discover products') {
+        checkout scm
+        def matter = load "${WORKSPACE}/.jenkins/rmneo.matter.groovy"
+        def discovered = matter.discover_products("${WORKSPACE}/examples/matter")
+        product_choices = (['all'] + discovered).join('\n')
+        onboarding_choices = matter.discover_onboarding_modes("${WORKSPACE}/examples/matter").join('\n')
+        echo "Product Choices:\n${product_choices}"
+        echo "Onboarding Choices:\n${onboarding_choices}"
+    }
+}
+pipeline {
+    agent {
+        docker {
+            label 'build'
+            image "espressif/esp-matter:${params.esp_matter_image_tag}"
+            alwaysPull true
+        }
+    }
+    options {
+        // Matter builds compile connectedhomeip: far slower than the normal firmware job.
+        timeout(time: 3, unit: 'HOURS')
+    }
+    parameters {
+        choice(name: 'product', choices: "${product_choices}", description: 'Matter example to build. Pick "all" to build every example under examples/matter/ that has a main/ directory')
+        choice(name: 'onboarding_mode', choices: "${onboarding_choices}", description: '"default" = the example\'s sdkconfig.defaults (Matter-first, CHIPoBLE). Others layer examples/matter/common/ci-sdkconfig/sdkconfig.ci.<mode> on top (e.g. onnetwork = RainMaker BLE provisioning, then Matter over IP)')
+        choice(name: 'esp_matter_image_tag', choices: ['release-v1.6_idf_v6.0.2', 'release-v1.6.1_idf_v6.0.2'], description: 'espressif/esp-matter image tag. Keep in step with ESP_MATTER_IMAGE_TAG in .gitlab/matter.yml')
+        choice(name: 'chip', choices:['esp32c3', 'esp32', 'esp32c6', 'esp32s3'], description: 'Chips (the ones with an esp-matter device_hal in the examples\' CMakeLists.txt)')
+        string(name: 'branch', defaultValue: 'main', description: 'Branch to be used for esp-rainmaker-neo-firmware')
+        text(name: 'custom_sdk_config', defaultValue: '', description: 'Optional: extra sdkconfig entries, applied after the product\'s sdkconfig.defaults, the onboarding mode and its target-specific file.')
+    }
+    environment {
+        REPOS_PATH="/root"
+        IDF_PATH="/opt/espressif/esp-idf"
+        ESP_MATTER_PATH="/opt/espressif/esp-matter"
+        // Fixed on purpose: each connectedhomeip compile is ~2 GB RSS (see .gitlab/matter.yml).
+        MATTER_BUILD_JOBS="4"
+        IDF_CCACHE_ENABLE="1"
+        ESP_RMNG_BRANCH="${branch}"
+        ESP_RMNG_PATH="${REPOS_PATH}/esp-rainmaker-neo-firmware"
+        PROJECT_VER_SUFFIX="${BUILD_NUMBER}"
+        CUSTOM_SDK_CONFIG_FILE="${WORKSPACE}/custom_sdk_config.txt"
+        GIT_USERNAME = credentials('JENKINS_GITLAB_USER_CREDENTIALS_APP_FRAMEWORKS')
+    }
+    stages {
+        stage('Setup') {
+            steps {
+                script {
+                    currentBuild.displayName = "${BUILD_TAG}"
+                    currentBuild.description = "RMNG Matter Setup"
+                }
+                println('Running RMNG Matter Setup...')
+                catchError() {
+                    script {
+                        def matter = load "${WORKSPACE}/.jenkins/rmneo.matter.groovy"
+
+                        // Normalize CRLF/CR, and keep the empty case a 0-byte file so `-s` in
+                        // the groovy tells "no overrides" apart from a broken hand-off.
+                        def custom_sdk_config = (params.custom_sdk_config ?: '')
+                                                    .replaceAll(/\r\n?/, '\n')
+                                                    .trim()
+
+                        writeFile file: 'custom_sdk_config.txt',
+                                  text: custom_sdk_config ? custom_sdk_config + '\n' : ''
+
+                        // Clone first so we can scan examples/matter/ for products.
+                        matter.setup_environment()
+
+                        def all_products = matter.discover_products()
+                        echo "Discovered Matter products: ${all_products.join(', ')}"
+
+                        // The choices come from the job's own checkout; the branch built may differ.
+                        def all_modes = matter.discover_onboarding_modes()
+                        if (!all_modes.contains(params.onboarding_mode)) {
+                            error("Onboarding mode '${params.onboarding_mode}' not found on branch ${branch}. Available: ${all_modes.join(', ')}")
+                        }
+
+                        def selected
+                        if (params.product?.trim() in [null, '', 'all']) {
+                            selected = all_products
+                        } else {
+                            if (!all_products.contains(params.product)) {
+                                error("Product '${params.product}' not found under examples/matter. Available: ${all_products.join(', ')}")
+                            }
+                            selected = [params.product]
+                        }
+
+                        def product_tag = (selected.size() == 1) ? selected[0] : 'all'
+                        def package_name = "rmneo_matter_firmware_${product_tag}_${onboarding_mode}_${chip}_${BUILD_NUMBER}"
+                        env.PACKAGE_NAME = package_name
+                        env.product_list = selected.join(',')
+                        env.PACKAGE_PATH = "${REPOS_PATH}/${PACKAGE_NAME}"
+                        echo "Package name: ${PACKAGE_NAME}"
+                        echo "Product list: ${env.product_list}"
+
+                        matter.setup_directories()
+                    }
+                }
+            }
+            post {
+                success {
+                    echo 'Success for setup'
+                }
+                failure {
+                    echo 'Failure for setup'
+                    error('Failure for setup. Abort.')
+                }
+            }
+        }
+        stage("Build firmware(s)") {
+            steps {
+                println('Build ${product} Matter firmware binary for ${chip}.')
+                catchError() {
+                    script {
+                        def matter = load "${WORKSPACE}/.jenkins/rmneo.matter.groovy"
+
+                        // Build Evaluation firmware (with custom config if provided)
+                        env.FIRMWARE_TYPE = "Evaluation"
+                        matter.firmware_build()
+                        matter.firmware_build_save()
+
+                        // Build OTA firmware
+                        env.FIRMWARE_TYPE = "OTA"
+                        matter.firmware_build()
+                        matter.firmware_build_save()
+                    }
+                }
+            }
+            post {
+                success {
+                    echo 'Success for build product'
+                }
+                failure {
+                    echo 'Failure for build product'
+                    error('Failure for build product. Abort.')
+                }
+            }
+        }
+        stage("Support package") {
+            steps {
+                println('Create Support package.')
+                catchError() {
+                    script {
+                        def matter = load "${WORKSPACE}/.jenkins/rmneo.matter.groovy"
+                        matter.script_artifacts_create()
+                        matter.tools_artifacts_create()
+                    }
+                }
+            }
+            post {
+                success {
+                    echo 'Success for script package'
+                }
+                failure {
+                    echo 'Failure for script package'
+                    error('Failure for script package. Abort.')
+                }
+            }
+        }
+        stage('Artifacts') {
+            steps {
+                println('Generating artifacts.')
+                catchError() {
+                    script {
+                        def matter = load "${WORKSPACE}/.jenkins/rmneo.matter.groovy"
+                        matter.artifacts_save()
+                    }
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'artifacts/*.tar.gz, artifacts/*.txt', fingerprint: true
+                    echo 'Success for artifacts'
+                }
+                failure {
+                    echo 'Failure for artifacts'
+                    error('Failure for artifacts. Abort.')
+                }
+            }
+        }
+        stage('Cleanup') {
+            steps {
+                echo 'Build Clean up.'
+            }
+            post {
+                always {
+                    cleanWs()
+                }
+                success {
+                    echo 'Success for cleanup'
+                }
+                failure {
+                    echo 'Failure for cleanup'
+                    error('Failure for cleanup. Abort.')
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Cleanup post'
+            cleanWs()
+        }
+    }
+}
