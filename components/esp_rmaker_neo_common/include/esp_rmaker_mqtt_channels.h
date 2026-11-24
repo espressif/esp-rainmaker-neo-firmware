@@ -24,6 +24,7 @@ typedef enum {
     MQTT_CHANNEL_MAIN_SHADOWS = 2, /* Indexed and named shadows */
     MQTT_CHANNEL_MAIN_NOTIFY = 3, /* Notify */
     MQTT_CHANNEL_MAIN_BRIDGE = 4, /* Bridge control + subscriber */
+    MQTT_CHANNEL_MAIN_CONTROLLER = 5, /* Group controller */
 
     /* OTA component */
     MQTT_CHANNEL_MAIN_OTA = 10, /* OTA */

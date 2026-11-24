@@ -19,7 +19,7 @@ link it directly — it arrives transitively (in POSIX builds `esp_rmaker_neo`'s
 | `esp_rmaker_error_types.h` | `esp_rmaker_error_t`, a typedef of `osal_err_t`, plus `ESP_RMAKER_*` aliases for the `OSAL_ERR_*` codes. Not a separate error space. |
 | `esp_rmaker_credentials.h`, `esp_rmaker_credentials_provider.h`, `esp_rmaker_factory_part.h` | Credential reads and the provider-override mechanism (below). |
 | `esp_rmaker_mqtt_impl.h`, `esp_rmaker_mqtt_channels.h` | The shared `esp_rmaker_mqtt_impl` (an `osal_mqtt_impl_t`) and the `mqtt_channel_main_t` channel IDs, so dependents don't collide on channel numbers. |
-| `esp_rmaker_work_queue.h` | Work queue: `esp_rmaker_work_queue_add_task()` runs a function in a dedicated task's context. |
+| `esp_rmaker_work_queue.h` | Work queue: `esp_rmaker_work_queue_add_task()` runs a function in the shared queue's task. The `_inst` calls give a subsystem its own queue instead, so its work never serializes against the shared one. |
 | `esp_rmaker_runtime_gate.h` | `esp_rmaker_should_do_work()` — one advisory atomic flag telling deferrable background work to stand down while the SDK is stopping/resetting. |
 | `esp_rmaker_common_events.h` | The `RMAKER_COMMON_EVENT` event base and its IDs (reboot/network-reset/factory-reset, MQTT connect/publish/subscribe completions, timezone changes). |
 | `retry/esp_rmaker_backoff.h` | Exponential backoff with random jitter for retried `osal_scheduler` tasks. |

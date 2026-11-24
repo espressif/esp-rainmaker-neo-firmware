@@ -143,6 +143,44 @@ void test_local_config_group_info_set_get(void)
     __teardown();
 }
 
+void test_local_config_stored_group_getters(void)
+{
+    __setup();
+    char *group_id = (char *)1;
+    char *subgroups = (char *)1;
+
+    /* No group: nothing stored is the same as the cloud's "" */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_local_config_set_group_info_str(""));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_NOT_FOUND, esp_rmaker_get_stored_group_id(&group_id));
+    TEST_ASSERT_NULL(group_id);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_NOT_FOUND, esp_rmaker_get_stored_subgroups(&subgroups));
+    TEST_ASSERT_NULL(subgroups);
+
+    /* Directly in a group */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_local_config_set_group_info_str("grp1"));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_get_stored_group_id(&group_id));
+    TEST_ASSERT_EQUAL_STRING("grp1", group_id);
+    free(group_id);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_get_stored_subgroups(&subgroups));
+    TEST_ASSERT_EQUAL_STRING("", subgroups);
+    free(subgroups);
+
+    /* Under subgroups */
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_local_config_set_group_info_str("grp1-sgA-sgB"));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_get_stored_group_id(&group_id));
+    TEST_ASSERT_EQUAL_STRING("grp1", group_id);
+    free(group_id);
+    TEST_ASSERT_EQUAL(ESP_RMAKER_OK, esp_rmaker_get_stored_subgroups(&subgroups));
+    TEST_ASSERT_EQUAL_STRING("sgA-sgB", subgroups);
+    free(subgroups);
+
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_get_stored_group_id(NULL));
+    TEST_ASSERT_EQUAL(ESP_RMAKER_INVALID_ARG, esp_rmaker_get_stored_subgroups(NULL));
+
+    (void)esp_rmaker_local_config_set_group_info_str("");
+    __teardown();
+}
+
 void test_local_config_other_accessors(void)
 {
     __setup();

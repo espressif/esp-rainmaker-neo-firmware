@@ -183,6 +183,68 @@ int esp_rmaker_mqtt_topic_params_named_shadow_delete(const esp_rmaker_topic_ctx_
     return __format_with_ctx_thing_and_group(ctx, buffer, buffer_size, "$aws/things/%s/shadow/name/params-%s/delete");
 }
 
+#ifdef CONFIG_ESP_RMAKER_NEO_CONTROLLER
+
+int esp_rmaker_mqtt_topic_params_named_shadow_get(const esp_rmaker_topic_ctx_t *ctx, char *buffer, size_t buffer_size)
+{
+    if (buffer == NULL || buffer_size == 0) {
+        return -1;
+    }
+    return __format_with_ctx_thing_and_group(ctx, buffer, buffer_size, "$aws/things/%s/shadow/name/params-%s/get");
+}
+
+/* Every named-shadow filter shares this prefix, so they differ only in the suffix. */
+static int __named_shadow_filter(const char *shadow_name, const char *suffix, char *buffer, size_t buffer_size)
+{
+    if (buffer == NULL || buffer_size == 0 || shadow_name == NULL || shadow_name[0] == '\0') {
+        return -1;
+    }
+    int written = snprintf(buffer, buffer_size, "$aws/things/+/shadow/name/%s/%s", shadow_name, suffix);
+    return (written > 0 && (size_t)written < buffer_size) ? written : -1;
+}
+
+int esp_rmaker_mqtt_topic_params_named_shadow_get_accepted_filter(const char *shadow_name, char *buffer, size_t buffer_size)
+{
+    return __named_shadow_filter(shadow_name, "get/accepted", buffer, buffer_size);
+}
+
+int esp_rmaker_mqtt_topic_params_named_shadow_update_accepted_filter(const char *shadow_name, char *buffer, size_t buffer_size)
+{
+    return __named_shadow_filter(shadow_name, "update/accepted", buffer, buffer_size);
+}
+
+int esp_rmaker_mqtt_topic_params_to_node_for_node(const esp_rmaker_topic_ctx_t *ctx, char *buffer, size_t buffer_size)
+{
+    if (buffer == NULL || buffer_size == 0) {
+        return -1;
+    }
+    return __format_with_ctx_thing_and_group(ctx, buffer, buffer_size, "rainmaker/nodes/%s/user/params-%s/params");
+}
+
+bool esp_rmaker_mqtt_topic_parse_thing_name(const char *topic, size_t topic_len,
+        const char **name, size_t *name_len)
+{
+    static const char k_prefix[] = "$aws/things/";
+    const size_t prefix_len = sizeof(k_prefix) - 1;
+
+    if (topic == NULL || name == NULL || name_len == NULL) {
+        return false;
+    }
+    if (topic_len <= prefix_len || memcmp(topic, k_prefix, prefix_len) != 0) {
+        return false;
+    }
+    const char *start = topic + prefix_len;
+    const char *slash = memchr(start, '/', topic_len - prefix_len);
+    if (!slash || slash == start) {
+        return false;
+    }
+    *name = start;
+    *name_len = (size_t)(slash - start);
+    return true;
+}
+
+#endif /* CONFIG_ESP_RMAKER_NEO_CONTROLLER */
+
 int esp_rmaker_mqtt_topic_params_indexed_shadow_update(const esp_rmaker_topic_ctx_t *ctx, char *buffer, size_t buffer_size)
 {
     if (buffer == NULL || buffer_size == 0) {

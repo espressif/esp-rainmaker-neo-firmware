@@ -53,6 +53,23 @@ if (CONFIG_ESP_RMAKER_NEO_ENABLE_PROV_LOCAL_CTRL)
     list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/local_ctrl/test_prov_local_ctrl.c")
 endif ()
 
+if (CONFIG_ESP_RMAKER_NEO_CONTROLLER)
+    list(
+        APPEND
+        TEST_ESP_RMAKER_NEO_SRCS
+        "tests_src/controller/test_controller_url.c"
+        "tests_src/controller/test_controller_topics.c"
+        "tests_src/controller/test_controller_parse.c"
+        "tests_src/controller/test_controller_config.c"
+        "tests_src/controller/test_controller_state.c"
+        "tests_src/controller/test_controller_write.c"
+        "tests_src/controller/test_controller_handles.c"
+        "tests_src/controller/test_controller_changes.c"
+        "tests_src/controller/test_controller_lifecycle.c"
+    )
+    list(APPEND TEST_ESP_RMAKER_NEO_PRIV_INCLUDE_DIRS ${RMNG_CONTROLLER_PRIV_INCLUDE_DIRS})
+endif ()
+
 if (CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE)
     list(APPEND TEST_ESP_RMAKER_NEO_SRCS "tests_src/test_bridge.c" "tests_src/test_bridge_child_nvs.c"
          "tests_src/test_bridge_accessors.c" "tests_src/test_node_config_pending.c"

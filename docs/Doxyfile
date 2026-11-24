@@ -39,6 +39,7 @@ INPUT = \
     $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_host_ctrl.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_host_ctrl_constants.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_local_config_targets.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_controller.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_data_model.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_data_model_introspect.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_val.h \
@@ -103,10 +104,14 @@ EXPAND_ONLY_PREDEF     = YES
 ##                          ambiguous and unresolvable. Stripping it drops the
 ##                          extern event-base declarations from the reference;
 ##                          the event enums themselves are still documented.
+## CONFIG_ESP_RMAKER_NEO_CONTROLLER : esp_rmaker_controller.h guards its whole body on this
+##                          Kconfig symbol, which defaults to n, so the reference
+##                          documents the enabled build.
 PREDEFINED             = \
     $(ENV_DOXYGEN_DEFINES) \
     __attribute__(x)= \
-    OSAL_EVENT_DECLARE_BASE(x)=
+    OSAL_EVENT_DECLARE_BASE(x)= \
+    CONFIG_ESP_RMAKER_NEO_CONTROLLER
 
 ## Extract all
 EXTRACT_ALL = YES

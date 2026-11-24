@@ -67,6 +67,9 @@ static const esp_rmaker_server_config_node_t s_base_keys[] = {
 #if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_FILES_BUCKET_NAME
     {.name = "FilesBucketName",            .key = ESP_RMAKER_SERVER_CONFIG_FILES_BUCKET_NAME},
 #endif
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_API_GATEWAY_URL
+    {.name = "ApiGatewayUrl",              .key = ESP_RMAKER_SERVER_CONFIG_API_GATEWAY_URL},
+#endif
 };
 
 /** The request tree. Each key appears in it exactly once. */
@@ -94,6 +97,9 @@ static char s_file_role_aliases[2 * 128 + 2];
 #if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_FILES_BUCKET_NAME
 static char s_files_bucket_name[64];        /* S3 bucket names are 63 at most */
 #endif
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_API_GATEWAY_URL
+static char s_api_gateway_url[256];         /* "https://<id>.execute-api.<region>.amazonaws.com/prod", or a custom domain */
+#endif
 
 static esp_rmaker_server_config_value_t s_values[NUM_KEYS] = {
 #if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_STACK_REGION
@@ -110,6 +116,9 @@ static esp_rmaker_server_config_value_t s_values[NUM_KEYS] = {
 #endif
 #if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_FILES_BUCKET_NAME
     [ESP_RMAKER_SERVER_CONFIG_FILES_BUCKET_NAME]            = VALUE(s_files_bucket_name),
+#endif
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_API_GATEWAY_URL
+    [ESP_RMAKER_SERVER_CONFIG_API_GATEWAY_URL]              = VALUE(s_api_gateway_url),
 #endif
 };
 

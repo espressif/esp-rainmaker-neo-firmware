@@ -6,4 +6,6 @@ dependencies:
     path: ../osal
 
   # external dependencies
-  espressif/rmaker_aws_sign: ~1.0.0 # AWS SigV4 signing with the device certificate
+  espressif/rmaker_aws_sign: # AWS SigV4 signing with the device certificate
+    version: ~1.0.0
+    require: public # dependents that sign requests include its headers

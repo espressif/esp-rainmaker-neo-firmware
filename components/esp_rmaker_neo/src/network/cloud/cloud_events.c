@@ -21,8 +21,10 @@
 
 /* Local configuration includes */
 #include "local_config.h"
+#include "esp_rmaker_event_loop.h"
 
 /* Platform includes */
+#include "osal_event_loop.h"
 #include "osal_log.h"
 #include "osal_mem_alloc.h"
 
@@ -54,6 +56,11 @@
 #ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE
 #include "bridge/bridge_internal.h"
 #include "bridge/bridge_child_nvs.h"
+#endif
+
+/* Controller includes (the controller's inventory is keyed on the group) */
+#ifdef CONFIG_ESP_RMAKER_NEO_CONTROLLER
+#include "controller_hooks.h"
 #endif
 
 /* Private types ****************************************************************/
@@ -346,7 +353,10 @@ static void __getGroupInfo_self(esp_rmaker_cloud_events_tracker_t *p_events_trac
                                 const char *primary, const char *group_info_str)
 {
     bool should_setup_for_group_info = false;
+    bool migrated = false;
     char *old_group_info_str = esp_rmaker_local_config_get_group_info_str();
+    /* Nothing stored and "" both mean no group, so a node that boots outside any group posts nothing. */
+    const bool changed = strcmp(old_group_info_str ? old_group_info_str : "", group_info_str) != 0;
     if (old_group_info_str == NULL) {
         /* No old group info string found, so we can assume that the group info has changed */
         should_setup_for_group_info = true;
@@ -354,6 +364,7 @@ static void __getGroupInfo_self(esp_rmaker_cloud_events_tracker_t *p_events_trac
     } else if (strcmp(old_group_info_str, group_info_str) != 0) {
         /* Old group info string found and it is different from the new group info string */
         OSAL_LOGI(TAG, "Group info has changed from '%s' to '%s' - this is a migration from an old group", old_group_info_str, group_info_str);
+        migrated = true;
 
         /* Delete the old named shadow using the OLD group info (the
          * self ctx's group ops still read the unchanged local_config
@@ -426,6 +437,18 @@ static void __getGroupInfo_self(esp_rmaker_cloud_events_tracker_t *p_events_trac
         esp_rmaker_state_attempt_start_listening(RMAKER_NETWORK_SUBSCRIPTION_TIMEOUT_MS_CRITICAL);
         esp_rmaker_state_schedule_report(true);
     }
+
+    if (changed) {
+        osal_event_post(RMAKER_EVENT, RMAKER_EVENT_GROUP_INFO_UPDATED, NULL, 0, OSAL_MAX_DELAY);
+    }
+
+#ifdef CONFIG_ESP_RMAKER_NEO_CONTROLLER
+    /* Told on every getGroupInfo, not only on the edge, so a re-sync that failed while MQTT was
+     * down is retried on the next one. */
+    controller_group_notify_group_info(migrated);
+#else
+    (void)migrated;
+#endif
 }
 
 #ifdef CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE

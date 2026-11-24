@@ -133,6 +133,12 @@ static void esp_rmaker_app_default_event_handler(void *event_handler_arg, osal_e
             OSAL_LOGW(TAG, "MQTT host migration timed out");
             break;
 
+        /** Group events *************************************************************/
+        case RMAKER_EVENT_GROUP_INFO_UPDATED:
+            // The node joined, moved between, or left a group. esp_rmaker_get_stored_group_id() has the new one.
+            OSAL_LOGI(TAG, "Group info updated");
+            break;
+
         default:
             // Unknown event.
             OSAL_LOGW(TAG, "Unknown event: %" PRId32, event_id);

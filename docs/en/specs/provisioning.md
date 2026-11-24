@@ -170,6 +170,7 @@ order, and omits the array when there are none:
 | `CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT` | `kvs` | Attaches the device video policy and creates the node's `rmng-v1-<node_id>` KVS signaling channel |
 | `CONFIG_ESP_RMAKER_NEO_CLAIM_FILE_SUPPORT` | `s3` | Attaches the device file policy (S3 access under `node-data/<node_id>/`) |
 | `CONFIG_ESP_RMAKER_NEO_CLAIM_BRIDGE_SUPPORT` (default with `CONFIG_ESP_RMAKER_NEO_BRIDGE_ENABLE`) | `bridge` | Attaches the bridge policy; requires the deployment's optional bridge stack |
+| `CONFIG_ESP_RMAKER_NEO_CLAIM_CONTROLLER_SUPPORT` (default with `CONFIG_ESP_RMAKER_NEO_CONTROLLER`) | `controller` | Attaches the controller policy; requires the deployment's optional controller stack |
 
 A re-claim replaces the certificate, and its policies are exactly those requested in that
 claim, so the node asks for every service on every claim. The app forwards the node's JSON

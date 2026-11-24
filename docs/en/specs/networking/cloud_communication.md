@@ -74,6 +74,8 @@ Gets the primary group ID (and any sub-group IDs) the node belongs to.
 }
 ```
 
+The node stores the value as `<primary>[-<sub-group ID>...]` and keeps it across reboots; `{}` clears it. Firmware reads it with `esp_rmaker_get_stored_group_id()` and `esp_rmaker_get_stored_subgroups()`. When the stored value changes, the SDK posts `RMAKER_EVENT_GROUP_INFO_UPDATED`; an unchanged value posts nothing.
+
 #### `getAlexaEn`
 
 Check whether Alexa is enabled.

@@ -25,6 +25,22 @@
 #define ESP_RMAKER_UI_HIDDEN            "esp.ui.hidden"
 #define ESP_RMAKER_UI_QR_SCAN           "esp.ui.qr-scan"
 
+/** @brief Standard UI hint a param's config may carry. */
+typedef enum {
+    RMAKER_UI_TYPE_NONE = 0,   /**< The config reported no ui_type. */
+    RMAKER_UI_TYPE_UNKNOWN,    /**< A ui_type string this SDK does not map. */
+    RMAKER_UI_TYPE_TOGGLE,     /**< ESP_RMAKER_UI_TOGGLE */
+    RMAKER_UI_TYPE_SLIDER,     /**< ESP_RMAKER_UI_SLIDER */
+    RMAKER_UI_TYPE_DROPDOWN,   /**< ESP_RMAKER_UI_DROPDOWN */
+    RMAKER_UI_TYPE_TEXT,       /**< ESP_RMAKER_UI_TEXT */
+    RMAKER_UI_TYPE_HUE_SLIDER, /**< ESP_RMAKER_UI_HUE_SLIDER */
+    RMAKER_UI_TYPE_HUE_CIRCLE, /**< ESP_RMAKER_UI_HUE_CIRCLE */
+    RMAKER_UI_TYPE_PUSHBUTTON, /**< ESP_RMAKER_UI_PUSHBUTTON */
+    RMAKER_UI_TYPE_TRIGGER,    /**< ESP_RMAKER_UI_TRIGGER */
+    RMAKER_UI_TYPE_HIDDEN,     /**< ESP_RMAKER_UI_HIDDEN */
+    RMAKER_UI_TYPE_QR_SCAN,    /**< ESP_RMAKER_UI_QR_SCAN */
+} esp_rmaker_ui_type_t;
+
 /********** STANDARD UNIT TOKENS **********/
 
 /* The canonical unit a param's values are reported in, for esp_rmaker_param_add_unit().

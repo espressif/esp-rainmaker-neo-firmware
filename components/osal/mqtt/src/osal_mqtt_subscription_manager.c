@@ -107,6 +107,48 @@ osal_mqtt_subscription_element_t *osal_mqtt_subscription_get_list( void )
     return pxSubscriptionList;
 }
 
+/* One matching rule for add() and exists(): a filter may carry more than one
+ * callback, so identity is the whole triple. */
+static bool __subscription_matches( const osal_mqtt_subscription_element_t *element,
+                                    const char *pcTopicFilterString,
+                                    uint16_t usTopicFilterLength,
+                                    osal_mqtt_subscribe_cb_t callback,
+                                    void *priv_data )
+{
+    return element->usFilterStringLength == usTopicFilterLength &&
+           strncmp( pcTopicFilterString, element->pcSubscriptionFilterString, ( size_t ) usTopicFilterLength ) == 0 &&
+           element->callback == callback &&
+           element->priv_data == priv_data;
+}
+
+bool osal_mqtt_subscription_exists( const char *pcTopicFilterString,
+                                    uint16_t usTopicFilterLength,
+                                    osal_mqtt_subscribe_cb_t callback,
+                                    void *priv_data )
+{
+    bool found = false;
+
+    if ( pcTopicFilterString == NULL || usTopicFilterLength == 0U || callback == NULL ) {
+        return false;
+    }
+    if ( !lock_subscription_list() ) {
+        return false;
+    }
+    for ( size_t index = 0; index < OSAL_MQTT_MAX_SUBSCRIPTIONS; index++ ) {
+        if ( pxSubscriptionList[ index ].usFilterStringLength == 0 ) {
+            continue;
+        }
+        if ( __subscription_matches( &pxSubscriptionList[ index ], pcTopicFilterString,
+                                     usTopicFilterLength, callback, priv_data ) ) {
+            found = true;
+            break;
+        }
+    }
+    unlock_subscription_list();
+
+    return found;
+}
+
 bool osal_mqtt_subscription_add( const char *pcTopicFilterString,
                                  uint16_t usTopicFilterLength,
                                  osal_mqtt_event_loop_channel_t *channel,
@@ -151,14 +193,12 @@ bool osal_mqtt_subscription_add_ex( const char *pcTopicFilterString,
         for ( lIndex = ( int32_t ) OSAL_MQTT_MAX_SUBSCRIPTIONS - 1; lIndex >= 0; lIndex-- ) {
             if ( pxSubscriptionList[ lIndex ].usFilterStringLength == 0 ) {
                 xAvailableIndex = lIndex;
-            } else if ( ( pxSubscriptionList[ lIndex ].usFilterStringLength == usTopicFilterLength ) &&
-                        ( strncmp( pcTopicFilterString, pxSubscriptionList[ lIndex ].pcSubscriptionFilterString, ( size_t ) usTopicFilterLength ) == 0 ) ) {
+            } else if ( __subscription_matches( &pxSubscriptionList[ lIndex ], pcTopicFilterString,
+                                                usTopicFilterLength, callback, priv_data ) ) {
                 /* If a subscription already exists, don't do anything. */
-                if ( pxSubscriptionList[ lIndex ].callback == callback && pxSubscriptionList[ lIndex ].priv_data == priv_data ) {
-                    xAvailableIndex = OSAL_MQTT_MAX_SUBSCRIPTIONS;
-                    xReturnStatus = true;
-                    break;
-                }
+                xAvailableIndex = OSAL_MQTT_MAX_SUBSCRIPTIONS;
+                xReturnStatus = true;
+                break;
             }
         }
 

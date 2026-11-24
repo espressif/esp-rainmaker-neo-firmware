@@ -59,6 +59,10 @@ typedef enum {
     /** S3 bucket for node file storage, in the deployment's region. */
     ESP_RMAKER_SERVER_CONFIG_FILES_BUCKET_NAME,
 #endif
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_API_GATEWAY_URL
+    /** Base URL of the deployment's REST API, "https://<host>[/<stage>]", without a trailing '/'. */
+    ESP_RMAKER_SERVER_CONFIG_API_GATEWAY_URL,
+#endif
     /** Number of keys. Not a key. */
     ESP_RMAKER_SERVER_CONFIG_KEY_MAX,
 } esp_rmaker_server_config_key_t;

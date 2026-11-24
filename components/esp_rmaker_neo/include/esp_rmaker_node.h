@@ -118,6 +118,36 @@ char *esp_rmaker_get_node_id(void);
 char *esp_rmaker_get_node_id_for_node(const esp_rmaker_node_t *node);
 
 /**
+ * @brief Get the id of the group this node belongs to.
+ *
+ * The value is the one the cloud last sent in its group info, which the node keeps across
+ * reboots. RMAKER_EVENT_GROUP_INFO_UPDATED is posted when it changes.
+ *
+ * @param[out] group_id The primary group id. The caller must free it using free().
+ *                      Set to NULL on any error.
+ *
+ * @return ESP_RMAKER_OK on success.
+ * @return ESP_RMAKER_NOT_FOUND if the node is in no group, or has not received group info yet.
+ * @return ESP_RMAKER_INVALID_ARG if @p group_id is NULL.
+ * @return ESP_RMAKER_NO_MEM on allocation failure.
+ */
+esp_rmaker_error_t esp_rmaker_get_stored_group_id(char **group_id);
+
+/**
+ * @brief Get the subgroup path of this node inside its group.
+ *
+ * @param[out] subgroups Dash-joined subgroup ids from the outermost down, e.g. "sg1-sg2", or ""
+ *                       when the node sits directly in its group. The caller must free it using
+ *                       free(). Set to NULL on any error.
+ *
+ * @return ESP_RMAKER_OK on success.
+ * @return ESP_RMAKER_NOT_FOUND if the node is in no group, or has not received group info yet.
+ * @return ESP_RMAKER_INVALID_ARG if @p subgroups is NULL.
+ * @return ESP_RMAKER_NO_MEM on allocation failure.
+ */
+esp_rmaker_error_t esp_rmaker_get_stored_subgroups(char **subgroups);
+
+/**
  * @brief Get Node Info
  *
  * Returns pointer to the node info as configured during initialisation.

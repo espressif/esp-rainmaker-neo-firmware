@@ -364,6 +364,7 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_local_config_group_info_format_skips_empty_subgroups);
     RUN_TEST(test_local_config_group_info_parse_packs_subgroups);
     RUN_TEST(test_local_config_group_info_set_get);
+    RUN_TEST(test_local_config_stored_group_getters);
     RUN_TEST(test_local_config_other_accessors);
     RUN_TEST(test_local_config_group_info_invalid_args);
     RUN_TEST(test_local_config_group_info_null_subgroups);
@@ -463,6 +464,142 @@ int test_rmaker_neo_all_tests_unity(void)
     RUN_TEST(test_host_ctrl_seq_take_leaves_untagged_command);
     RUN_TEST(test_host_ctrl_seq_take_ignores_id_without_command);
     RUN_TEST(test_host_ctrl_param_value_int64);
+#endif
+
+#ifdef CONFIG_ESP_RMAKER_NEO_CONTROLLER
+    /* Group controller. Every unit here is pure: the tests link the parsers and the payload
+     * renderers without the agent, the signer or the network behind them. */
+    RUN_TEST(test_controller_url_splits_host_and_stage_path);
+    RUN_TEST(test_controller_url_without_path_yields_empty_base_path);
+    RUN_TEST(test_controller_url_strips_one_trailing_slash);
+    RUN_TEST(test_controller_url_without_scheme_is_tolerated);
+    RUN_TEST(test_controller_url_truncates_an_oversized_host);
+    RUN_TEST(test_controller_url_null_yields_empty_outputs);
+
+    RUN_TEST(test_controller_shadow_name_plain_group);
+    RUN_TEST(test_controller_shadow_name_joins_subgroups_with_a_dash);
+    RUN_TEST(test_controller_shadow_name_sorts_the_subgroup_path);
+    RUN_TEST(test_controller_shadow_name_ignores_a_duplicate_subgroup);
+    RUN_TEST(test_controller_topic_shadow_get);
+    RUN_TEST(test_controller_topic_node_params);
+    RUN_TEST(test_controller_topic_filters_use_a_single_level_wildcard);
+    RUN_TEST(test_controller_topic_group_control_without_subgroup);
+    RUN_TEST(test_controller_topic_group_control_with_subgroup);
+    RUN_TEST(test_controller_topic_rejects_an_undersized_buffer);
+    RUN_TEST(test_controller_thing_name_extracted_from_shadow_topic);
+    RUN_TEST(test_controller_thing_name_honours_topic_len_without_nul);
+    RUN_TEST(test_controller_thing_name_rejects_a_foreign_prefix);
+    RUN_TEST(test_controller_thing_name_rejects_a_missing_separator);
+    RUN_TEST(test_controller_thing_name_rejects_an_empty_name);
+
+    RUN_TEST(test_controller_shadow_collect_reports_each_name_once);
+    RUN_TEST(test_controller_shadow_collect_honours_the_buffer_bound);
+    RUN_TEST(test_controller_shadow_collect_reports_none_for_an_empty_list);
+    RUN_TEST(test_controller_shadow_in_use_finds_a_name_the_list_holds);
+    RUN_TEST(test_controller_shadow_in_use_rejects_a_name_the_migration_dropped);
+
+    RUN_TEST(test_controller_expired_credentials_detected_in_a_403_body);
+    RUN_TEST(test_controller_expired_credentials_not_reported_for_a_denial);
+    RUN_TEST(test_controller_expired_credentials_honours_body_len);
+
+    RUN_TEST(test_controller_group_info_reports_every_node);
+    RUN_TEST(test_controller_group_info_reports_the_group_name);
+    RUN_TEST(test_controller_group_info_tolerates_a_missing_group_name);
+    RUN_TEST(test_controller_group_info_reports_subgroups_and_their_members);
+    RUN_TEST(test_controller_group_info_tolerates_a_missing_subgroup_name);
+    RUN_TEST(test_controller_group_info_stops_when_a_callback_stops);
+    RUN_TEST(test_controller_group_info_reports_an_empty_group);
+    RUN_TEST(test_controller_group_info_rejects_a_body_without_node_ids);
+
+    RUN_TEST(test_controller_config_parses_devices_and_params);
+    RUN_TEST(test_controller_config_parses_bounds_on_a_numeric_param);
+    RUN_TEST(test_controller_config_parses_int64_bounds);
+    RUN_TEST(test_controller_config_parses_services_into_the_same_list);
+    RUN_TEST(test_controller_config_accepts_name_as_a_legacy_alias_for_id);
+    RUN_TEST(test_controller_config_parses_the_ui_type_and_the_primary_param);
+    RUN_TEST(test_controller_config_primary_param_reports_none_once_it_is_dropped);
+    RUN_TEST(test_controller_config_reports_the_parents_of_a_param);
+    RUN_TEST(test_controller_config_maps_every_ui_type);
+    RUN_TEST(test_controller_config_maps_every_data_type);
+    RUN_TEST(test_controller_config_reads_the_data_model);
+    RUN_TEST(test_controller_config_update_keeps_surviving_handles_valid);
+    RUN_TEST(test_controller_config_update_makes_a_dropped_device_stale);
+
+    RUN_TEST(test_controller_state_applies_reported_params);
+    RUN_TEST(test_controller_state_reports_not_found_before_any_value);
+    RUN_TEST(test_controller_state_delta_keeps_params_it_does_not_mention);
+    RUN_TEST(test_controller_state_reports_no_change_when_the_value_is_the_same);
+    RUN_TEST(test_controller_state_ignores_the_desired_plane);
+    RUN_TEST(test_controller_state_rejects_a_body_without_reported);
+    RUN_TEST(test_controller_state_ncfg_ver_change_marks_the_config_stale);
+    RUN_TEST(test_controller_state_config_is_current_until_ncfg_ver_moves);
+    RUN_TEST(test_controller_state_reports_an_online_transition);
+    RUN_TEST(test_controller_state_ncfg_ver_accepts_an_integer_token);
+    RUN_TEST(test_controller_state_tracks_the_online_flag);
+    RUN_TEST(test_controller_state_reports_every_changed_param);
+
+    RUN_TEST(test_controller_write_node_payload_is_keyed_by_id);
+    RUN_TEST(test_controller_write_refuses_a_read_only_param);
+    RUN_TEST(test_controller_write_batch_groups_params_by_device);
+    RUN_TEST(test_controller_write_node_batch_refuses_to_truncate);
+    RUN_TEST(test_controller_write_batch_rejects_a_read_only_param);
+    RUN_TEST(test_controller_write_batch_needs_a_begin);
+    RUN_TEST(test_controller_write_group_payload_is_keyed_by_type);
+    RUN_TEST(test_controller_write_group_payload_reaches_a_service_type);
+    RUN_TEST(test_controller_write_group_payload_rejects_an_empty_type);
+    RUN_TEST(test_controller_write_group_batch_holds_every_device_type);
+    RUN_TEST(test_controller_write_group_batch_shares_one_envelope_per_type);
+    RUN_TEST(test_controller_write_group_batch_needs_a_begin);
+    RUN_TEST(test_controller_write_group_batch_refuses_to_truncate);
+    RUN_TEST(test_controller_write_group_payload_refuses_invalid_utf8);
+    RUN_TEST(test_controller_write_group_payload_refuses_to_truncate);
+
+    RUN_TEST(test_controller_handle_resolves_only_its_own_kind_and_generation);
+    RUN_TEST(test_controller_handle_of_a_reused_slot_does_not_match_the_old_handle);
+    RUN_TEST(test_controller_handle_node_survives_a_resync_that_keeps_it);
+    RUN_TEST(test_controller_handle_node_goes_stale_when_a_resync_drops_it);
+    RUN_TEST(test_controller_handle_subgroup_survives_a_resync_and_takes_its_new_name);
+    RUN_TEST(test_controller_handle_dropped_param_is_stale_and_a_restore_gets_a_new_one);
+    RUN_TEST(test_controller_handle_param_is_stale_after_release_config);
+    RUN_TEST(test_controller_handle_of_another_kind_is_an_invalid_arg);
+    RUN_TEST(test_controller_handle_getter_returns_a_copy_the_caller_frees);
+    RUN_TEST(test_controller_handle_device_param_by_id);
+    RUN_TEST(test_controller_handle_notify_skips_a_released_param);
+    RUN_TEST(test_controller_handle_batch_with_a_dropped_param_renders_nothing);
+    RUN_TEST(test_controller_handle_parser_skips_fields_that_do_not_fit);
+    RUN_TEST(test_controller_handle_parser_skips_a_name_that_does_not_fit);
+    RUN_TEST(test_controller_handle_parser_skips_a_second_object_with_the_same_id);
+
+    RUN_TEST(test_controller_changes_register_replays_the_snapshot);
+    RUN_TEST(test_controller_changes_register_before_a_sync_replays_nothing);
+    RUN_TEST(test_controller_changes_resync_reports_a_dropped_and_an_added_node);
+    RUN_TEST(test_controller_changes_resync_reports_a_node_whose_subgroups_changed);
+    RUN_TEST(test_controller_changes_refetch_reports_a_dropped_and_an_added_param);
+    RUN_TEST(test_controller_changes_refetch_reports_changed_bounds);
+    RUN_TEST(test_controller_changes_refetch_with_no_change_reports_nothing);
+    RUN_TEST(test_controller_changes_release_config_reports_each_device);
+    RUN_TEST(test_controller_changes_deinit_reports_each_node_and_subgroup);
+    RUN_TEST(test_controller_changes_lists_arrive_in_order_and_old_ones_are_dropped);
+    RUN_TEST(test_controller_changes_none_are_collected_without_a_callback);
+
+    RUN_TEST(test_controller_lifecycle_sync_builds_the_group_with_values);
+    RUN_TEST(test_controller_lifecycle_resync_of_an_unchanged_group_fetches_no_config);
+    RUN_TEST(test_controller_lifecycle_delta_updates_one_value_and_notifies_it);
+    RUN_TEST(test_controller_lifecycle_online_change_notifies_the_node);
+    RUN_TEST(test_controller_lifecycle_config_change_refetches_and_seeds_the_new_params);
+    RUN_TEST(test_controller_lifecycle_failed_refetch_keeps_the_config_stale);
+    RUN_TEST(test_controller_lifecycle_write_publishes_by_id_and_refuses_what_it_must);
+    RUN_TEST(test_controller_lifecycle_group_write_publishes_by_type);
+    RUN_TEST(test_controller_lifecycle_migration_rebuilds_the_group_and_its_filters);
+    RUN_TEST(test_controller_lifecycle_leaving_the_group_drops_the_inventory);
+    RUN_TEST(test_controller_lifecycle_mqtt_down_fails_cleanly);
+    RUN_TEST(test_controller_lifecycle_missing_config_reports_not_found);
+    RUN_TEST(test_controller_lifecycle_api_get_returns_the_body);
+    RUN_TEST(test_controller_lifecycle_disable_drops_the_shadow_filters);
+    RUN_TEST(test_controller_lifecycle_disable_from_a_callback_is_refused);
+    RUN_TEST(test_controller_lifecycle_disable_drops_an_open_group_batch);
+    RUN_TEST(test_controller_lifecycle_blocking_call_after_disable_is_not_initialized);
+    RUN_TEST(test_controller_lifecycle_disable_makes_every_handle_stale);
 #endif
 
     return UNITY_END();

@@ -21,6 +21,10 @@
 
 #include "esp_rmaker_error_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Buffer size for MQTT topics */
 #define MQTT_TOPIC_BUFFER_SIZE 150
 
@@ -111,10 +115,6 @@ typedef int (*esp_rmaker_mqtt_topic_fn_t)(char *buffer, size_t buffer_size);
 
 /* Function declarations *******************************************************/
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * @brief Get the 'to cloud' MQTT topic for the given Thing.
  * @param[in] ctx Topic ctx identifying the target Thing.
@@ -157,6 +157,69 @@ int esp_rmaker_mqtt_topic_params_named_shadow_update(const esp_rmaker_topic_ctx_
  * @return length written to buffer on success. -1 on failure.
  */
 int esp_rmaker_mqtt_topic_params_named_shadow_delete(const esp_rmaker_topic_ctx_t *ctx, char *buffer, size_t buffer_size);
+
+#ifdef CONFIG_ESP_RMAKER_NEO_CONTROLLER
+
+/**
+ * @brief Get the named (params) shadow get topic for the given Thing.
+ * @param[in] ctx Topic ctx identifying the Thing
+ * @param[out] buffer Pointer to the buffer to store the topic
+ * @param[in] buffer_size The size of the buffer
+ * @return length written to buffer on success. -1 on failure.
+ */
+int esp_rmaker_mqtt_topic_params_named_shadow_get(const esp_rmaker_topic_ctx_t *ctx, char *buffer, size_t buffer_size);
+
+/**
+ * @brief Get the ``get/accepted`` topic *filter* covering every Thing's @p shadow_name.
+ *
+ * One ``+`` covers every Thing sharing the shadow name, so a controller subscribes once per
+ * distinct shadow name rather than once per node.
+ *
+ * @param[in] shadow_name Full shadow name, e.g. ``params-<group>``.
+ * @param[out] buffer Pointer to the buffer to store the topic
+ * @param[in] buffer_size The size of the buffer
+ * @return length written to buffer on success. -1 on failure.
+ */
+int esp_rmaker_mqtt_topic_params_named_shadow_get_accepted_filter(const char *shadow_name, char *buffer, size_t buffer_size);
+
+/**
+ * @brief Get the ``update/accepted`` topic *filter* covering every Thing's @p shadow_name.
+ *
+ * This echoes the delta a node published, so it merges straight into a cached value set.
+ *
+ * @param[in] shadow_name Full shadow name, e.g. ``params-<group>``.
+ * @param[out] buffer Pointer to the buffer to store the topic
+ * @param[in] buffer_size The size of the buffer
+ * @return length written to buffer on success. -1 on failure.
+ */
+int esp_rmaker_mqtt_topic_params_named_shadow_update_accepted_filter(const char *shadow_name, char *buffer, size_t buffer_size);
+
+/**
+ * @brief Get the unicast params topic for the Thing identified by @p ctx.
+ *
+ * ``esp_rmaker_mqtt_topic_params_to_node`` is the self-only wrapper.
+ *
+ * @param[in] ctx Topic ctx identifying the target Thing.
+ * @param[out] buffer Pointer to the buffer to store the topic
+ * @param[in] buffer_size The size of the buffer
+ * @return length written to buffer on success. -1 on failure.
+ */
+int esp_rmaker_mqtt_topic_params_to_node_for_node(const esp_rmaker_topic_ctx_t *ctx, char *buffer, size_t buffer_size);
+
+/**
+ * @brief Extract ``<thing>`` from a ``$aws/things/<thing>/shadow/...`` topic.
+ *
+ * @param[in] topic Topic. Need not be NUL-terminated.
+ * @param[in] topic_len Length of @p topic.
+ * @param[out] name Set to the start of the thing name inside @p topic.
+ * @param[out] name_len Set to the length of the thing name.
+ *
+ * @return true if the topic carries a thing name.
+ */
+bool esp_rmaker_mqtt_topic_parse_thing_name(const char *topic, size_t topic_len,
+        const char **name, size_t *name_len);
+
+#endif /* CONFIG_ESP_RMAKER_NEO_CONTROLLER */
 
 /**
  * @brief Get the indexed (iparams) shadow update topic for the given Thing.

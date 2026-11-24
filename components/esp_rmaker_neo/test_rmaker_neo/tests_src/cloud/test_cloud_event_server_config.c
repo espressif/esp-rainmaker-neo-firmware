@@ -49,6 +49,9 @@ static void __expected_request(char *buf, size_t size)
 #if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_FILES_BUCKET_NAME
         "FilesBucketName",
 #endif
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_API_GATEWAY_URL
+        "ApiGatewayUrl",
+#endif
     };
     int off = snprintf(buf, size, "{\"rmng-base\":{");
     for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
@@ -68,7 +71,8 @@ static const char *SERVER_CONFIG_PAYLOAD =
     "\"CredentialProviderEndpoint\":\"abc123.credentials.iot.us-east-1.amazonaws.com\","
     "\"NodeVideoRoleAliases\":\"rmng-node-video-role-v1\","
     "\"NodeFileRoleAliases\":\"rmng-node-file-role-v1\","
-    "\"FilesBucketName\":\"esp-rm-files-123456789012-us-east-1\"}}}";
+    "\"FilesBucketName\":\"esp-rm-files-123456789012-us-east-1\","
+    "\"ApiGatewayUrl\":\"https://abc123.execute-api.us-east-1.amazonaws.com/prod\"}}}";
 
 /* Start each test from an empty cache, also after an earlier test failed before its own deinit. */
 static void __init_fresh(void)
@@ -453,6 +457,9 @@ void test_cloud_event_server_config_response_is_cached(void)
 #endif
 #if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_FILES_BUCKET_NAME
     __assert_value(ESP_RMAKER_SERVER_CONFIG_FILES_BUCKET_NAME, "esp-rm-files-123456789012-us-east-1");
+#endif
+#if CONFIG_ESP_RMAKER_NEO_SERVER_CONFIG_KEY_API_GATEWAY_URL
+    __assert_value(ESP_RMAKER_SERVER_CONFIG_API_GATEWAY_URL, "https://abc123.execute-api.us-east-1.amazonaws.com/prod");
 #endif
     __assert_value(ESP_RMAKER_SERVER_CONFIG_STACK_REGION, "us-east-1");
 

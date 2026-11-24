@@ -29,4 +29,5 @@ For **setup, building, and factory provisioning**, see the [firmware guides](htt
 
 - [Networking](networking/index.md) -- MQTT topics, connection lifecycle and the event-based cloud communication protocol.
 - [Services](services/index.md) -- built-in services (schedules, automation triggers) and optional ones (timezone, system control, local HTTP API).
+- [Group Controller](controller/index.md) -- how a controller authenticates, learns its group, and reaches that group's nodes over REST and MQTT.
 - [OTA](ota/index.md) -- OTA job document format and status-details reporting.

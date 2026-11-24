@@ -33,7 +33,7 @@ if (ESP_PLATFORM)
     )
     target_include_directories(${COMPONENT_LIB} PRIVATE ${TEST_ESP_RMAKER_NEO_COMMON_PRIV_INCLUDE_DIRS})
     if (CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT)
-        idf_component_optional_requires(PRIVATE ${RMNG_AWS_SIGN_PORT_PRIV_REQUIRES})
+        idf_component_optional_requires(PRIVATE ${RMNG_AWS_SIGN_PORT_REQUIRES})
     endif ()
 
     # Normal CMake platform ###
@@ -50,7 +50,7 @@ else ()
         ${TEST_ESP_RMAKER_NEO_COMMON_TARGET} PRIVATE ${TEST_ESP_RMAKER_NEO_COMMON_PRIV_REQUIRES} unity::framework
     )
     if (CONFIG_ESP_RMAKER_NEO_AWS_SIGN_PORT)
-        target_link_libraries(${TEST_ESP_RMAKER_NEO_COMMON_TARGET} PRIVATE ${RMNG_AWS_SIGN_PORT_PRIV_REQUIRES})
+        target_link_libraries(${TEST_ESP_RMAKER_NEO_COMMON_TARGET} PRIVATE ${RMNG_AWS_SIGN_PORT_REQUIRES})
     endif ()
 
     add_test(NAME ${TEST_ESP_RMAKER_NEO_COMMON_TARGET} COMMAND ${TEST_ESP_RMAKER_NEO_COMMON_TARGET})

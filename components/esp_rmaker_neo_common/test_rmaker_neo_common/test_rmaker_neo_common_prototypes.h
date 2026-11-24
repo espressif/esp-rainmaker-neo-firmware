@@ -46,6 +46,13 @@ void test_work_queue_basic(void);
  */
 void test_work_queue_error_paths(void);
 
+/** Work queue instances. The singleton cases above must keep passing unchanged. */
+void test_work_queue_instances_run_independently(void);
+void test_work_queue_instance_capacity_is_per_instance(void);
+void test_work_queue_instance_reports_its_own_task(void);
+void test_work_queue_instance_arg_validation(void);
+void test_work_queue_instance_discard_fn_gets_flushed_entries(void);
+
 /* Utilities - convert ***********************************************************/
 
 /**

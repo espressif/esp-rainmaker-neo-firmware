@@ -114,6 +114,9 @@ static const char *const s_capabilities[] = {
 #if CONFIG_ESP_RMAKER_NEO_CLAIM_BRIDGE_SUPPORT
     "bridge",
 #endif
+#if CONFIG_ESP_RMAKER_NEO_CLAIM_CONTROLLER_SUPPORT
+    "controller",
+#endif
     NULL,
 };
 

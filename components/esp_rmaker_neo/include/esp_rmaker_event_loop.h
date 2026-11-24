@@ -121,6 +121,16 @@ typedef enum {
      */
     RMAKER_EVENT_MQTT_HOST_MIGRATION_TIMEOUT,
 
+    /* Group Events ****************************************************************/
+
+    /** The node's own group or subgroups changed: it joined a group, moved, or left its group.
+     * Posted after the new value is stored, so esp_rmaker_get_stored_group_id() and
+     * esp_rmaker_get_stored_subgroups() already return it. Not posted when the cloud confirms an
+     * unchanged value, which includes the group info that follows every connection.
+     * Event data will be NULL.
+     */
+    RMAKER_EVENT_GROUP_INFO_UPDATED,
+
 } esp_rmaker_event_t;
 
 #endif /* __ESP_RMAKER_EVENT_LOOP_H__ */
