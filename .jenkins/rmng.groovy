@@ -84,10 +84,11 @@ def discover_products(String base = null) {
     // An example is any directory with a `main/` subdir — same convention as the GitLab
     // pipelines and the Launchpad workflow. maxdepth 3 also finds examples grouped one
     // level down (examples/advanced/<app>); the product is always the bare app name,
-    // since it is used as the .bin basename and the package folder name.
+    // since it is used as the .bin basename and the package folder name. examples/matter/ is
+    // left out: it needs the esp-matter SDK and is built by Jenkinsfile.rmneo.matter_firmware.
     def raw = sh(returnStdout: true, script: """
         cd '${root}'
-        find . -mindepth 2 -maxdepth 3 -type d -name main -prune -print \\
+        find . -mindepth 2 -maxdepth 3 -path './matter/*' -prune -o -type d -name main -prune -print \\
           | sed -e 's|/main\$||' -e 's|.*/||' \\
           | sort -u
     """).trim()
