@@ -1,10 +1,6 @@
-def setup_directories() {
-    sh '''
-    mkdir -p ${PACKAGE_PATH}/Firmware/Evaluation
-    mkdir -p ${PACKAGE_PATH}/Script
-    mkdir -p ${PACKAGE_PATH}/Tools
-    '''
-}
+// Matter-only steps for Jenkinsfile.rmneo.matter_firmware: setup, discovery and the esp-matter
+// build. Directory setup, packaging and artifacts are shared with the normal firmware job and
+// loaded from rmng.groovy, so the two jobs cannot drift.
 
 def setup_environment() {
     sh '''
@@ -116,6 +112,37 @@ def discover_onboarding_modes(String base = null) {
     return ['default'] + modes
 }
 
+def discover_chips(String repo = null, boolean required = true) {
+    def root = repo ?: env.ESP_RMNG_PATH
+    // The chips GitLab CI builds: every entry of build_examples_matter's parallel matrix in
+    // .gitlab/matter.yml, whatever the variable is called and whether an entry holds one chip
+    // or a space-separated group. Read from there so this job never offers a chip CI does not
+    // validate (e.g. esp32c6).
+    def raw = sh(returnStdout: true, script: """
+        sed -n '/^build_examples_matter:/,/^ *variables:/p' '${root}/.gitlab/matter.yml' \\
+          | sed -n '/matrix:/,\$p' | grep -E '^ *- ' | grep -vE ':[[:space:]]*\$' \\
+          | sed -e 's/#.*//' -e 's/^ *- *//' -e 's/"//g' | tr ' ' '\\n' | grep -v '^\$' || true
+    """).trim()
+    def chips = raw ? raw.split('\\r?\\n').collect { it.trim() }.findAll { it }.unique() : []
+    if (!chips && required) {
+        error("No Matter CI targets (build_examples_matter parallel matrix) found in ${root}/.gitlab/matter.yml")
+    }
+    // esp32c3 first: the default choice, and the target CI has validated longest.
+    return chips.contains('esp32c3') ? ['esp32c3'] + (chips - 'esp32c3') : chips
+}
+
+def discover_image_tag(String repo = null) {
+    def root = repo ?: env.ESP_RMNG_PATH
+    // ESP_MATTER_IMAGE_TAG in .gitlab/matter.yml: the esp-matter/IDF pin CI builds with.
+    def tag = sh(returnStdout: true, script: """
+        grep -m1 'ESP_MATTER_IMAGE_TAG:' '${root}/.gitlab/matter.yml' | sed -e 's/.*: *//' -e 's/"//g'
+    """).trim()
+    if (!tag) {
+        error("ESP_MATTER_IMAGE_TAG not found in ${root}/.gitlab/matter.yml")
+    }
+    return tag
+}
+
 def firmware_build() {
     sh '''
     printf "\n\n" >> ${REPOS_PATH}/build_details.txt
@@ -150,8 +177,8 @@ def firmware_build() {
             SDKCONFIG_DEFAULTS_ARG="${SDKCONFIG_DEFAULTS_ARG};${CUSTOM_SDK_CONFIG_FILE}"
         fi
 
-        # dependencies.lock is committed for the Matter examples (it pins the esp-matter
-        # component set), so unlike the normal job it is kept.
+        # dependencies.lock is kept (unlike the normal job) so the OTA build uses the same
+        # component versions as this run's Evaluation build.
         rm -rf build sdkconfig sdkconfig.old managed_components
 
         MAX_PROJECT_VER=1
@@ -170,9 +197,10 @@ def firmware_build() {
         # Override the PROJECT_VER cache entry from the command line instead of rewriting
         # CMakeLists.txt: a -D always wins over set(... CACHE ...).
         idf.py -DPROJECT_VER="${PROJECT_VERSION_STR}" "-DSDKCONFIG_DEFAULTS=${SDKCONFIG_DEFAULTS_ARG}" set-target ${chip}
-        # ninja directly, with a fixed -j: connectedhomeip compiles take ~2 GB RSS each, and the
-        # default parallelism (host core count) can OOM the agent. Same cap as .gitlab/matter.yml.
-        ninja -C build -j ${MATTER_BUILD_JOBS}
+        # Pin the build to MATTER_BUILD_JOBS cores, as .gitlab/matter.yml does: connectedhomeip
+        # compiles take ~2 GB RSS each and its inner ninja (an ExternalProject with no -j) sizes
+        # itself from the CPU affinity, so -j alone does not stop it from OOMing the agent.
+        taskset -c 0-$((MATTER_BUILD_JOBS - 1)) ninja -C build -j ${MATTER_BUILD_JOBS}
 
         # The override is silent if it ever stops taking effect, so assert on what was built.
         BUILT_PROJECT_VER=$(python -c 'import json; print(json.load(open("build/project_description.json"))["project_version"])')
@@ -183,86 +211,6 @@ def firmware_build() {
         echo "${product} project_ver: ${BUILT_PROJECT_VER}" >> ${REPOS_PATH}/build_details.txt
     done
     '''
-}
-
-def firmware_build_save() {
-    sh '''
-
-    IFS=','; set -- ${product_list}; product_count=$#
-
-    need_separete_firmware_folders="false"
-    if [ ${product_count} -gt 1 ]; then
-        need_separete_firmware_folders="true"
-    fi
-
-    IFS=','; for product in ${product_list}; do
-        if [ "${need_separete_firmware_folders}" = "true" ]; then
-            PACKAGE_FIRMWARE_PATH=${PACKAGE_PATH}/Firmware/${FIRMWARE_TYPE}/${product}
-        else
-            PACKAGE_FIRMWARE_PATH=${PACKAGE_PATH}/Firmware/${FIRMWARE_TYPE}
-        fi
-
-        PRODUCT_DIR=${ESP_RMNG_PATH}/examples/matter/${product}
-        cd ${PRODUCT_DIR}
-
-        mkdir -p ${PACKAGE_FIRMWARE_PATH}
-        mkdir -p ${PACKAGE_FIRMWARE_PATH}/build
-        mkdir -p ${PACKAGE_FIRMWARE_PATH}/build/bootloader
-        mkdir -p ${PACKAGE_FIRMWARE_PATH}/build/partition_table
-
-        cp build/${product}.bin ${PACKAGE_FIRMWARE_PATH}/build/${product}.bin
-        cp build/bootloader/bootloader.bin ${PACKAGE_FIRMWARE_PATH}/build/bootloader/bootloader.bin
-        cp build/partition_table/partition-table.bin ${PACKAGE_FIRMWARE_PATH}/build/partition_table/partition-table.bin
-        if [ -f build/ota_data_initial.bin ]; then
-            cp build/ota_data_initial.bin ${PACKAGE_FIRMWARE_PATH}/build/ota_data_initial.bin
-        fi
-
-        cp build/${product}.elf ${PACKAGE_FIRMWARE_PATH}/build/${product}.elf
-        cp build/${product}.map ${PACKAGE_FIRMWARE_PATH}/build/${product}.map
-
-        # Helper files
-        echo -n "${product}" >> ${PACKAGE_FIRMWARE_PATH}/file_prefix_ota_0.txt
-        echo -n "${product}" >> ${PACKAGE_FIRMWARE_PATH}/file_prefix_bootloader.txt
-
-        # json
-        cp build/project_description.json ${PACKAGE_FIRMWARE_PATH}/build/project_description.json
-        cp build/flasher_args.json ${PACKAGE_FIRMWARE_PATH}/build/flasher_args.json
-
-        # flash arguments
-        cp build/flash_args ${PACKAGE_FIRMWARE_PATH}/build/flash_args
-
-        # Make merged binary. The Matter fctry partition is not in flash_args: it is flashed
-        # separately from the dashboard-generated bin.
-        . ${IDF_PATH}/export.sh
-        (cd ${PACKAGE_FIRMWARE_PATH}/build && python -m esptool --chip ${chip} merge_bin -o ${PACKAGE_FIRMWARE_PATH}/${product}-merged.bin @flash_args)
-    done
-    '''
-}
-
-def script_artifacts_create() {
-    sh '''
-        echo "Nothing in script_artifacts_create"
-    '''
-}
-
-def tools_artifacts_create() {
-    sh '''
-        echo "Nothing in tools_artifacts_create"
-    '''
-}
-
-def artifacts_save() {
-    sh """
-    set -e
-
-    cd "${REPOS_PATH}"
-    cp build_details.txt "${PACKAGE_NAME}/"
-
-    mkdir -p "${WORKSPACE}/artifacts"
-    cp build_details.txt "${WORKSPACE}/artifacts/"
-
-    tar -zcvf "${WORKSPACE}/artifacts/${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}"
-    """
 }
 
 return this

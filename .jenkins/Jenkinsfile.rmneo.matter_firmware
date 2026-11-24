@@ -1,3 +1,10 @@
+// espressif/esp-matter image tags offered by this job. The CI default (ESP_MATTER_IMAGE_TAG in
+// .gitlab/matter.yml) is always listed first, whether or not it is here; the rest follow in order.
+esp_matter_image_tags = [
+    'release-v1.6_idf_v6.0.2',
+    'release-v1.6.1_idf_v6.0.2',
+]
+
 node('build') {
     stage('Discover products') {
         checkout scm
@@ -5,8 +12,14 @@ node('build') {
         def discovered = matter.discover_products("${WORKSPACE}/examples/matter")
         product_choices = (['all'] + discovered).join('\n')
         onboarding_choices = matter.discover_onboarding_modes("${WORKSPACE}/examples/matter").join('\n')
+        // Chips and the default image tag follow .gitlab/matter.yml, so this job and CI don't drift.
+        chip_choices = matter.discover_chips("${WORKSPACE}").join('\n')
+        def ci_image_tag = matter.discover_image_tag("${WORKSPACE}")
+        image_tag_choices = ([ci_image_tag] + (esp_matter_image_tags - ci_image_tag)).join('\n')
         echo "Product Choices:\n${product_choices}"
         echo "Onboarding Choices:\n${onboarding_choices}"
+        echo "Chip Choices:\n${chip_choices}"
+        echo "Image Tag Choices:\n${image_tag_choices}"
     }
 }
 pipeline {
@@ -24,8 +37,8 @@ pipeline {
     parameters {
         choice(name: 'product', choices: "${product_choices}", description: 'Matter example to build. Pick "all" to build every example under examples/matter/ that has a main/ directory')
         choice(name: 'onboarding_mode', choices: "${onboarding_choices}", description: '"default" = the example\'s sdkconfig.defaults (Matter-first, CHIPoBLE). Others layer examples/matter/common/ci-sdkconfig/sdkconfig.ci.<mode> on top (e.g. onnetwork = RainMaker BLE provisioning, then Matter over IP)')
-        choice(name: 'esp_matter_image_tag', choices: ['release-v1.6_idf_v6.0.2', 'release-v1.6.1_idf_v6.0.2'], description: 'espressif/esp-matter image tag. Keep in step with ESP_MATTER_IMAGE_TAG in .gitlab/matter.yml')
-        choice(name: 'chip', choices:['esp32c3', 'esp32', 'esp32c6', 'esp32s3'], description: 'Chips (the ones with an esp-matter device_hal in the examples\' CMakeLists.txt)')
+        choice(name: 'esp_matter_image_tag', choices: "${image_tag_choices}", description: 'espressif/esp-matter image tag. The first is the CI default (ESP_MATTER_IMAGE_TAG in .gitlab/matter.yml)')
+        choice(name: 'chip', choices: "${chip_choices}", description: 'Chips GitLab CI builds (build_examples_matter matrix in .gitlab/matter.yml)')
         string(name: 'branch', defaultValue: 'main', description: 'Branch to be used for esp-rainmaker-neo-firmware')
         text(name: 'custom_sdk_config', defaultValue: '', description: 'Optional: extra sdkconfig entries, applied after the product\'s sdkconfig.defaults, the onboarding mode and its target-specific file.')
     }
@@ -47,12 +60,14 @@ pipeline {
             steps {
                 script {
                     currentBuild.displayName = "${BUILD_TAG}"
-                    currentBuild.description = "RMNG Matter Setup"
+                    currentBuild.description = "RainMaker Neo Matter Setup"
                 }
-                println('Running RMNG Matter Setup...')
+                println('Running RainMaker Neo Matter Setup...')
                 catchError() {
                     script {
                         def matter = load "${WORKSPACE}/.jenkins/rmneo.matter.groovy"
+                        // Directory setup and packaging are shared with the normal firmware job.
+                        def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
 
                         // Normalize CRLF/CR, and keep the empty case a 0-byte file so `-s` in
                         // the groovy tells "no overrides" apart from a broken hand-off.
@@ -74,6 +89,12 @@ pipeline {
                         if (!all_modes.contains(params.onboarding_mode)) {
                             error("Onboarding mode '${params.onboarding_mode}' not found on branch ${branch}. Available: ${all_modes.join(', ')}")
                         }
+                        // Same for the chip, when the branch has a Matter CI matrix to check it
+                        // against: an older branch without one is built as asked.
+                        def branch_chips = matter.discover_chips(null, false)
+                        if (branch_chips && !branch_chips.contains(params.chip)) {
+                            error("Chip '${params.chip}' is not built by CI on branch ${branch}. Available: ${branch_chips.join(', ')}")
+                        }
 
                         def selected
                         if (params.product?.trim() in [null, '', 'all']) {
@@ -93,7 +114,7 @@ pipeline {
                         echo "Package name: ${PACKAGE_NAME}"
                         echo "Product list: ${env.product_list}"
 
-                        matter.setup_directories()
+                        rmng.setup_directories()
                     }
                 }
             }
@@ -113,16 +134,18 @@ pipeline {
                 catchError() {
                     script {
                         def matter = load "${WORKSPACE}/.jenkins/rmneo.matter.groovy"
+                        // Directory setup and packaging are shared with the normal firmware job.
+                        def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
 
                         // Build Evaluation firmware (with custom config if provided)
                         env.FIRMWARE_TYPE = "Evaluation"
                         matter.firmware_build()
-                        matter.firmware_build_save()
+                        rmng.firmware_build_save()
 
                         // Build OTA firmware
                         env.FIRMWARE_TYPE = "OTA"
                         matter.firmware_build()
-                        matter.firmware_build_save()
+                        rmng.firmware_build_save()
                     }
                 }
             }
@@ -141,9 +164,9 @@ pipeline {
                 println('Create Support package.')
                 catchError() {
                     script {
-                        def matter = load "${WORKSPACE}/.jenkins/rmneo.matter.groovy"
-                        matter.script_artifacts_create()
-                        matter.tools_artifacts_create()
+                        def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
+                        rmng.script_artifacts_create()
+                        rmng.tools_artifacts_create()
                     }
                 }
             }
@@ -162,8 +185,8 @@ pipeline {
                 println('Generating artifacts.')
                 catchError() {
                     script {
-                        def matter = load "${WORKSPACE}/.jenkins/rmneo.matter.groovy"
-                        matter.artifacts_save()
+                        def rmng = load "${WORKSPACE}/.jenkins/rmng.groovy"
+                        rmng.artifacts_save()
                     }
                 }
             }
