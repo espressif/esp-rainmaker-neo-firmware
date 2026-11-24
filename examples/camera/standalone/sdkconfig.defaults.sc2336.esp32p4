@@ -1,0 +1,9 @@
+#
+# SC2336 MIPI-CSI sensor, 1080p at 30 fps (RAW8), for P4 boards that carry it,
+# such as the ESP32-P4 Function EV Board.
+#
+# Build with:
+#   idf.py -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.sc2336.esp32p4' set-target esp32p4 build
+#
+CONFIG_CAMERA_SC2336=y
+CONFIG_CAMERA_SC2336_MIPI_RAW8_1920X1080_30FPS=y

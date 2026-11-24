@@ -1,0 +1,2 @@
+# C6 images that slave_flasher embeds in the app; built locally, never committed.
+*.bin

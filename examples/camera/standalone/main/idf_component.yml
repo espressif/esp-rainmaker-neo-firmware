@@ -1,0 +1,53 @@
+## IDF Component Manager Manifest File
+dependencies:
+  # RainMaker Neo SDK
+  esp_rmaker_neo:
+    path: ../../../../components/esp_rmaker_neo
+  esp_rmaker_neo_common:
+    path: ../../../../components/esp_rmaker_neo_common
+
+  # Common example components
+  app_event_loop:
+    path: ../../../common/app_event_loop
+  app_entry:
+    path: ../../../common/app_entry
+  app_network:
+    path: ../../../common/app_network
+
+  # Camera glue (device + credentials + WebRTC signaling bring-up)
+  rmaker_camera:
+    path: ../../components/rmaker_camera
+
+  # KVS WebRTC media plane (esp-port-for-amazon-kvs-sdk, via KVS_SDK_PATH)
+  kvs_webrtc:
+    path: ${KVS_SDK_PATH}/components/kvs_webrtc
+    version: "*"
+  media_stream:
+    path: ${KVS_SDK_PATH}/components/media_stream
+    version: "*"
+
+  # P4: Wi-Fi + BLE live on the hosted co-processor
+  espressif/esp_hosted:
+    version: "3.1.0"
+    rules:
+      - if: "target in [esp32p4]"
+  espressif/esp_wifi_remote:
+    version: "*"
+    rules:
+      - if: "target in [esp32p4]"
+
+  # Local P4-EYE BSP from the KVS SDK: does the board-specific camera
+  # bring-up (XCLK allocate/start, sensor reset + enable pins) that the
+  # stock registry BSP omits.
+  espressif/esp32_p4_eye:
+    override_path: ${KVS_SDK_PATH}/examples/common_components/esp32_p4_eye
+    version: "*"
+    rules:
+      - if: target in [esp32p4] && $CONFIG{BSP_SELECT_ESP32_P4_EYE} == True
+
+  # Host-side flasher for the on-board co-processor (C6/C5)
+  slave_flasher:
+    path: ${KVS_SDK_PATH}/components/slave_flasher
+    version: "*"
+    rules:
+      - if: "target in [esp32p4]"

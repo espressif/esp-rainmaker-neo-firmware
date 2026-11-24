@@ -46,6 +46,7 @@ INPUT = \
     $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_standard_params.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_standard_devices.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo/include/esp_rmaker_standard_services.h \
+    $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_aws_sign_port_osal.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_common_events.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_credentials.h \
     $(PROJECT_PATH)/components/esp_rmaker_neo_common/include/esp_rmaker_credentials_provider.h \

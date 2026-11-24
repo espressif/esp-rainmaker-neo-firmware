@@ -1,0 +1,87 @@
+# ESP32-C5 settings for rmaker_split_camera. Layered on top of sdkconfig.defaults.
+#
+# The C5 build carries host deep sleep with co-processor light sleep. Its Wi-Fi init
+# config matches the KVS SDK's signaling_only C5 build, so the P4's streaming_only
+# with the C5 core-board overlay pairs with it unchanged.
+
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+#
+# BLE, for provisioning only
+#
+CONFIG_BT_LE_SLEEP_ENABLE=y
+CONFIG_BT_LE_HCI_INTERFACE_USE_RAM=y
+# NimBLE allocates from PSRAM (the controller runs from flash, see sdkconfig.defaults)
+CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_EXTERNAL=y
+
+#
+# PSRAM. RainMaker Neo (MQTT, params) on top of esp_hosted and signaling leaves
+# little internal RAM. Let even small mallocs go to PSRAM; drivers that need
+# internal RAM ask for it explicitly.
+#
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_QUAD=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=0
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+# esp_hosted frees its SDIO DMA aggregation buffer (15872 B) while the host
+# sleeps and allocates it again in internal RAM at every host wake.
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=65536
+CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
+CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY=y
+CONFIG_NVS_ALLOCATE_CACHE_IN_SPIRAM=y
+# Every TLS session's buffers go to PSRAM. RainMaker keeps its MQTT session
+# open, so with internal buffers the KVS signaling WebSocket handshake left no
+# internal RAM for the AES DMA buffer, and signaling never connected.
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_PEER_CERT=y
+CONFIG_ESP_CACHE_MALLOC=y
+
+#
+# Wi-Fi init config: equal to the P4's C5 core-board overlay (10 static RX
+# buffers, Enterprise off). A mismatch makes the co-processor re-initialise
+# Wi-Fi on every host wake.
+#
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=10
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=32
+CONFIG_ESP_WIFI_AMPDU_TX_ENABLED=y
+CONFIG_ESP_WIFI_TX_BA_WIN=16
+CONFIG_ESP_WIFI_AMPDU_RX_ENABLED=y
+CONFIG_ESP_WIFI_RX_BA_WIN=16
+
+# The Wi-Fi IRAM options trade internal RAM for throughput and stay off. The
+# sleep path is the exception: it runs while flash and cache are down under
+# co-processor light sleep, so it must be in IRAM.
+CONFIG_ESP_WIFI_IRAM_OPT=n
+CONFIG_ESP_WIFI_EXTRA_IRAM_OPT=n
+CONFIG_ESP_WIFI_RX_IRAM_OPT=n
+CONFIG_ESP_WIFI_SLP_IRAM_OPT=y
+
+#
+# Host deep sleep, with co-processor light sleep
+#
+CONFIG_ESP_HOSTED_CP_FEAT_HOST_PS=y
+CONFIG_ESP_HOSTED_CP_FEAT_HOST_PS_DEEP_SLEEP=y
+CONFIG_ESP_HOSTED_CP_FEAT_HOST_PS_UNLOAD_BUS_WHILE_SLEEPING=y
+# P4-C5 core board pin; another board overlay must set its own. Without a
+# value esp_hosted leaves the pin at -1 and its #error stops the build.
+CONFIG_ESP_HOSTED_CP_FEAT_HOST_PS_HOST_WAKEUP_GPIO=3
+# Each signaling keep-alive ping wakes the radio. The default is 10 s.
+CONFIG_KVS_SIGNALING_WSS_PING_INTERVAL_SEC=60
+# power_save_init() brings the feature up with its sleep callbacks.
+CONFIG_ESP_HOSTED_CP_FEAT_HOST_PS_AUTO_INIT=n
+CONFIG_PM_ENABLE=y
+CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP=y
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+# ESP_HOSTED_CP_LIGHT_SLEEP_ENABLE is derived from this choice.
+CONFIG_ESP_HOSTED_CP_LIGHT_SLEEP_POWER_MAX=y
+CONFIG_ESP_HOSTED_CP_LIGHT_SLEEP_MIN_FREQ_MHZ=12
+# The sleep path must survive with flash and cache down. Without these the
+# co-processor resets when light sleep is entered.
+CONFIG_PM_SLP_IRAM_OPT=y
+CONFIG_PM_SLEEP_FUNC_IN_IRAM=y
+CONFIG_PM_RTOS_IDLE_OPT=y
+CONFIG_PM_SLP_DEFAULT_PARAMS_OPT=y
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+CONFIG_ESP_PHY_MAC_BB_PD=y
+CONFIG_ESP_WIFI_ENHANCED_LIGHT_SLEEP=y

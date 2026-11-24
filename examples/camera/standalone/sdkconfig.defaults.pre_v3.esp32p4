@@ -1,0 +1,8 @@
+#
+# ESP32-P4 silicon before v3, such as the P4-EYE. Without it the bootloader
+# rejects the chip with "requires chip revision in range v3.1-v3.99".
+#
+# Build with, for example:
+#   idf.py -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.p4_eye.esp32p4;sdkconfig.defaults.pre_v3.esp32p4' set-target esp32p4 build
+#
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y

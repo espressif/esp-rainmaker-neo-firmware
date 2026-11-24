@@ -34,6 +34,9 @@ and a later call tries again. That does two things:
 holds mem/time/mutex/log, `_osal_http.c` and `_osal_json.c` hold those groups. The same port is used on ESP-IDF for
 firmware tests.
 
+The port's header, `esp_rmaker_aws_sign_port_osal.h`, is public, in `esp_rmaker_neo_common/include/`. So a component
+outside the SDK, such as an example, can install the port too.
+
 ### JSON is jsmn, not a second scanner
 
 `osal/json` already ships `json_parser` (jsmn), so the port uses it instead of the component's own scanner. It

@@ -7,6 +7,7 @@
 #   build        — one job PER TARGET, builds all examples with the pinned IDF image and
 #                  emits per-app merged binaries already laid out as the published site.
 #   build-matter — the same for examples/matter/, on the pinned esp-matter image.
+#   build-camera — examples/camera/standalone for the ESP32-S3, against the KVS WebRTC SDK.
 #   deploy       — merges every target's artifact into one tree, generates launchpad.toml +
 #                  README.md + index.html, and deploys the whole thing to Pages.
 #
@@ -201,8 +202,84 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  # The camera examples build against the KVS WebRTC SDK (KVS_SDK_PATH), which this
+  # repo does not carry. examples/camera/standalone is the only one published: split
+  # mode needs a second (P4) image from the KVS SDK, and the P4 standalone overlays need
+  # co-processor images. Only the ESP32-S3 (ESP32-S3-EYE) is built here.
+  build-camera:
+    # Same gate as `build` — see the note there.
+    if: >-
+      github.repository_owner == 'espressif' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v6.0.2
+    timeout-minutes: 180
+    env:
+      # Keep in step with KVS_SDK_REF in .gitlab/examples_camera.yml.
+      KVS_SDK_REF: v1.0.0-rc1
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [esp32s3]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Clone the KVS WebRTC SDK
+        shell: bash
+        run: |
+          git clone -q --depth 1 --branch "$KVS_SDK_REF" --recurse-submodules --shallow-submodules \
+            https://github.com/espressif/esp-port-for-amazon-kvs-sdk.git "$GITHUB_WORKSPACE/../kvs-sdk"
+
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: .ccache
+          key: launchpad-camera-ccache-${{ matrix.target }}-${{ github.sha }}
+          restore-keys: |
+            launchpad-camera-ccache-${{ matrix.target }}-
+
+      # EXAMPLES_DIR/<app>/main finds examples/camera/standalone. split_mode/ sits one
+      # level deeper, and components/ has no `main/`, so neither is built.
+      - name: Build camera examples
+        shell: bash
+        env:
+          IDF_TARGET: ${{ matrix.target }}
+          EXAMPLES_DIR: examples/camera
+          APP_PREFIX: camera_
+          SITE_DIR: ${{ github.workspace }}/site
+          BUILD_TMP: ${{ github.workspace }}/launchpad_camera_build_tmp
+          IDF_CCACHE_ENABLE: "1"
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+          CCACHE_MAXSIZE: 1G
+          CCACHE_BASEDIR: ${{ github.workspace }}
+          CCACHE_NOHASHDIR: "1"
+          # pch_defines is left out on purpose: it lets a stale PCH outlive an sdkconfig change.
+          CCACHE_SLOPPINESS: time_macros,include_file_mtime,include_file_ctime,file_stat_matches
+          CCACHE_COMPILERCHECK: content
+        run: |
+          . "$IDF_PATH/export.sh"
+          export KVS_SDK_PATH="$(cd "$GITHUB_WORKSPACE/../kvs-sdk" && pwd)"
+          pip install idf-build-apps
+          ccache --zero-stats || true
+          # The container runs as a different user than the checkout owner.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$IDF_PATH"
+          bash .github/tools/launchpad/build_launchpad.sh
+
+      - name: Upload target artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: launchpad-camera-${{ matrix.target }}
+          path: site
+          retention-days: 7
+          if-no-files-found: error
+
   deploy:
-    needs: [build, build-matter]
+    needs: [build, build-matter, build-camera]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

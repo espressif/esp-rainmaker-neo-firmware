@@ -1,0 +1,13 @@
+menu "RainMaker Camera"
+
+    config RMAKER_CAMERA_AWS_SIGN
+        bool
+        default y
+        select ESP_RMAKER_NEO_AWS_SIGN_PORT
+        select ESP_RMAKER_NEO_SERVER_CONFIG_VIDEOSTREAM_SUPPORT
+        help
+            The camera gets its KVS credentials through the rmaker_aws_sign osal port
+            that esp_rmaker_neo_common compiles. The credential endpoint, video role
+            alias and region come from the deployment's server config.
+
+endmenu

@@ -1,0 +1,117 @@
+# Signaling half of the split (RainMaker Neo node + KVS signaling) on the ESP32-C6
+# or ESP32-C5 co-processor of a P4 board. The P4 runs the KVS SDK's streaming_only
+# example. Chip-specific settings are in sdkconfig.defaults.<target>.
+
+#
+# Flash and partition table: table at 0xC000, first app slot at 0x20000 (the
+# offsets the P4-EYE streaming_only overlays' slave_flasher writes to).
+#
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_OFFSET=0xC000
+
+#
+# Size-optimised, to fit RainMaker Neo + KVS signaling + the hosted slave
+#
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
+CONFIG_LOG_VERSION_2=y
+CONFIG_MBEDTLS_ERROR_STRINGS=n
+
+#
+# RainMaker Neo: BLE provisioning with a compact QR code
+#
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+CONFIG_BT_NIMBLE_50_FEATURE_SUPPORT=n
+CONFIG_BT_NIMBLE_LOG_LEVEL_WARNING=y
+# BLE is used only for provisioning. Running the controller from flash frees
+# about 23 KB of internal RAM for TLS and media forwarding.
+CONFIG_BT_CTRL_RUN_IN_FLASH_ONLY=y
+CONFIG_APP_NETWORK_PROV_COMPACT_QR=y
+# SoftAP support stays on: esp_hosted 3.x wraps esp_netif_create_default_wifi_ap(),
+# which IDF compiles out without it, and the link then fails.
+CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT=n
+
+# Factory partition: keep the Neo and rmaker_app_network values the same.
+CONFIG_ESP_RMAKER_NEO_FACTORY_PARTITION_NAME="fctry"
+CONFIG_ESP_RMAKER_NEO_FACTORY_NAMESPACE="rmaker_creds"
+CONFIG_APP_NETWORK_FACTORY_NVS_PARTITION_NAME="fctry"
+CONFIG_APP_NETWORK_PROV_DATA_NAMESPACE="rmaker_creds"
+
+# Request the "kvs" capability at claim (assisted claiming only).
+CONFIG_ESP_RMAKER_NEO_CLAIM_VIDEOSTREAM_SUPPORT=y
+
+#
+# TLS: the common CA bundle, dynamic buffers
+#
+# The co-processor does no DTLS: the P4 runs the media DTLS. With DTLS off, TLS
+# buffers can be dynamic, which leaves enough heap for the KVS signaling TLS.
+CONFIG_MBEDTLS_SSL_PROTO_DTLS=n
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
+# Default y on IDF v5.5 and n on v6.0. Keep it the same on both.
+CONFIG_MBEDTLS_SSL_KEEP_PEER_CERTIFICATE=y
+
+#
+# Keep code out of IRAM (C6 internal-RAM budget)
+#
+CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH=y
+CONFIG_RINGBUF_PLACE_FUNCTIONS_INTO_FLASH=y
+CONFIG_RINGBUF_PLACE_ISR_FUNCTIONS_INTO_FLASH=y
+
+#
+# FreeRTOS, pthread and system tasks
+#
+CONFIG_FREERTOS_HZ=1000
+CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=3072
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=8000
+CONFIG_PTHREAD_STACK_MIN=4096
+
+#
+# lwIP
+#
+CONFIG_LWIP_SNTP_MAX_SERVERS=3
+CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
+
+#
+# KVS signaling WebSocket
+#
+# The signed WebSocket URL carries the AWS session token and can exceed 2 KB.
+# The buffer is freed once connected (WS_DYNAMIC_BUFFER).
+CONFIG_WS_BUFFER_SIZE=4096
+CONFIG_WS_DYNAMIC_BUFFER=y
+
+#
+# esp_hosted 3.x: this chip is the Wi-Fi co-processor of the streaming P4. Network
+# split shares the one Wi-Fi link between its own lwIP (RainMaker Neo MQTT, KVS
+# signaling) and the P4's (RTP media).
+#
+CONFIG_ESP_HOSTED=y
+CONFIG_ESP_HOSTED_CP=y
+CONFIG_ESP_HOSTED_CP_FOR_MCU=y
+CONFIG_ESP_HOSTED_CP_RPC_V2=y
+CONFIG_ESP_HOSTED_CP_FEAT_WIFI=y
+CONFIG_ESP_HOSTED_CP_FEAT_NW_SPLIT=y
+# BLE stays local to this chip for RainMaker Neo provisioning; not exported to the P4.
+CONFIG_ESP_HOSTED_CP_FEAT_BT=n
+# The bridge carries signaling and commands over the peer-data channel.
+CONFIG_ESP_HOSTED_CP_FEAT_PEER_DATA=y
+# app_run() owns init ordering: the netif is created before eh_cp_init().
+CONFIG_ESP_HOSTED_AUTO_CALL_INIT_BEFORE_APP_MAIN=n
+# The co-processor's app connects; esp_hosted's own connect on STA_START would race it.
+CONFIG_ESP_HOSTED_CP_FEAT_NW_SPLIT_WIFI_AUTO_CONNECT_ON_STA_START=n
+# Packets that match no rule go to the host. Signaling's sockets sit in this
+# chip's own port range and still match; the P4 runs WebRTC and must receive
+# DNS and STUN/TURN replies and media on its ephemeral ports.
+CONFIG_ESP_HOSTED_DEFAULT_NETWORK_STACK_HOST=y
+# Share the application's console instead of opening a second one.
+CONFIG_ESP_HOSTED_CP_CLI_NEW_INSTANCE=n
+CONFIG_EH_TRANSPORT_CP_SDIO_RX_Q_SIZE=10
+CONFIG_EH_TRANSPORT_CP_SDIO_TX_Q_SIZE=10

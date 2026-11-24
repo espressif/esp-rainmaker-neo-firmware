@@ -1,0 +1,67 @@
+# The camera examples build against esp-port-for-amazon-kvs-sdk (KVS_SDK_PATH), so
+# they have their own job. The general example jobs skip examples/camera through
+# EXAMPLES_EXCLUDED_DIRS in config.yml.
+build_examples_camera:
+  timeout: 2h
+  extends:
+    - .build_template
+    - .esp_env_template
+  parallel:
+    matrix:
+      # Same IDF versions as build_examples_esp_idf.
+      - IDF_VERSION: ["release-v6.0", "release-v6.1"]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths:
+          - examples/camera/**/*
+          - examples/common/**/*
+          - components/**/*
+          - .gitlab/examples_camera.yml
+      when: on_success
+      variables:
+        GIT_DEPTH: "1"
+    - if: $CI_MERGE_REQUEST_IID
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+      variables:
+        GIT_DEPTH: "1"
+  variables:
+    # Pinned to a KVS SDK release, so a change in the SDK cannot break this repo's
+    # pipelines. Move it on purpose, and say so in the MR.
+    KVS_SDK_REPO: "https://gitlab.espressif.cn:6688/app-frameworks/esp-port-for-amazon-kvs-sdk.git"
+    KVS_SDK_REF: "v1.0.0-rc1"
+    KVS_SDK_PATH: "$CI_PROJECT_DIR/esp-port-for-amazon-kvs-sdk"
+    ESP_REPORTS_DIR: "$CI_PROJECT_DIR/camera_size_reports_idf_${IDF_VERSION}"
+    ESP_BUILD_TMP_BASE: "$CI_PROJECT_DIR/camera_build_tmp_idf_${IDF_VERSION}"
+    ESP_MIN_APP_FREE_BYTES: "102400"
+    ESP_MIN_APP_FREE_PCT: "0"
+  script:
+    - |
+      set -eo pipefail
+      git config --global url."https://${CI_GITLAB_USERNAME_APP_FRAMEWORKS}:${CI_GITLAB_PASSWORD_APP_FRAMEWORKS}@gitlab.espressif.cn:6688/app-frameworks/".insteadOf "https://gitlab.espressif.cn:6688/app-frameworks/"
+      rm -rf "$KVS_SDK_PATH"
+      git init -q "$KVS_SDK_PATH"
+      git -C "$KVS_SDK_PATH" fetch -q --depth 1 "$KVS_SDK_REPO" "$KVS_SDK_REF"
+      git -C "$KVS_SDK_PATH" checkout -q FETCH_HEAD
+      git -C "$KVS_SDK_PATH" submodule update --init --recursive --depth 1
+    - |
+      # The p4_eye overlay also needs the C6 images in target-firmware/, so it is
+      # not built here. The default chains cover the shared code.
+      for app in "standalone esp32p4" "standalone esp32s3" "split_mode/rmaker_split_camera esp32c6" "split_mode/rmaker_split_camera esp32c5"; do
+        set -- $app
+        build_dir="$ESP_BUILD_TMP_BASE/$(basename "$1")_$2"
+        echo "=== examples/camera/$1 for $2 (IDF $IDF_VERSION) ==="
+        idf.py -C "examples/camera/$1" -B "$build_dir" -DSDKCONFIG="$build_dir/sdkconfig" set-target "$2" build
+        collect_esp_build_artifacts "$build_dir" "$ESP_REPORTS_DIR" "$2"
+        check_esp_app_free_space "$build_dir" "$2" "$ESP_REPORTS_DIR/app_free_space.csv" || FREE_SPACE_FAIL=1
+      done
+      if [ "${FREE_SPACE_FAIL:-0}" != "0" ]; then
+        echo "ERROR: app partition headroom below ESP_MIN_APP_FREE_BYTES (see 'free-space:' lines above)" >&2
+        exit 1
+      fi
+  artifacts:
+    paths:
+      - ${ESP_REPORTS_DIR}/
+    expire_in: 1 week
