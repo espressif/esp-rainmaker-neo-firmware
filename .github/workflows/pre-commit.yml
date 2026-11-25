@@ -4,8 +4,8 @@
 
 # Runs the same pre-commit hooks the internal pipeline and every developer's commit runs, so a
 # contributor learns their formatting is off from CI instead of from a reviewer. The hook set is
-# in .pre-commit-config.yaml: astyle, cmake-format, ruff, esp-idf-kconfig, codespell, license
-# headers, end-of-file newlines.
+# in .pre-commit-config.yaml: gitleaks, astyle, cmake-format, ruff, esp-idf-kconfig, codespell,
+# license headers, end-of-file newlines.
 
 name: Lint
 
