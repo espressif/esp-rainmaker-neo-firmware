@@ -55,10 +55,11 @@ its own peer-connection interface — the local KVS peer connection
 
 ## Notes / current limitations
 
-- **The standalone P4 camera has no video yet.** The P4 overlays here use RAW
+- **The standalone P4 camera needs an IDF patch for video.** The P4 overlays here use RAW
   MIPI-CSI sensors, and ESP-IDF after v5.5.5 rejects the RAW input at CSI init.
-  This repo needs ESP-IDF v6.0.2 or later, so video does not start until
-  espressif/esp-idf!53677 lands. Split mode is not affected: its P4 image is built
+  This repo needs ESP-IDF v6.0.2 or later, so video needs the IDF patch in
+  `.github/tools/launchpad/idf_patches/csi_raw_input.patch` until a v6.x release has
+  the fix (see the standalone README). Split mode is not affected: its P4 image is built
   from the KVS SDK, which can use v5.5.5. The ESP32-S3 standalone camera is not
   affected either.
 - WebRTC streaming only: no file or clip upload, no insights, no

@@ -17,6 +17,12 @@
 #   LAUNCHPAD_EXCLUDE optional, space-separated example names or paths to skip
 #   APP_PREFIX        optional, prepended to each published app name, e.g. "camera_"
 #                     so examples/camera/standalone publishes as camera_standalone
+#   APP_SUFFIX        optional, appended to each published app name, e.g. "_p4_eye"
+#                     for a per-board image of an example
+#   SDKCONFIG_OVERRIDES optional, space-separated sdkconfig files (absolute, or relative
+#                     to the current directory) applied after sdkconfig.defaults, e.g.
+#                     a board overlay
+#   LAUNCHPAD_PAGE    default "LAUNCHPAD.md", the example's page to publish for the app
 #   BUILD_TMP         default "$PWD/launchpad_build_tmp"
 #
 # Must run with the IDF environment exported and idf-build-apps installed.
@@ -28,6 +34,9 @@ set -euo pipefail
 EXAMPLES_DIR="${EXAMPLES_DIR:-examples}"
 LAUNCHPAD_EXCLUDE="${LAUNCHPAD_EXCLUDE:-}"
 APP_PREFIX="${APP_PREFIX:-}"
+APP_SUFFIX="${APP_SUFFIX:-}"
+SDKCONFIG_OVERRIDES="${SDKCONFIG_OVERRIDES:-}"
+LAUNCHPAD_PAGE="${LAUNCHPAD_PAGE:-LAUNCHPAD.md}"
 BUILD_TMP="${BUILD_TMP:-$PWD/launchpad_build_tmp}"
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
@@ -93,10 +102,23 @@ echo "Building launchpad examples for $IDF_TARGET: ${BUILD_DIRS[*]}"
 # --- build -------------------------------------------------------------------
 # Launchpad ships one image per example: build ONLY the default config, never the
 # sdkconfig.ci.* variants. Build dir name is therefore always "<app>_default".
+#
+# SDKCONFIG_OVERRIDES layers board overlays on top, for a per-board image.
+OVERRIDE_ARGS=()
+if [ -n "$SDKCONFIG_OVERRIDES" ]; then
+  files=""
+  for f in $SDKCONFIG_OVERRIDES; do
+    f="$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
+    files="${files:+$files,}$f"
+  done
+  OVERRIDE_ARGS=(--override-sdkconfig-files "$files")
+  echo "sdkconfig overrides: $files"
+fi
 idf-build-apps build --config-rules "sdkconfig.defaults=default" \
   --target "$IDF_TARGET" \
   --path "${BUILD_DIRS[@]}" \
-  --build-dir "${BUILD_TMP}/@n_@w"
+  --build-dir "${BUILD_TMP}/@n_@w" \
+  "${OVERRIDE_ARGS[@]}"
 
 ccache --show-stats 2>/dev/null || true
 
@@ -135,7 +157,7 @@ for build_dir in "$BUILD_TMP"/*; do
 
   build_name=$(basename "$build_dir")   # "<app>_default"
   dir_name="${build_name%_default}"
-  app="${APP_PREFIX}${dir_name}"
+  app="${APP_PREFIX}${dir_name}${APP_SUFFIX}"
   desc="$build_dir/project_description.json"
   project_path=""
   elf=""
@@ -177,10 +199,10 @@ for build_dir in "$BUILD_TMP"/*; do
   #
   # The fallback (only reached when build metadata is unreadable) can assume
   # $EXAMPLES_DIR/<dir_name>: discovery is bounded to that depth.
-  if [ -n "$project_path" ] && [ -f "$project_path/LAUNCHPAD.md" ]; then
-    cp "$project_path/LAUNCHPAD.md" "$SITE_DIR/$app/LAUNCHPAD.md"
-  elif [ -f "$REPO_ROOT/$EXAMPLES_DIR/$dir_name/LAUNCHPAD.md" ]; then
-    cp "$REPO_ROOT/$EXAMPLES_DIR/$dir_name/LAUNCHPAD.md" "$SITE_DIR/$app/LAUNCHPAD.md"
+  if [ -n "$project_path" ] && [ -f "$project_path/$LAUNCHPAD_PAGE" ]; then
+    cp "$project_path/$LAUNCHPAD_PAGE" "$SITE_DIR/$app/LAUNCHPAD.md"
+  elif [ -f "$REPO_ROOT/$EXAMPLES_DIR/$dir_name/$LAUNCHPAD_PAGE" ]; then
+    cp "$REPO_ROOT/$EXAMPLES_DIR/$dir_name/$LAUNCHPAD_PAGE" "$SITE_DIR/$app/LAUNCHPAD.md"
   else
     echo "WARN: no LAUNCHPAD.md for $app; readme.text will be omitted" >&2
   fi

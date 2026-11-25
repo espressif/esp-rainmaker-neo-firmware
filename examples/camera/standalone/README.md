@@ -28,6 +28,17 @@ if they are missing.
 | ESP32-P4 board with an SC2336 sensor, such as the ESP32-P4 Function EV Board | `sdkconfig.defaults;sdkconfig.defaults.sc2336.esp32p4` |
 | ESP32-S3-EYE | `sdkconfig.defaults` (with `set-target esp32s3`) |
 
+**ESP32-P4 boards have no video on a stock IDF v6.x.** Its CSI driver rejects the RAW
+input of these sensors (OV2710 on the P4-EYE boards, SC2336), so the node builds and
+provisions but streams nothing. Until a v6.x release has the fix, patch the IDF
+before building:
+
+```sh
+git -C "$IDF_PATH" apply <repo>/.github/tools/launchpad/idf_patches/csi_raw_input.patch
+```
+
+Drop this step once an IDF release includes the fix.
+
 IDF loads `sdkconfig.defaults.esp32p4` or `sdkconfig.defaults.esp32s3` after
 `sdkconfig.defaults` on its own, so the chains do not name it.
 
