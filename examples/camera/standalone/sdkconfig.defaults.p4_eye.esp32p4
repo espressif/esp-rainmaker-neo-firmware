@@ -23,12 +23,12 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.16mb.csv"
 # network_adapter images from target-firmware/ and writes them to the C6 over
 # UART at boot, when they differ from what the C6 has. Each app OTA brings its
 # own C6 image. The addresses match the network_adapter partition layout
-# (table at 0x8000, first app at 0x10000).
+# (table at 0xC000, first app at 0x20000).
 #
 CONFIG_SLAVE_FLASHER_ENABLE=y
 CONFIG_SLAVE_FLASHER_IMAGE_EMBEDDED=y
-CONFIG_SLAVE_PARTITION_TABLE_ADDRESS=0x8000
-CONFIG_SLAVE_APPLICATION_ADDRESS=0x10000
+CONFIG_SLAVE_PARTITION_TABLE_ADDRESS=0xC000
+CONFIG_SLAVE_APPLICATION_ADDRESS=0x20000
 CONFIG_SLAVE_UART_RX_PIN=36
 CONFIG_SLAVE_UART_TX_PIN=35
 CONFIG_SLAVE_GPIO0_TRIGGER_PIN=33
