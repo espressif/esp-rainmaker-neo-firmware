@@ -1116,30 +1116,34 @@ def _get_old_fw_version(test_env) -> str:
 
 @pytest.mark.firmware
 @pytest.mark.parametrize(
-    "test_name,return_values,expected_job_status,final_state_template",
+    "test_name,return_values,expected_job_status,expected_reason,final_state_template",
     [
         (
             "failure_at_initialization",
             {"DRet Init": 0},
             "FAILED",
+            "ESP_RMAKER_OTA_FAILED_REASON_DIAG_FAILED",
             {"FW Version": "old_version", "DStage": 1, "DStatus": 0},
         ),
         (
             "failure_at_post_mqtt",
             {"DRet Init": 1, "DRet MQTT": 0},
             "FAILED",
+            "ESP_RMAKER_OTA_FAILED_REASON_POST_MQTT_DIAG_FAILED",
             {"FW Version": "old_version", "DStage": 2, "DStatus": 0},
         ),
         (
             "success_at_post_mqtt",
             {"DRet Init": 1, "DRet MQTT": 2},
             "SUCCEEDED",
+            None,
             {"FW Version": "ota_version", "DStage": 2, "DStatus": 2},
         ),
         (
             "rollback_timeout_after_pending_post_mqtt",
             {"DRet Init": 1, "DRet MQTT": 1},
             "FAILED",
+            "ESP_RMAKER_OTA_FAILED_REASON_VALIDATION_TIMEOUT",
             {"FW Version": "old_version", "DStage": 2, "DStatus": 1},
         ),
     ],
@@ -1158,6 +1162,7 @@ def test_ota_diagnostics_flow(
     test_name,
     return_values,
     expected_job_status,
+    expected_reason,
     final_state_template,
 ):
     """
@@ -1187,6 +1192,9 @@ def test_ota_diagnostics_flow(
         ota_version,
         return_values,
         expected_job_status,
+        expected_details_check=(
+            _reason_check(_OTA_REASONS[expected_reason]) if expected_reason else None
+        ),
     )
     assert test_env.wait_on_state({"OTA Remote": final_state}, timeout=5), (
         f"Failed final state check for {test_name}"
@@ -1197,10 +1205,15 @@ def test_ota_diagnostics_flow(
 
 @pytest.mark.firmware
 @pytest.mark.parametrize(
-    "test_name,mark_as,final_status",
+    "test_name,mark_as,final_status,expected_reason",
     [
-        ("mark_valid_after_pending_post_mqtt", True, "SUCCEEDED"),
-        ("mark_invalid_after_pending_post_mqtt", False, "FAILED"),
+        ("mark_valid_after_pending_post_mqtt", True, "SUCCEEDED", None),
+        (
+            "mark_invalid_after_pending_post_mqtt",
+            False,
+            "FAILED",
+            "ESP_RMAKER_OTA_FAILED_REASON_MARKED_INVALID",
+        ),
     ],
     ids=["mark_valid_succeeds", "mark_invalid_fails"],
 )
@@ -1212,6 +1225,7 @@ def test_ota_diagnostics_pending_and_mark_flow(
     test_name,
     mark_as,
     final_status,
+    expected_reason,
 ):
     """
     Test OTA diagnostics pending and mark flow with different outcomes.
@@ -1243,7 +1257,16 @@ def test_ota_diagnostics_pending_and_mark_flow(
     ), "Node did not signal it is online after reboot"
     test_env.update_state({"OTA Remote": {"Mark": mark_as}})
     assert (
-        ota_manager.wait_for_execution_status(job_id, thing_name, final_status)
+        ota_manager.wait_for_execution_status(
+            job_id,
+            thing_name,
+            final_status,
+            expected_details_check=(
+                _reason_check(_OTA_REASONS[expected_reason])
+                if expected_reason
+                else None
+            ),
+        )
         is not None
     ), f"OTA job failed or timed out for {test_name}"
 

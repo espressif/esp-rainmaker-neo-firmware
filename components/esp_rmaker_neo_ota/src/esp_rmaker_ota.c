@@ -110,6 +110,9 @@ static void esp_rmaker_ota_local_only_reboot_check(const esp_rmaker_ota_config_t
  */
 static void esp_rmaker_ota_rollback_timeout_callback(void *unused);
 
+/** @brief Store the failure reason in NVS, then mark the image invalid and reboot */
+static esp_rmaker_error_t esp_rmaker_ota_rollback(esp_rmaker_ota_nvs_fail_reason_t fail_reason);
+
 /**
  * @brief Post MQTT diagnostics handler
  *
@@ -222,7 +225,7 @@ static void esp_rmaker_ota_handle_reboot(const esp_rmaker_ota_config_t *ota_conf
         if (rolled_back) {
             OSAL_LOGE(TAG, "Rolled back to the previous firmware, reporting OTA failure");
         }
-        esp_rmaker_ota_nvs_set_status_if_pending_verification(!rolled_back, false);
+        esp_rmaker_ota_nvs_set_status_if_pending_verification(!rolled_back, RMAKER_OTA_NVS_FAIL_REASON_NONE, false);
         ota_job_state_reboot_check();
         return;
     }
@@ -238,7 +241,7 @@ static void esp_rmaker_ota_handle_reboot(const esp_rmaker_ota_config_t *ota_conf
         esp_rmaker_ota_diag_status_t diag_status = ota_config->ota_diag(&ota_diag_priv, ota_config->priv);
         if (diag_status == OTA_DIAG_STATUS_FAIL) {
             OSAL_LOGE(TAG, "Diagnostics failed! Start rollback to the previous version...");
-            esp_rmaker_ota_mark_invalid();
+            esp_rmaker_ota_rollback(RMAKER_OTA_NVS_FAIL_REASON_DIAG_FAILED);
             return;
         }
     }
@@ -285,7 +288,7 @@ static void esp_rmaker_ota_handle_reboot(const esp_rmaker_ota_config_t *ota_conf
     } while (0);
 
     /* If we reach here, something went wrong, so mark the OTA as invalid */
-    esp_rmaker_ota_mark_invalid();
+    esp_rmaker_ota_rollback(RMAKER_OTA_NVS_FAIL_REASON_VERIFY_SETUP_FAILED);
 }
 
 static void esp_rmaker_ota_local_only_reboot_check(const esp_rmaker_ota_config_t *ota_config)
@@ -313,7 +316,7 @@ static void esp_rmaker_ota_local_only_reboot_check(const esp_rmaker_ota_config_t
 static void esp_rmaker_ota_rollback_timeout_callback(void *unused)
 {
     OSAL_LOGE(TAG, "OTA not marked valid within timeout period! Start rollback to the previous version...");
-    esp_rmaker_ota_mark_invalid();
+    esp_rmaker_ota_rollback(RMAKER_OTA_NVS_FAIL_REASON_VALIDATION_TIMEOUT);
 }
 
 static void esp_rmaker_ota_post_mqtt_diag_handler(void *event_handler_arg, osal_event_base_t event_base, int32_t event_id, void *event_data)
@@ -343,7 +346,7 @@ static void esp_rmaker_ota_post_mqtt_diag_run(void)
     switch (diag_status) {
     case OTA_DIAG_STATUS_FAIL:
         OSAL_LOGE(TAG, "Post MQTT diagnostics failed! Start rollback to the previous version...");
-        esp_rmaker_ota_mark_invalid();
+        esp_rmaker_ota_rollback(RMAKER_OTA_NVS_FAIL_REASON_POST_MQTT_DIAG_FAILED);
         break;
     case OTA_DIAG_STATUS_SUCCESS:
         OSAL_LOGI(TAG, "Post MQTT diagnostics successful! Marking OTA as valid.");
@@ -365,6 +368,39 @@ static void esp_rmaker_ota_post_mqtt_diag_run(void)
     }
     g_post_mqtt_diag = NULL;
     g_post_mqtt_diag_priv = NULL;
+}
+
+static esp_rmaker_error_t esp_rmaker_ota_rollback(esp_rmaker_ota_nvs_fail_reason_t fail_reason)
+{
+    if (!esp_rmaker_ota_partition_running_is_pending_verify()) {
+        OSAL_LOGI(TAG, "Cannot rollback due to invalid OTA state");
+        return ESP_RMAKER_INVALID_STATE;
+    }
+    esp_rmaker_error_t err;
+
+    /* Deinitialize the rollback timeout handler */
+    if (g_rollback_timeout_handler != NULL) {
+        err = rmaker_ota_timeout_handler_deinit(g_rollback_timeout_handler);
+        if (err != ESP_RMAKER_OK) {
+            OSAL_LOGE(TAG, "Failed to deinitialize rollback timeout handler: %d, rolling back anyway", err);
+        }
+        g_rollback_timeout_handler = NULL;
+    }
+
+    /* Force set the failed status in NVS; the next boot detects the rollback without it */
+    err = esp_rmaker_ota_nvs_set_status_if_pending_verification(false, fail_reason, true);
+    if (err != ESP_RMAKER_OK) {
+        OSAL_LOGE(TAG, "Failed to set failed status: %d, rolling back anyway", err);
+    }
+
+    /* Mark the OTA as invalid */
+    osal_err_t ota_err = osal_ota_mark_app_invalid_rollback_and_reboot();
+    if (ota_err != OSAL_ERR_OK) {
+        OSAL_LOGE(TAG, "Failed to mark OTA as invalid: %d", ota_err);
+        return ESP_RMAKER_FAIL;
+    }
+
+    return ESP_RMAKER_OK;
 }
 
 static void esp_rmaker_ota_delayed_fetch_timer_task(void *unused)
@@ -651,7 +687,7 @@ esp_rmaker_error_t esp_rmaker_ota_mark_valid(void)
     }
 
     /* Force set the success status in NVS */
-    err = esp_rmaker_ota_nvs_set_status_if_pending_verification(passed, true);
+    err = esp_rmaker_ota_nvs_set_status_if_pending_verification(passed, RMAKER_OTA_NVS_FAIL_REASON_NONE, true);
     if (err != ESP_RMAKER_OK) {
         OSAL_LOGE(TAG, "Failed to set success status: %d", err);
         return err;
@@ -668,34 +704,5 @@ esp_rmaker_error_t esp_rmaker_ota_mark_valid(void)
 
 esp_rmaker_error_t esp_rmaker_ota_mark_invalid(void)
 {
-    if (!esp_rmaker_ota_partition_running_is_pending_verify()) {
-        OSAL_LOGI(TAG, "Cannot rollback due to invalid OTA state");
-        return ESP_RMAKER_INVALID_STATE;
-    }
-    esp_rmaker_error_t err;
-
-    /* Deinitialize the rollback timeout handler */
-    if (g_rollback_timeout_handler != NULL) {
-        err = rmaker_ota_timeout_handler_deinit(g_rollback_timeout_handler);
-        if (err != ESP_RMAKER_OK) {
-            OSAL_LOGE(TAG, "Failed to deinitialize rollback timeout handler: %d", err);
-            return err;
-        }
-        g_rollback_timeout_handler = NULL;
-    }
-
-    /* Force set the failed status in NVS; the next boot detects the rollback without it */
-    err = esp_rmaker_ota_nvs_set_status_if_pending_verification(false, true);
-    if (err != ESP_RMAKER_OK) {
-        OSAL_LOGE(TAG, "Failed to set failed status: %d, rolling back anyway", err);
-    }
-
-    /* Mark the OTA as invalid */
-    osal_err_t ota_err = osal_ota_mark_app_invalid_rollback_and_reboot();
-    if (ota_err != OSAL_ERR_OK) {
-        OSAL_LOGE(TAG, "Failed to mark OTA as invalid: %d", ota_err);
-        return ESP_RMAKER_FAIL;
-    }
-
-    return ESP_RMAKER_OK;
+    return esp_rmaker_ota_rollback(RMAKER_OTA_NVS_FAIL_REASON_MARKED_INVALID);
 }

@@ -181,9 +181,24 @@ typedef struct {
  *  callback, so the job could never terminate. Reported after the reboot. */
 #define ESP_RMAKER_OTA_FAILED_REASON_CUSTOM_FILETYPE_HANDLER_NO_POST_REBOOT_HANDLER "Custom filetype handler does not have a post reboot handler even though it was instructed to reboot post-download"
 
-/** The bootloader rolled back to the previous firmware, so the new image never ran
- *  long enough to be verified. Reported after the rollback. */
+/** The new firmware rolled back and stored no reason, e.g. it crashed before it was
+ *  verified. Reported after the rollback. */
 #define ESP_RMAKER_OTA_FAILED_REASON_ROLLBACK_AFTER_REBOOT "New firmware rolled back after reboot"
+
+/** The new firmware failed its diagnostics at boot and rolled back. Reported after the rollback. */
+#define ESP_RMAKER_OTA_FAILED_REASON_DIAG_FAILED "New firmware failed diagnostics"
+
+/** The new firmware failed its diagnostics after MQTT connected and rolled back. Reported after the rollback. */
+#define ESP_RMAKER_OTA_FAILED_REASON_POST_MQTT_DIAG_FAILED "New firmware failed diagnostics after MQTT connected"
+
+/** The new firmware was not marked valid before the rollback timeout. Reported after the rollback. */
+#define ESP_RMAKER_OTA_FAILED_REASON_VALIDATION_TIMEOUT "New firmware not marked valid in time"
+
+/** The application called esp_rmaker_ota_mark_invalid() on the new firmware. Reported after the rollback. */
+#define ESP_RMAKER_OTA_FAILED_REASON_MARKED_INVALID "New firmware marked invalid"
+
+/** The SDK could not set up the verification of the new firmware. Reported after the rollback. */
+#define ESP_RMAKER_OTA_FAILED_REASON_VERIFY_SETUP_FAILED "New firmware could not set up verification"
 
 /** Post-reboot verification did not pass, and no rollback was detected. */
 #define ESP_RMAKER_OTA_FAILED_REASON_REBOOT_CHECK_FAILED "Reboot check failed"
