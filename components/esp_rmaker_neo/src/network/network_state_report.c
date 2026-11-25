@@ -1112,7 +1112,7 @@ static esp_rmaker_error_t __populate_shadow_payloads(const esp_rmaker_node_t *no
     }
 
     /* Emit synthetic flag entries (ONLINE, NCFG_VER, ...) at the top
-     * level of both shadows. Each flag entry maps to a fixed shadow field. */
+     * level. Each flag entry maps to a fixed shadow field. */
     for (esp_rmaker_state_update_info_t *current = ctx->head; current != NULL; current = current->next) {
         if (current->flags & RMAKER_STATE_UPDATE_FLAG_ONLINE) {
             bool online = current->flag_payload.online_value;
@@ -1120,14 +1120,13 @@ static esp_rmaker_error_t __populate_shadow_payloads(const esp_rmaker_node_t *no
             json_gen_obj_set_bool(&jstr_indexed, "online", online);
         }
         if (current->flags & RMAKER_STATE_UPDATE_FLAG_NCFG_VER) {
-            /* Render the node-config checksum bytes as a lowercase hex
-             * string (no 0x). Cloud does equality-based change detection. */
+            /* Named shadow only. Render the checksum bytes as a lowercase
+             * hex string (no 0x); the cloud compares it for equality. */
             char ncfg_ver_hex[RMAKER_CHECKSUM_LEN * 2 + 1];
             if (esp_rmaker_convert_bytes_to_hex(current->flag_payload.ncfg_ver_hash,
                                                 RMAKER_CHECKSUM_LEN,
                                                 ncfg_ver_hex, sizeof(ncfg_ver_hex)) == ESP_RMAKER_OK) {
                 json_gen_obj_set_string(&jstr_named, "ncfg_ver", ncfg_ver_hex);
-                json_gen_obj_set_string(&jstr_indexed, "ncfg_ver", ncfg_ver_hex);
             }
         }
     }
@@ -1165,10 +1164,6 @@ static esp_rmaker_error_t __populate_shadow_payloads(const esp_rmaker_node_t *no
 
         json_gen_pop_object(&jstr_named);
     }
-
-    /* ncfg_ver is now piggybacked on the update list (RMAKER_STATE_UPDATE_FLAG_NCFG_VER),
-     * emitted by the synthetic-flag loop above. The previous
-     * RMAKER_NODE_REPORT_FLAG_NCFG_VER path has been retired. */
 
     /* End the JSON generators */
     __shadow_common_end(&jstr_named);

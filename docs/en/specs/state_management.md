@@ -230,7 +230,7 @@ This shadow holds a small, curated subset of the node's state for fast querying 
 
   - `{thing_name}`: see ["Thing Name"](networking/mqtt_topics.md#topic-variables).
 
-- **Payload Specification**: Same wrapper as the named shadow, with `data`, `online`, `ncfg_ver` and `params`. There is **no** `notify` in the indexed shadow. **``params``** is device id → { parameter id → value }, restricted to parameters with the `indexed` property.
+- **Payload Specification**: Same wrapper as the named shadow, with `data`, `online` and `params`. **``params``** is device id → { parameter id → value }, restricted to parameters with the `indexed` property.
 
   ```javascript
   {
@@ -249,9 +249,6 @@ This shadow holds a small, curated subset of the node's state for fast querying 
           // include to report current status of node
           "online": true,
 
-          // include if node configuration has been updated
-          "ncfg_ver": <node configuration checksum>,
-
           // include if any indexed parameters are updated
           "params": { /* structure as above, indexed params only */ }
       }
@@ -259,7 +256,7 @@ This shadow holds a small, curated subset of the node's state for fast querying 
   }
   ```
 
-`online` and `ncfg_ver` carry exactly the same values as in the named shadow — both shadows are populated from the same pending-update list in one pass.
+`online` carries exactly the same value as in the named shadow — both shadows are populated from the same pending-update list in one pass.
 
 #### Node Tags
 
