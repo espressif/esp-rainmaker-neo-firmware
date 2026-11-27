@@ -1,0 +1,34 @@
+--- a/components/esp_driver_cam/csi/src/esp_cam_ctlr_csi.c
++++ b/components/esp_driver_cam/csi/src/esp_cam_ctlr_csi.c
+@@ -698,6 +698,19 @@ static bool s_is_color_format_conversion_supported(cam_ctlr_color_t color_format
+             color_format == CAM_CTLR_COLOR_YUV422_VYUY);
+ }
+ 
++/*
++ * A RAW (Bayer) input never reaches the CSI bridge as RAW when it is converted: the ISP
++ * demosaics it and the bridge receives the ISP's output, already in the destination
++ * format. So RAW in with any other format out is an ISP conversion, not a bridge one.
++ * The ISP's only RAW output is RAW8, so it cannot convert RAW to RAW10 or RAW12.
++ */
++static bool s_is_raw_color_format(cam_ctlr_color_t color_format)
++{
++    return (color_format == CAM_CTLR_COLOR_RAW8 ||
++            color_format == CAM_CTLR_COLOR_RAW10 ||
++            color_format == CAM_CTLR_COLOR_RAW12);
++}
++
+ static esp_err_t s_csi_ctlr_format_conversion(esp_cam_ctlr_t *handle, const cam_ctlr_format_conv_config_t *config)
+ {
+     ESP_RETURN_ON_FALSE(handle && config, ESP_ERR_INVALID_ARG, TAG, "invalid argument: null pointer");
+@@ -706,6 +719,11 @@ static esp_err_t s_csi_ctlr_format_conversion(esp_cam_ctlr_t *handle, const cam_
+     if (ctlr->custom_data_depth || config->src_format == config->dst_format) {
+         mipi_csi_brg_ll_set_color_mode_bypass(ctlr->hal.bridge_dev, true);
+         return ESP_OK;
++    } else if (s_is_raw_color_format(config->src_format)) {
++        ESP_RETURN_ON_FALSE(!s_is_raw_color_format(config->dst_format) || config->dst_format == CAM_CTLR_COLOR_RAW8,
++                            ESP_ERR_NOT_SUPPORTED, TAG, "RAW input supports only RAW8 as a RAW output");
++        mipi_csi_brg_ll_set_color_mode_bypass(ctlr->hal.bridge_dev, true);
++        return ESP_OK;
+     } else {
+ #if CONFIG_IDF_TARGET_ESP32P4
+         //If ESP32P4 chip version is less than v3.0, not support color format conversion

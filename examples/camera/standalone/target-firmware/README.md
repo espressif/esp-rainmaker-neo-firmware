@@ -21,7 +21,8 @@ BLE HCI over SDIO):
 
 ```bash
 cd ${KVS_SDK_PATH}/examples/network_adapter
-idf.py set-target esp32c6
+# p4_eye_pair sets the C6's SDIO pins for the P4-EYE PCB.
+idf.py -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.esp32c6;sdkconfig.defaults.p4_eye_pair.esp32c6' set-target esp32c6
 idf.py build
 
 DEST=<this directory>
@@ -30,6 +31,6 @@ cp build/partition_table/partition-table.bin "$DEST/partition-table.bin"
 cp build/network_adapter.bin                 "$DEST/app.bin"
 ```
 
-`network_adapter` puts its partition table at `0x8000` and its app at
-`0x10000`, which is what the overlays' `CONFIG_SLAVE_PARTITION_TABLE_ADDRESS` /
+`network_adapter` puts its partition table at `0xC000` and its first app at
+`0x20000`, which is what the overlays' `CONFIG_SLAVE_PARTITION_TABLE_ADDRESS` /
 `CONFIG_SLAVE_APPLICATION_ADDRESS` expect.
